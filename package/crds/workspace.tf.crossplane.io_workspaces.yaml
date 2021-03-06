@@ -4,14 +4,14 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.3.0
   creationTimestamp: null
-  name: mytypes.sample.template.crossplane.io
+  name: workspaces.workspace.tf.crossplane.io
 spec:
-  group: sample.template.crossplane.io
+  group: workspace.tf.crossplane.io
   names:
-    kind: MyType
-    listKind: MyTypeList
-    plural: mytypes
-    singular: mytype
+    kind: Workspace
+    listKind: WorkspaceList
+    plural: workspaces
+    singular: workspace
   scope: Cluster
   versions:
   - additionalPrinterColumns:
@@ -30,7 +30,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: A MyType is an example API type
+        description: A Workspace of Terraform Configuration.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -41,7 +41,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: A MyTypeSpec defines the desired state of a MyType.
+            description: A WorkspaceSpec defines the desired state of a Workspace.
             properties:
               deletionPolicy:
                 description: DeletionPolicy specifies what will happen to the underlying external when this managed resource is deleted - either "Delete" or "Orphan" the external resource. The "Delete" policy is the default when no policy is specified.
@@ -50,12 +50,73 @@ spec:
                 - Delete
                 type: string
               forProvider:
-                description: MyTypeParameters are the configurable fields of a MyType.
+                description: WorkspaceParameters are the configurable fields of a Workspace.
                 properties:
-                  configurableField:
+                  configuration:
+                    description: Configuration of this workspace; i.e. the path to the directory that contains the main.tf file of the Terraform configuration's root module. Can be a git repository, GCS bucket, or S3 bucket.
                     type: string
+                  varFiles:
+                    description: Files of configuration variables. Explicitly declared vars take precedence.
+                    items:
+                      description: A VarFile is a file containing many Terraform variables.
+                      properties:
+                        configMapKeyRef:
+                          description: A ConfigMap key containing the var file.
+                          properties:
+                            key:
+                              description: Key within the referenced resource.
+                              type: string
+                            name:
+                              description: Name of the referenced resource.
+                              type: string
+                            namespace:
+                              description: Namespace of the referenced resource.
+                              type: string
+                          required:
+                          - key
+                          - name
+                          - namespace
+                          type: object
+                        secretKeyRef:
+                          description: A Secret key containing the var file.
+                          properties:
+                            key:
+                              description: Key within the referenced resource.
+                              type: string
+                            name:
+                              description: Name of the referenced resource.
+                              type: string
+                            namespace:
+                              description: Namespace of the referenced resource.
+                              type: string
+                          required:
+                          - key
+                          - name
+                          - namespace
+                          type: object
+                        source:
+                          description: Source of this var file.
+                          type: string
+                      required:
+                      - source
+                      type: object
+                    type: array
+                  vars:
+                    description: Configuration variables.
+                    items:
+                      description: A Var represents a Terraform configuration variable.
+                      properties:
+                        key:
+                          type: string
+                        value:
+                          type: string
+                      required:
+                      - key
+                      - value
+                      type: object
+                    type: array
                 required:
-                - configurableField
+                - configuration
                 type: object
               providerConfigRef:
                 description: ProviderConfigReference specifies how the provider that will be used to create, observe, update, and delete this managed resource should be configured.
@@ -92,13 +153,10 @@ spec:
             - forProvider
             type: object
           status:
-            description: A MyTypeStatus represents the observed state of a MyType.
+            description: A WorkspaceStatus represents the observed state of a Workspace.
             properties:
               atProvider:
-                description: MyTypeObservation are the observable fields of a MyType.
-                properties:
-                  observableField:
-                    type: string
+                description: WorkspaceObservation are the observable fields of a Workspace.
                 type: object
               conditions:
                 description: Conditions of the resource.

@@ -7,12 +7,14 @@ type: Opaque
 data:
   # credentials: BASE64ENCODED_PROVIDER_CREDS
 ---
-apiVersion: template.crossplane.io/v1alpha1
+apiVersion: tf.crossplane.io/v1alpha1
 kind: ProviderConfig
 metadata:
   name: example
 spec:
-  credentialsSecretRef:
-    namespace: crossplane-system
-    name: example-provider-secret
-    key: credentials
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: example-provider-secret
+      key: credentials

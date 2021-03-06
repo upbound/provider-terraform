@@ -22,16 +22,16 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	"github.com/crossplane/provider-template/internal/controller/config"
-	"github.com/crossplane/provider-template/internal/controller/mytype"
+	"github.com/negz/provider-terraform/internal/controller/config"
+	"github.com/negz/provider-terraform/internal/controller/workspace"
 )
 
-// Setup creates all Template controllers with the supplied logger and adds them to
+// Setup creates all terraform controllers with the supplied logger and adds them to
 // the supplied manager.
 func Setup(mgr ctrl.Manager, l logging.Logger, wl workqueue.RateLimiter) error {
 	for _, setup := range []func(ctrl.Manager, logging.Logger, workqueue.RateLimiter) error{
 		config.Setup,
-		mytype.Setup,
+		workspace.Setup,
 	} {
 		if err := setup(mgr, l, wl); err != nil {
 			return err

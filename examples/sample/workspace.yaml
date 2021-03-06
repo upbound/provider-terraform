@@ -1,0 +1,10 @@
+apiVersion: tf.crossplane.io/v1alpha1
+kind: Workspace
+metadata:
+  name: example
+spec:
+  forProvider:
+    configuration: https://github.com/crossplane/tf
+    vars:
+    - key: example
+      value: variable
