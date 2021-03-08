@@ -68,10 +68,9 @@ type KeyReference struct {
 
 // WorkspaceParameters are the configurable fields of a Workspace.
 type WorkspaceParameters struct {
-	// Configuration of this workspace; i.e. the path to the directory that
-	// contains the main.tf file of the Terraform configuration's root module.
-	// Can be a git repository, GCS bucket, or S3 bucket.
-	Configuration string `json:"configuration"`
+	// The root module of this workspace; i.e. the path to the directory that
+	// contains the main.tf file of the Terraform configuration.
+	Module string `json:"module"`
 
 	// Configuration variables.
 	// +optional

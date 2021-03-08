@@ -52,8 +52,8 @@ spec:
               forProvider:
                 description: WorkspaceParameters are the configurable fields of a Workspace.
                 properties:
-                  configuration:
-                    description: Configuration of this workspace; i.e. the path to the directory that contains the main.tf file of the Terraform configuration's root module. Can be a git repository, GCS bucket, or S3 bucket.
+                  module:
+                    description: The root module of this workspace; i.e. the path to the directory that contains the main.tf file of the Terraform configuration.
                     type: string
                   varFiles:
                     description: Files of configuration variables. Explicitly declared vars take precedence.
@@ -116,7 +116,7 @@ spec:
                       type: object
                     type: array
                 required:
-                - configuration
+                - module
                 type: object
               providerConfigRef:
                 description: ProviderConfigReference specifies how the provider that will be used to create, observe, update, and delete this managed resource should be configured.
