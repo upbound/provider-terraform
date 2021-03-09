@@ -28,30 +28,42 @@ type Var struct {
 	Value string `json:"value"`
 }
 
-// A VarFileSource specifies the source of a Terraform var file.
+// A VarFileSource specifies the source of a Terraform vars file.
+// +kubebuilder:validation:Enum=ConfigMapKey;SecretKey
 type VarFileSource string
 
-// Var file sources.
+// Vars file sources.
 const (
-	ConfigMapKey VarFileSource = "ConfigMapKey"
-	SecretKey    VarFileSource = "SecretKey"
+	VarFileSourceConfigMapKey VarFileSource = "ConfigMapKey"
+	VarFileSourceSecretKey    VarFileSource = "SecretKey"
+)
+
+// A VarFileFormat specifies the format of a Terraform vars file.
+// +kubebuilder:validation:Enum=HCL;JSON
+type VarFileFormat string
+
+// Vars file formats.
+const (
+	VarFileFormatHCL  VarFileFormat = "HCL"
+	VarFileFormatJSON VarFileFormat = "JSON"
 )
 
 // A VarFile is a file containing many Terraform variables.
 type VarFile struct {
-	// Source of this var file.
+	// Source of this vars file.
 	Source VarFileSource `json:"source"`
 
-	// A ConfigMap key containing the var file.
+	// Format of this vars file.
+	// +kubebuilder:default=HCL
+	Format VarFileFormat `json:"format"`
+
+	// A ConfigMap key containing the vars file.
 	// +optional
 	ConfigMapKeyReference *KeyReference `json:"configMapKeyRef,omitempty"`
 
-	// A Secret key containing the var file.
+	// A Secret key containing the vars file.
 	// +optional
 	SecretKeyReference *KeyReference `json:"secretKeyRef,omitempty"`
-
-	// TODO(negz): Does Terraform autodetect JSON var files, or do we need to
-	// indicate the type?
 }
 
 // A KeyReference references a key within a Secret or a ConfigMap.

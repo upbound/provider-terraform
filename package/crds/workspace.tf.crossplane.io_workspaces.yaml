@@ -61,7 +61,7 @@ spec:
                       description: A VarFile is a file containing many Terraform variables.
                       properties:
                         configMapKeyRef:
-                          description: A ConfigMap key containing the var file.
+                          description: A ConfigMap key containing the vars file.
                           properties:
                             key:
                               description: Key within the referenced resource.
@@ -77,8 +77,15 @@ spec:
                           - name
                           - namespace
                           type: object
+                        format:
+                          default: HCL
+                          description: Format of this vars file.
+                          enum:
+                          - HCL
+                          - JSON
+                          type: string
                         secretKeyRef:
-                          description: A Secret key containing the var file.
+                          description: A Secret key containing the vars file.
                           properties:
                             key:
                               description: Key within the referenced resource.
@@ -95,9 +102,13 @@ spec:
                           - namespace
                           type: object
                         source:
-                          description: Source of this var file.
+                          description: Source of this vars file.
+                          enum:
+                          - ConfigMapKey
+                          - SecretKey
                           type: string
                       required:
+                      - format
                       - source
                       type: object
                     type: array
