@@ -28,19 +28,15 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 )
 
 // Error strings.
 const (
-	errInit         = "cannot initialize Terraform configuration"
-	errValidate     = "cannot validate Terraform configuration"
-	errWorkspace    = "cannot set Terraform workspace"
-	errOutput       = "cannot read outputs from Terraform state"
+	errParse        = "cannot parse Terraform output"
 	errWriteVarFile = "cannot write tfvars file"
-	errApply        = "cannot apply Terraform configuration"
-	errDestroy      = "cannot destroy Terraform configuration"
 
 	errFmtInvalidConfig = "invalid Terraform configuration: found %d errors"
 )
@@ -97,13 +93,34 @@ type Harness struct {
 	// logic that copies Stderr into an *exec.ExitError.
 }
 
+type initOptions struct {
+	args []string
+}
+
+// An InitOption affects how a Terraform is initialized.
+type InitOption func(o *initOptions)
+
+// FromModule can be used to initialize a Terraform configuration from a module,
+// which may be pulled from git, a local directory, a storage bucket, etc.
+func FromModule(module string) InitOption {
+	return func(o *initOptions) {
+		o.args = append(o.args, "-from-module="+module)
+	}
+}
+
 // Init initializes a Terraform configuration.
-func (h Harness) Init(ctx context.Context, fromModule string) error {
-	cmd := exec.CommandContext(ctx, h.Path, "init", "-input=false", "-no-color", "-from-module="+fromModule) //nolint:gosec
+func (h Harness) Init(ctx context.Context, o ...InitOption) error {
+	io := &initOptions{}
+	for _, fn := range o {
+		fn(io)
+	}
+
+	args := append([]string{"init", "-input=false", "-no-color"}, io.args...)
+	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 
 	_, err := cmd.Output()
-	return errors.Wrap(Classify(err), errInit)
+	return Classify(err)
 }
 
 // Validate a Terraform configuration. Note that there may be interplay between
@@ -128,9 +145,9 @@ func (h Harness) Validate(ctx context.Context) error {
 		// If stdout doesn't appear to be the JSON we expected we try to extract
 		// an error from stderr.
 		if err != nil {
-			return errors.Wrap(Classify(err), errValidate)
+			return Classify(err)
 		}
-		return errors.Wrap(jerr, errValidate)
+		return errors.Wrap(jerr, errParse)
 	}
 
 	if r.Valid {
@@ -158,14 +175,44 @@ func (h Harness) Workspace(ctx context.Context, name string) error {
 	cmd = exec.CommandContext(ctx, h.Path, "workspace", "new", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
 	_, err := cmd.Output()
-	return errors.Wrap(Classify(err), errWorkspace)
+	return Classify(err)
+}
+
+// An OutputType of Terraform.
+type OutputType int
+
+// Terraform output types.
+const (
+	OutputTypeUnknown OutputType = iota
+	OutputTypeString
+	OutputTypeNumber
+	OutputTypeBool
+	OutputTypeTuple
+	OutputTypeObject
+)
+
+func outputType(t string) OutputType {
+	switch t {
+	case "string":
+		return OutputTypeString
+	case "number":
+		return OutputTypeNumber
+	case "bool":
+		return OutputTypeBool
+	case "tuple":
+		return OutputTypeTuple
+	case "object":
+		return OutputTypeObject
+	default:
+		return OutputTypeUnknown
+	}
 }
 
 // An Output from Terraform.
 type Output struct {
 	Name      string
 	Sensitive bool
-	Type      string
+	Type      OutputType
 
 	value interface{}
 }
@@ -203,8 +250,8 @@ func (o Output) JSONValue() ([]byte, error) {
 	return json.Marshal(o.value)
 }
 
-// Output extracts outputs from Terraform state.
-func (h Harness) Output(ctx context.Context) ([]Output, error) {
+// Outputs extracts outputs from Terraform state.
+func (h Harness) Outputs(ctx context.Context) ([]Output, error) {
 	cmd := exec.CommandContext(ctx, h.Path, "output", "-json") //nolint:gosec
 	cmd.Dir = h.Dir
 
@@ -221,9 +268,9 @@ func (h Harness) Output(ctx context.Context) ([]Output, error) {
 		// If stdout doesn't appear to be the JSON we expected we try to extract
 		// an error from stderr.
 		if err != nil {
-			return nil, errors.Wrap(Classify(err), errOutput)
+			return nil, Classify(err)
 		}
-		return nil, errors.Wrap(jerr, errOutput)
+		return nil, errors.Wrap(jerr, errParse)
 	}
 
 	o := make([]Output, 0, len(outputs))
@@ -246,12 +293,26 @@ func (h Harness) Output(ctx context.Context) ([]Output, error) {
 		o = append(o, Output{
 			Name:      name,
 			Sensitive: output.Sensitive,
-			Type:      t,
+			Type:      outputType(t),
 			value:     output.Value})
 	}
 
 	sort.Slice(o, func(i, j int) bool { return o[i].Name < o[j].Name })
 	return o, nil
+}
+
+// Resources returns a list of resources in the Terraform state.
+func (h Harness) Resources(ctx context.Context) ([]string, error) {
+	cmd := exec.CommandContext(ctx, h.Path, "state", "list") //nolint:gosec
+	cmd.Dir = h.Dir
+
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, Classify(err)
+	}
+
+	resources := strings.Split(string(out), "\n")
+	return resources[:len(resources)-1], nil
 }
 
 type varFile struct {
@@ -315,7 +376,7 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 	cmd.Dir = h.Dir
 
 	_, err := cmd.Output()
-	return errors.Wrap(Classify(err), errApply)
+	return Classify(err)
 }
 
 // Destroy a Terraform configuration.
@@ -336,5 +397,5 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	cmd.Dir = h.Dir
 
 	_, err := cmd.Output()
-	return errors.Wrap(Classify(err), errDestroy)
+	return Classify(err)
 }

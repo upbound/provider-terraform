@@ -130,7 +130,7 @@ func TestWorkspace(t *testing.T) {
 	}
 }
 
-func TestOutput(t *testing.T) {
+func TestOutputs(t *testing.T) {
 	type want struct {
 		outputs []Output
 		err     error
@@ -147,18 +147,18 @@ func TestOutput(t *testing.T) {
 			ctx:    context.Background(),
 			want: want{
 				outputs: []Output{
-					{Name: "bool", Type: "bool", value: true},
-					{Name: "number", Type: "number", value: float64(42)},
+					{Name: "bool", Type: OutputTypeBool, value: true},
+					{Name: "number", Type: OutputTypeNumber, value: float64(42)},
 					{
 						Name:  "object",
-						Type:  "object",
+						Type:  OutputTypeObject,
 						value: map[string]interface{}{"wow": "suchobject"},
 					},
-					{Name: "sensitive", Sensitive: true, Type: "string", value: "very"},
-					{Name: "string", Type: "string", value: "very"},
+					{Name: "sensitive", Sensitive: true, Type: OutputTypeString, value: "very"},
+					{Name: "string", Type: OutputTypeString, value: "very"},
 					{
 						Name:  "tuple",
-						Type:  "tuple",
+						Type:  OutputTypeTuple,
 						value: []interface{}{"a", "really", "long", "tuple"},
 					},
 				},
@@ -171,13 +171,59 @@ func TestOutput(t *testing.T) {
 			// Reading output is a read-only operation, so we operate directly
 			// on our test data instead of creating a temporary directory.
 			tf := Harness{Path: tfBinaryPath, Dir: tc.module}
-			got, err := tf.Output(tc.ctx)
+			got, err := tf.Outputs(tc.ctx)
 
 			if diff := cmp.Diff(tc.want.outputs, got, cmp.AllowUnexported(Output{})); diff != "" {
-				t.Errorf("\n%s\ntf.Output(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\ntf.Outputs(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\ntf.Output(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\ntf.Outputs(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestResources(t *testing.T) {
+	type want struct {
+		resources []string
+		err       error
+	}
+	cases := map[string]struct {
+		reason string
+		module string
+		ctx    context.Context
+		want   want
+	}{
+		"ModuleWithResources": {
+			reason: "We should return resources from a module.",
+			module: "testdata/nullmodule",
+			ctx:    context.Background(),
+			want: want{
+				resources: []string{"null_resource.test", "random_id.test"},
+			},
+		},
+		"ModuleWithoutResources": {
+			reason: "We should not return resources from a module when there are none.",
+			module: "testdata/outputmodule",
+			ctx:    context.Background(),
+			want: want{
+				resources: []string{},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			// Reading output is a read-only operation, so we operate directly
+			// on our test data instead of creating a temporary directory.
+			tf := Harness{Path: tfBinaryPath, Dir: tc.module}
+			got, err := tf.Resources(tc.ctx)
+
+			if diff := cmp.Diff(tc.want.resources, got, cmp.AllowUnexported(Output{})); diff != "" {
+				t.Errorf("\n%s\ntf.Resources(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ntf.Resources(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -185,8 +231,8 @@ func TestOutput(t *testing.T) {
 
 func TestInitApplyDestroy(t *testing.T) {
 	type initArgs struct {
-		ctx        context.Context
-		fromModule string
+		ctx context.Context
+		o   []InitOption
 	}
 	type args struct {
 		ctx context.Context
@@ -208,8 +254,8 @@ func TestInitApplyDestroy(t *testing.T) {
 		"Simple": {
 			reason: "It should be possible to initialize, apply, and destroy a simple Terraform module",
 			initArgs: initArgs{
-				ctx:        context.Background(),
-				fromModule: filepath.Join(tfTestDataPath(), "nullmodule"),
+				ctx: context.Background(),
+				o:   []InitOption{FromModule(filepath.Join(tfTestDataPath(), "nullmodule"))},
 			},
 			applyArgs: args{
 				ctx: context.Background(),
@@ -221,8 +267,8 @@ func TestInitApplyDestroy(t *testing.T) {
 		"WithVar": {
 			reason: "It should be possible to initialize a simple Terraform module, then apply and destroy it with a supplied variable",
 			initArgs: initArgs{
-				ctx:        context.Background(),
-				fromModule: filepath.Join(tfTestDataPath(), "nullmodule"),
+				ctx: context.Background(),
+				o:   []InitOption{FromModule(filepath.Join(tfTestDataPath(), "nullmodule"))},
 			},
 			applyArgs: args{
 				ctx: context.Background(),
@@ -236,8 +282,8 @@ func TestInitApplyDestroy(t *testing.T) {
 		"WithHCLVarFile": {
 			reason: "It should be possible to initialize a simple Terraform module, then apply and destroy it with a supplied HCL file of variables",
 			initArgs: initArgs{
-				ctx:        context.Background(),
-				fromModule: filepath.Join(tfTestDataPath(), "nullmodule"),
+				ctx: context.Background(),
+				o:   []InitOption{FromModule(filepath.Join(tfTestDataPath(), "nullmodule"))},
 			},
 			applyArgs: args{
 				ctx: context.Background(),
@@ -251,8 +297,8 @@ func TestInitApplyDestroy(t *testing.T) {
 		"WithJSONVarFile": {
 			reason: "It should be possible to initialize a simple Terraform module, then apply and destroy it with a supplied JSON file of variables",
 			initArgs: initArgs{
-				ctx:        context.Background(),
-				fromModule: filepath.Join(tfTestDataPath(), "nullmodule"),
+				ctx: context.Background(),
+				o:   []InitOption{FromModule(filepath.Join(tfTestDataPath(), "nullmodule"))},
 			},
 			applyArgs: args{
 				ctx: context.Background(),
@@ -270,8 +316,8 @@ func TestInitApplyDestroy(t *testing.T) {
 		"ModuleNotFound": {
 			reason: "Init should return an error when asked to initialize from a module that doesn't exist",
 			initArgs: initArgs{
-				ctx:        context.Background(),
-				fromModule: "./nonexistent",
+				ctx: context.Background(),
+				o:   []InitOption{FromModule("./nonexistent")},
 			},
 			applyArgs: args{
 				ctx: context.Background(),
@@ -280,16 +326,16 @@ func TestInitApplyDestroy(t *testing.T) {
 				ctx: context.Background(),
 			},
 			want: want{
-				init:  errors.Wrap(errors.New("module not found"), errInit),
-				apply: errors.Wrap(errors.New("no configuration files"), errApply),
+				init:  errors.New("module not found"),
+				apply: errors.New("no configuration files"),
 				// Apparently destroy 'works' in this situation ¯\_(ツ)_/¯
 			},
 		},
 		"UndeclaredVar": {
 			reason: "Destroy should return an error when supplied a variable not declared by the module",
 			initArgs: initArgs{
-				ctx:        context.Background(),
-				fromModule: filepath.Join(tfTestDataPath(), "nullmodule"),
+				ctx: context.Background(),
+				o:   []InitOption{FromModule(filepath.Join(tfTestDataPath(), "nullmodule"))},
 			},
 			applyArgs: args{
 				ctx: context.Background(),
@@ -299,13 +345,15 @@ func TestInitApplyDestroy(t *testing.T) {
 				o:   []Option{WithVar("boop", "doop!")},
 			},
 			want: want{
-				destroy: errors.Wrap(errors.New("value for undeclared variable"), errDestroy),
+				destroy: errors.New("value for undeclared variable"),
 			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			dir, err := ioutil.TempDir("", "provider-terraform-test")
 			if err != nil {
 				t.Fatalf("Cannot create temporary directory: %v", err)
@@ -314,7 +362,7 @@ func TestInitApplyDestroy(t *testing.T) {
 
 			tf := Harness{Path: tfBinaryPath, Dir: dir}
 
-			got := tf.Init(tc.initArgs.ctx, tc.initArgs.fromModule)
+			got := tf.Init(tc.initArgs.ctx, tc.initArgs.o...)
 			if diff := cmp.Diff(tc.want.init, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ntf.Init(...): -want, +got:\n%s", tc.reason, diff)
 			}

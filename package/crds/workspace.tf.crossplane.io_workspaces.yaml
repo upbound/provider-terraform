@@ -1,3 +1,5 @@
+
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -53,7 +55,14 @@ spec:
                 description: WorkspaceParameters are the configurable fields of a Workspace.
                 properties:
                   module:
-                    description: The root module of this workspace; i.e. the path to the directory that contains the main.tf file of the Terraform configuration.
+                    description: The root module of this workspace; i.e. the module containing its main.tf file. When the workspace's source is 'Remote' (the default) this can be any address supported by terraform init -from-module, for example a git repository or an S3 bucket. When the workspace's source is 'Inline' the content of a simple main.tf file may be written inline.
+                    type: string
+                  source:
+                    default: Remote
+                    description: Source of the root module of this workspace.
+                    enum:
+                    - Remote
+                    - Inline
                     type: string
                   varFiles:
                     description: Files of configuration variables. Explicitly declared vars take precedence.
@@ -128,6 +137,7 @@ spec:
                     type: array
                 required:
                 - module
+                - source
                 type: object
               providerConfigRef:
                 description: ProviderConfigReference specifies how the provider that will be used to create, observe, update, and delete this managed resource should be configured.

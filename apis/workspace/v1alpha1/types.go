@@ -78,11 +78,28 @@ type KeyReference struct {
 	Key string `json:"key"`
 }
 
+// A ModuleSource represents the source of a Terraform module.
+// +kubebuilder:validation:Enum=Remote;Inline
+type ModuleSource string
+
+// Module sources.
+const (
+	ModuleSourceRemote ModuleSource = "Remote"
+	ModuleSourceInline ModuleSource = "Inline"
+)
+
 // WorkspaceParameters are the configurable fields of a Workspace.
 type WorkspaceParameters struct {
-	// The root module of this workspace; i.e. the path to the directory that
-	// contains the main.tf file of the Terraform configuration.
+	// The root module of this workspace; i.e. the module containing its main.tf
+	// file. When the workspace's source is 'Remote' (the default) this can be
+	// any address supported by terraform init -from-module, for example a git
+	// repository or an S3 bucket. When the workspace's source is 'Inline' the
+	// content of a simple main.tf file may be written inline.
 	Module string `json:"module"`
+
+	// Source of the root module of this workspace.
+	// +kubebuilder:default=Remote
+	Source ModuleSource `json:"source"`
 
 	// Configuration variables.
 	// +optional

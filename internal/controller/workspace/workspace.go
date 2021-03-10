@@ -18,23 +18,29 @@ package workspace
 
 import (
 	"context"
-	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	tfv1alpha1 "github.com/negz/provider-terraform/apis/v1alpha1"
 	"github.com/negz/provider-terraform/apis/workspace/v1alpha1"
+	"github.com/negz/provider-terraform/internal/terraform"
 )
 
 const (
@@ -43,15 +49,36 @@ const (
 	errGetPC        = "cannot get ProviderConfig"
 	errGetCreds     = "cannot get credentials"
 
-	errNewClient = "cannot create new Service"
+	errMkdir      = "cannot make Terraform configuration directory"
+	errWriteCreds = "cannot write Terraform credentials"
+	errWriteMain  = "cannot write Terraform configuration " + tfMain
+	errInit       = "cannot initialize Terraform configuration"
+	errWorkspace  = "cannot select Terraform workspace"
+	errResources  = "cannot list Terraform resources"
+	errOutputs    = "cannot list Terraform outputs"
+	errOptions    = "cannot determine Terraform options"
+	errApply      = "cannot apply Terraform configuration"
+	errDestroy    = "cannot apply Terraform configuration"
+	errVarFile    = "cannot get tfvars"
 )
 
-// A NoOpService does nothing.
-type NoOpService struct{}
-
-var (
-	newNoOpService = func(_ []byte) (interface{}, error) { return &NoOpService{}, nil }
+const (
+	// TODO(negz): Make the Terraform binary path and work dir configurable.
+	tfPath  = "terraform"
+	tfDir   = "/tf"
+	tfCreds = "credentials"
+	tfMain  = "main.tf"
 )
+
+type tfclient interface {
+	Init(ctx context.Context, o ...terraform.InitOption) error
+	Validate(ctx context.Context) error
+	Workspace(ctx context.Context, name string) error
+	Outputs(ctx context.Context) ([]terraform.Output, error)
+	Resources(ctx context.Context) ([]string, error)
+	Apply(ctx context.Context, o ...terraform.Option) error
+	Destroy(ctx context.Context, o ...terraform.Option) error
+}
 
 // Setup adds a controller that reconciles Workspace managed resources.
 func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter) error {
@@ -64,9 +91,8 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter) error {
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1alpha1.WorkspaceGroupVersionKind),
 		managed.WithExternalConnecter(&connector{
-			kube:         mgr.GetClient(),
-			usage:        resource.NewProviderConfigUsageTracker(mgr.GetClient(), &tfv1alpha1.ProviderConfigUsage{}),
-			newServiceFn: newNoOpService}),
+			kube:  mgr.GetClient(),
+			usage: resource.NewProviderConfigUsageTracker(mgr.GetClient(), &tfv1alpha1.ProviderConfigUsage{})}),
 		managed.WithLogger(l.WithValues("controller", name)),
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
 
@@ -77,23 +103,21 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter) error {
 		Complete(r)
 }
 
-// A connector is expected to produce an ExternalClient when its Connect method
-// is called.
 type connector struct {
-	kube         client.Client
-	usage        resource.Tracker
-	newServiceFn func(creds []byte) (interface{}, error)
+	kube  client.Client
+	usage resource.Tracker
 }
 
-// Connect typically produces an ExternalClient by:
-// 1. Tracking that the managed resource is using a ProviderConfig.
-// 2. Getting the managed resource's ProviderConfig.
-// 3. Getting the credentials specified by the ProviderConfig.
-// 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
 	cr, ok := mg.(*v1alpha1.Workspace)
 	if !ok {
 		return nil, errors.New(errNotWorkspace)
+	}
+
+	// TODO(negz): Garbage collect this directory.
+	dir := filepath.Join(tfDir, string(cr.GetUID()))
+	if err := os.MkdirAll(dir, 0600); resource.Ignore(os.IsExist, err) != nil {
+		return nil, errors.Wrap(err, errMkdir)
 	}
 
 	if err := c.usage.Track(ctx, mg); err != nil {
@@ -111,61 +135,59 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errGetCreds)
 	}
 
-	svc, err := c.newServiceFn(data)
-	if err != nil {
-		return nil, errors.Wrap(err, errNewClient)
+	if err := ioutil.WriteFile(filepath.Join(dir, tfCreds), data, 0600); err != nil {
+		return nil, errors.Wrap(err, errWriteCreds)
 	}
 
-	return &external{service: svc}, nil
+	// TODO(negz): Allow this implementation to be swapped out for testing.
+	tf := terraform.Harness{Path: tfPath, Dir: dir}
+
+	io := []terraform.InitOption{terraform.FromModule(cr.Spec.ForProvider.Module)}
+	if cr.Spec.ForProvider.Source == v1alpha1.ModuleSourceInline {
+		if err := ioutil.WriteFile(filepath.Join(dir, tfMain), []byte(cr.Spec.ForProvider.Module), 0600); err != nil {
+			return nil, errors.Wrap(err, errWriteMain)
+		}
+		io = nil
+	}
+
+	if err := tf.Init(ctx, io...); err != nil {
+		return nil, errors.Wrap(err, errInit)
+	}
+
+	return &external{tf: tf, kube: c.kube}, errors.Wrap(tf.Workspace(ctx, meta.GetExternalName(cr)), errWorkspace)
 }
 
-// An ExternalClient observes, then either creates, updates, or deletes an
-// external resource to ensure it reflects the managed resource's desired state.
 type external struct {
-	// A 'client' used to connect to the external resource API. In practice this
-	// would be something like an AWS SDK client.
-	service interface{}
+	tf   tfclient
+	kube client.Reader
 }
 
-func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	cr, ok := mg.(*v1alpha1.Workspace)
-	if !ok {
-		return managed.ExternalObservation{}, errors.New(errNotWorkspace)
+func (c *external) Observe(ctx context.Context, _ resource.Managed) (managed.ExternalObservation, error) {
+	r, err := c.tf.Resources(ctx)
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(err, errResources)
 	}
 
-	// These fmt statements should be removed in the real implementation.
-	fmt.Printf("Observing: %+v", cr)
+	// TODO(negz): Include any non-sensitive outputs in our status?
+	o, err := c.tf.Outputs(ctx)
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(err, errOutputs)
+	}
 
+	// TODO(negz): Is there any value in running terraform plan to determine
+	// whether the workspace is up-to-date, or should we just YOLO apply?
 	return managed.ExternalObservation{
-		// Return false when the external resource does not exist. This lets
-		// the managed resource reconciler know that it needs to call Create to
-		// (re)create the resource, or that it has successfully been deleted.
-		ResourceExists: true,
-
-		// Return false when the external resource exists, but it not up to date
-		// with the desired managed resource state. This lets the managed
-		// resource reconciler know that it needs to call Update.
-		ResourceUpToDate: true,
-
-		// Return any details that may be required to connect to the external
-		// resource. These will be stored as the connection secret.
-		ConnectionDetails: managed.ConnectionDetails{},
+		ResourceExists:          len(r) > 0,
+		ResourceUpToDate:        false,
+		ResourceLateInitialized: false,
+		ConnectionDetails:       op2cd(o),
 	}, nil
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	cr, ok := mg.(*v1alpha1.Workspace)
-	if !ok {
-		return managed.ExternalCreation{}, errors.New(errNotWorkspace)
-	}
-
-	fmt.Printf("Creating: %+v", cr)
-
-	return managed.ExternalCreation{
-		// Optionally return any details that may be required to connect to the
-		// external resource. These will be stored as the connection secret.
-		ConnectionDetails: managed.ConnectionDetails{},
-	}, nil
+	// Terraform does not have distinct 'create' and 'update' operations.
+	u, err := c.Update(ctx, mg)
+	return managed.ExternalCreation{ConnectionDetails: u.ConnectionDetails}, err
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
@@ -174,13 +196,25 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalUpdate{}, errors.New(errNotWorkspace)
 	}
 
-	fmt.Printf("Updating: %+v", cr)
+	o, err := c.options(ctx, cr.Spec.ForProvider)
+	if err != nil {
+		return managed.ExternalUpdate{}, errors.Wrap(err, errOptions)
+	}
 
-	return managed.ExternalUpdate{
-		// Optionally return any details that may be required to connect to the
-		// external resource. These will be stored as the connection secret.
-		ConnectionDetails: managed.ConnectionDetails{},
-	}, nil
+	if err := c.tf.Apply(ctx, o...); err != nil {
+		return managed.ExternalUpdate{}, errors.Wrap(err, errApply)
+	}
+
+	op, err := c.tf.Outputs(ctx)
+	if err != nil {
+		return managed.ExternalUpdate{}, errors.Wrap(err, errOutputs)
+	}
+
+	// TODO(negz): Allow Workspaces to optionally derive their readiness from an
+	// output - similar to the logic XRs use to derive readiness from a field of
+	// a composed resource.
+	mg.SetConditions(xpv1.Available())
+	return managed.ExternalUpdate{ConnectionDetails: op2cd(op)}, nil
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
@@ -189,7 +223,61 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 		return errors.New(errNotWorkspace)
 	}
 
-	fmt.Printf("Deleting: %+v", cr)
+	o, err := c.options(ctx, cr.Spec.ForProvider)
+	if err != nil {
+		return errors.Wrap(err, errOptions)
+	}
 
-	return nil
+	return errors.Wrap(c.tf.Destroy(ctx, o...), errDestroy)
+}
+
+func (c *external) options(ctx context.Context, p v1alpha1.WorkspaceParameters) ([]terraform.Option, error) {
+	o := make([]terraform.Option, 0, len(p.Vars)+len(p.VarFiles))
+
+	for _, v := range p.Vars {
+		o = append(o, terraform.WithVar(v.Key, v.Value))
+	}
+
+	for _, vf := range p.VarFiles {
+		fmt := terraform.HCL
+		if vf.Format == v1alpha1.VarFileFormatJSON {
+			fmt = terraform.JSON
+		}
+
+		switch vf.Source {
+		case v1alpha1.VarFileSourceConfigMapKey:
+			cm := &corev1.ConfigMap{}
+			r := vf.ConfigMapKeyReference
+			nn := types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
+			if err := c.kube.Get(ctx, nn, cm); err != nil {
+				return nil, errors.Wrap(err, errVarFile)
+			}
+			o = append(o, terraform.WithVarFile(cm.BinaryData[r.Key], fmt))
+
+		case v1alpha1.VarFileSourceSecretKey:
+			s := &corev1.Secret{}
+			r := vf.SecretKeyReference
+			nn := types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
+			if err := c.kube.Get(ctx, nn, s); err != nil {
+				return nil, errors.Wrap(err, errVarFile)
+			}
+			o = append(o, terraform.WithVarFile(s.Data[r.Key], fmt))
+		}
+	}
+
+	return o, nil
+}
+
+func op2cd(o []terraform.Output) managed.ConnectionDetails {
+	cd := managed.ConnectionDetails{}
+	for _, op := range o {
+		if op.Type == terraform.OutputTypeString {
+			cd[op.Name] = []byte(op.StringValue())
+			continue
+		}
+		if j, err := op.JSONValue(); err == nil {
+			cd[op.Name] = j
+		}
+	}
+	return cd
 }
