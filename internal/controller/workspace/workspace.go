@@ -20,6 +20,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
@@ -97,7 +98,8 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter) error {
 		resource.ManagedKind(v1alpha1.WorkspaceGroupVersionKind),
 		managed.WithExternalConnecter(c),
 		managed.WithLogger(l.WithValues("controller", name)),
-		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
+		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		managed.WithTimeout(20*time.Minute)) // Terraform likes to block.
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
