@@ -1,0 +1,47 @@
+apiVersion: tf.crossplane.io/v1alpha1
+kind: Workspace
+metadata:
+  name: example-inline
+  annotations:
+    # The terraform workspace will be named 'coolbucket'. If you omit this
+    # annotation it would be derived from metadata.name - e.g. 'example-inline'.
+    crossplane.io/external-name: coolbucket
+spec:
+  forProvider:
+    # The default source is 'Remote', which allows you to specify any module
+    # supported by terraform init -from-module, for example a git repository
+    # like https://github.com/crossplane/tf
+    source: Inline
+    module: |
+      // Outputs are written to the connection secret.
+      output "url" {
+        value       = google_storage_bucket.example.self_link
+      }
+      
+      // Modules _must_ use remote state. The provider does not persist state.
+      // Consider using Kubernetes remote state.
+      // https://www.terraform.io/docs/language/settings/backends/kubernetes.html
+      terraform {
+        backend "gcs" {
+          bucket      = "crossplane-example-tf"
+          prefix      = "terraform/state"
+          credentials = "credentials"
+        }
+      }
+      
+      provider "google" {
+        // ProviderConfig credentials are written to the "credentials" file.
+        credentials = "credentials"
+        project     = "crossplane-example-tf"
+      }
+      
+      resource "random_id" "example" {
+        byte_length = 4
+      }
+      
+      resource "google_storage_bucket" "example" {
+        name = "crossplane-example-${terraform.workspace}-${random_id.example.hex}"
+      }
+  writeConnectionSecretToRef:
+    namespace: default
+    name: terraform-workspace-example-inline

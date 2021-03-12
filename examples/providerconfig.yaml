@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   namespace: crossplane-system
-  name: example-provider-secret
+  name: default-terraform-credentials
 type: Opaque
 data:
   # credentials: BASE64ENCODED_PROVIDER_CREDS
@@ -10,11 +10,14 @@ data:
 apiVersion: tf.crossplane.io/v1alpha1
 kind: ProviderConfig
 metadata:
-  name: example
+  name: default
 spec:
+  # These will be written to a file named 'credentials' inside each Terraform
+  # configuration workdir - i.e. next to main.tf.
   credentials:
     source: Secret
     secretRef:
       namespace: crossplane-system
-      name: example-provider-secret
+      # name: default-terraform-credentials
+      name: gcp-credentials
       key: credentials
