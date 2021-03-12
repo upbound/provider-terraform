@@ -1,4 +1,4 @@
-module github.com/negz/provider-terraform
+module github.com/upbound/provider-terraform
 
 go 1.13
 
