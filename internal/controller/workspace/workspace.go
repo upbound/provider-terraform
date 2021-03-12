@@ -129,7 +129,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 
 	// TODO(negz): Garbage collect this directory.
 	dir := filepath.Join(tfDir, string(cr.GetUID()))
-	if err := c.fs.MkdirAll(dir, 0600); resource.Ignore(os.IsExist, err) != nil {
+	if err := c.fs.MkdirAll(dir, 0700); resource.Ignore(os.IsExist, err) != nil {
 		return nil, errors.Wrap(err, errMkdir)
 	}
 
