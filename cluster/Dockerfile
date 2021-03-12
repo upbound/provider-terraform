@@ -17,7 +17,7 @@ COPY pkg/ pkg/
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o provider cmd/provider/main.go
 
-FROM alpine:3.7
+FROM hashicorp/terraform:0.14.7
 WORKDIR /
 COPY --from=builder /workspace/provider .
 COPY package /
