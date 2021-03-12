@@ -23,9 +23,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	tfv1alpha1 "github.com/negz/provider-terraform/apis/v1alpha1"
-	"github.com/negz/provider-terraform/apis/workspace/v1alpha1"
-	"github.com/negz/provider-terraform/internal/terraform"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
@@ -37,6 +34,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
+	"github.com/negz/provider-terraform/apis/v1alpha1"
+	"github.com/negz/provider-terraform/internal/terraform"
 )
 
 type ErrFs struct {
@@ -179,7 +179,7 @@ func TestConnect(t *testing.T) {
 			fields: fields{
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						if pc, ok := obj.(*tfv1alpha1.ProviderConfig); ok {
+						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
 							// We're testing through CommonCredentialsExtractor
 							// here. We cause an error to be returned by asking
 							// for credentials from the environment, but not
@@ -209,7 +209,7 @@ func TestConnect(t *testing.T) {
 			fields: fields{
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						if pc, ok := obj.(*tfv1alpha1.ProviderConfig); ok {
+						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
 							pc.Spec.Credentials.Source = xpv1.CredentialsSourceNone
 						}
 						return nil
@@ -240,7 +240,7 @@ func TestConnect(t *testing.T) {
 			fields: fields{
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						if pc, ok := obj.(*tfv1alpha1.ProviderConfig); ok {
+						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
 							pc.Spec.Credentials.Source = xpv1.CredentialsSourceNone
 						}
 						return nil
@@ -275,7 +275,7 @@ func TestConnect(t *testing.T) {
 			fields: fields{
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						if pc, ok := obj.(*tfv1alpha1.ProviderConfig); ok {
+						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
 							pc.Spec.Credentials.Source = xpv1.CredentialsSourceNone
 						}
 						return nil
@@ -304,7 +304,7 @@ func TestConnect(t *testing.T) {
 			fields: fields{
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						if pc, ok := obj.(*tfv1alpha1.ProviderConfig); ok {
+						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
 							pc.Spec.Credentials.Source = xpv1.CredentialsSourceNone
 						}
 						return nil
@@ -336,7 +336,7 @@ func TestConnect(t *testing.T) {
 			fields: fields{
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						if pc, ok := obj.(*tfv1alpha1.ProviderConfig); ok {
+						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
 							pc.Spec.Credentials.Source = xpv1.CredentialsSourceNone
 						}
 						return nil

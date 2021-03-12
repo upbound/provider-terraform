@@ -58,7 +58,16 @@ var (
 	ProviderConfigUsageListGroupVersionKind = SchemeGroupVersion.WithKind(ProviderConfigUsageListKind)
 )
 
+// Workspace type metadata.
+var (
+	WorkspaceKind             = reflect.TypeOf(Workspace{}).Name()
+	WorkspaceGroupKind        = schema.GroupKind{Group: Group, Kind: WorkspaceKind}.String()
+	WorkspaceKindAPIVersion   = WorkspaceKind + "." + SchemeGroupVersion.String()
+	WorkspaceGroupVersionKind = SchemeGroupVersion.WithKind(WorkspaceKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&ProviderConfig{}, &ProviderConfigList{})
 	SchemeBuilder.Register(&ProviderConfigUsage{}, &ProviderConfigUsageList{})
+	SchemeBuilder.Register(&Workspace{}, &WorkspaceList{})
 }

@@ -38,8 +38,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	tfv1alpha1 "github.com/negz/provider-terraform/apis/v1alpha1"
-	"github.com/negz/provider-terraform/apis/workspace/v1alpha1"
+	"github.com/negz/provider-terraform/apis/v1alpha1"
 	"github.com/negz/provider-terraform/internal/terraform"
 )
 
@@ -89,7 +88,7 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter) error {
 
 	c := &connector{
 		kube:      mgr.GetClient(),
-		usage:     resource.NewProviderConfigUsageTracker(mgr.GetClient(), &tfv1alpha1.ProviderConfigUsage{}),
+		usage:     resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1alpha1.ProviderConfigUsage{}),
 		fs:        afero.Afero{Fs: afero.NewOsFs()},
 		terraform: func(dir string) tfclient { return terraform.Harness{Path: tfPath, Dir: dir} },
 	}
@@ -131,7 +130,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
 
-	pc := &tfv1alpha1.ProviderConfig{}
+	pc := &v1alpha1.ProviderConfig{}
 	if err := c.kube.Get(ctx, types.NamespacedName{Name: cr.GetProviderConfigReference().Name}, pc); err != nil {
 		return nil, errors.Wrap(err, errGetPC)
 	}

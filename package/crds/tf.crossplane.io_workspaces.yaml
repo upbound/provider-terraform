@@ -4,9 +4,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.3.0
   creationTimestamp: null
-  name: workspaces.workspace.tf.crossplane.io
+  name: workspaces.tf.crossplane.io
 spec:
-  group: workspace.tf.crossplane.io
+  group: tf.crossplane.io
   names:
     kind: Workspace
     listKind: WorkspaceList
@@ -15,15 +15,6 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.bindingPhase
-      name: STATUS
-      type: string
-    - jsonPath: .status.atProvider.state
-      name: STATE
-      type: string
-    - jsonPath: .spec.classRef.name
-      name: CLASS
-      type: string
     - jsonPath: .metadata.creationTimestamp
       name: AGE
       type: date
