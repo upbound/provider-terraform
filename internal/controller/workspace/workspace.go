@@ -18,11 +18,11 @@ package workspace
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -72,7 +72,6 @@ const (
 
 type tfclient interface {
 	Init(ctx context.Context, o ...terraform.InitOption) error
-	Validate(ctx context.Context) error
 	Workspace(ctx context.Context, name string) error
 	Outputs(ctx context.Context) ([]terraform.Output, error)
 	Resources(ctx context.Context) ([]string, error)
@@ -88,11 +87,16 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter) error {
 		RateLimiter: ratelimiter.NewDefaultManagedRateLimiter(rl),
 	}
 
+	c := &connector{
+		kube:      mgr.GetClient(),
+		usage:     resource.NewProviderConfigUsageTracker(mgr.GetClient(), &tfv1alpha1.ProviderConfigUsage{}),
+		fs:        afero.Afero{Fs: afero.NewOsFs()},
+		terraform: func(dir string) tfclient { return terraform.Harness{Path: tfPath, Dir: dir} },
+	}
+
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1alpha1.WorkspaceGroupVersionKind),
-		managed.WithExternalConnecter(&connector{
-			kube:  mgr.GetClient(),
-			usage: resource.NewProviderConfigUsageTracker(mgr.GetClient(), &tfv1alpha1.ProviderConfigUsage{})}),
+		managed.WithExternalConnecter(c),
 		managed.WithLogger(l.WithValues("controller", name)),
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
 
@@ -106,6 +110,9 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter) error {
 type connector struct {
 	kube  client.Client
 	usage resource.Tracker
+
+	fs        afero.Afero
+	terraform func(dir string) tfclient
 }
 
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
@@ -116,7 +123,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 
 	// TODO(negz): Garbage collect this directory.
 	dir := filepath.Join(tfDir, string(cr.GetUID()))
-	if err := os.MkdirAll(dir, 0600); resource.Ignore(os.IsExist, err) != nil {
+	if err := c.fs.MkdirAll(dir, 0600); resource.Ignore(os.IsExist, err) != nil {
 		return nil, errors.Wrap(err, errMkdir)
 	}
 
@@ -135,21 +142,19 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errGetCreds)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(dir, tfCreds), data, 0600); err != nil {
+	if err := c.fs.WriteFile(filepath.Join(dir, tfCreds), data, 0600); err != nil {
 		return nil, errors.Wrap(err, errWriteCreds)
 	}
 
-	// TODO(negz): Allow this implementation to be swapped out for testing.
-	tf := terraform.Harness{Path: tfPath, Dir: dir}
-
 	io := []terraform.InitOption{terraform.FromModule(cr.Spec.ForProvider.Module)}
 	if cr.Spec.ForProvider.Source == v1alpha1.ModuleSourceInline {
-		if err := ioutil.WriteFile(filepath.Join(dir, tfMain), []byte(cr.Spec.ForProvider.Module), 0600); err != nil {
+		if err := c.fs.WriteFile(filepath.Join(dir, tfMain), []byte(cr.Spec.ForProvider.Module), 0600); err != nil {
 			return nil, errors.Wrap(err, errWriteMain)
 		}
 		io = nil
 	}
 
+	tf := c.terraform(dir)
 	if err := tf.Init(ctx, io...); err != nil {
 		return nil, errors.Wrap(err, errInit)
 	}
@@ -175,7 +180,8 @@ func (c *external) Observe(ctx context.Context, _ resource.Managed) (managed.Ext
 	}
 
 	// TODO(negz): Is there any value in running terraform plan to determine
-	// whether the workspace is up-to-date, or should we just YOLO apply?
+	// whether the workspace is up-to-date? Presumably running a no-op apply is
+	// about the same as running a plan.
 	return managed.ExternalObservation{
 		ResourceExists:          len(r) > 0,
 		ResourceUpToDate:        false,
