@@ -94,12 +94,17 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter) error {
 		terraform: func(dir string) tfclient { return terraform.Harness{Path: tfPath, Dir: dir} },
 	}
 
+	// TODO(negz): Increase this? Terraform operations can block for a long
+	// time. When this timeout is up the terraform process will be sent SIGKILL,
+	// and potentially lose state for any changes that were in progress.
+	timeout := 20 * time.Minute
+
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1alpha1.WorkspaceGroupVersionKind),
 		managed.WithExternalConnecter(c),
 		managed.WithLogger(l.WithValues("controller", name)),
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-		managed.WithTimeout(20*time.Minute)) // Terraform likes to block.
+		managed.WithTimeout(timeout))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
