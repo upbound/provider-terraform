@@ -1,0 +1,10 @@
+apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: provider-terraform
+  annotations:
+    descriptionShort: |
+      The Terraform Crossplane provider enables management via Terraform.
+spec:
+  controller:
+    image: crossplane/provider-terraform-controller:VERSION
