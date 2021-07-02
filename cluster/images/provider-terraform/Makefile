@@ -6,7 +6,7 @@ include ../../../build/makelib/common.mk
 
 # ====================================================================================
 #  Options
-IMAGE = $(BUILD_REGISTRY)/provider-sql-$(ARCH)
+IMAGE = $(BUILD_REGISTRY)/provider-terraform-$(ARCH)
 OSBASEIMAGE = scratch
 include ../../../build/makelib/image.mk
 
