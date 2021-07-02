@@ -36,17 +36,7 @@ crds.clean:
 	@find package/crds -name *.yaml.sed -delete || $(FAIL)
 	@$(OK) cleaned generated CRDs
 
-generate: crds.clean
-
-# Ensure a PR is ready for review.
-reviewable: generate lint
-	@go mod tidy
-
-# Ensure branch is clean.
-check-diff: reviewable
-	@$(INFO) checking that branch is clean
-	@test -z "$$(git status --porcelain)" || $(FAIL)
-	@$(OK) branch is clean
+generate.done: crds.clean
 
 # integration tests
 e2e.run: test-integration
@@ -92,7 +82,6 @@ dev-clean: $(KIND) $(KUBECTL)
 
 define CROSSPLANE_MAKE_HELP
 Crossplane Targets:
-    reviewable            Ensure a PR is ready for review.
     submodules            Update the submodules, such as the common build scripts.
     run                   Run crossplane locally, out-of-cluster. Useful for development.
 
