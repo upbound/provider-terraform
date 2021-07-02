@@ -1,4 +1,4 @@
-module github.com/upbound/provider-terraform
+module github.com/crossplane-contrib/provider-terraform
 
 go 1.13
 

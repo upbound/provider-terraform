@@ -39,8 +39,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/upbound/provider-terraform/apis/v1alpha1"
-	"github.com/upbound/provider-terraform/internal/terraform"
+	"github.com/crossplane-contrib/provider-terraform/apis/v1alpha1"
+	"github.com/crossplane-contrib/provider-terraform/internal/terraform"
 )
 
 const (
