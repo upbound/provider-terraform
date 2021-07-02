@@ -17,6 +17,8 @@ limitations under the License.
 package controller
 
 import (
+	"time"
+
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -26,16 +28,11 @@ import (
 	"github.com/upbound/provider-terraform/internal/controller/workspace"
 )
 
-// Setup creates all terraform controllers with the supplied logger and adds them to
-// the supplied manager.
-func Setup(mgr ctrl.Manager, l logging.Logger, wl workqueue.RateLimiter) error {
-	for _, setup := range []func(ctrl.Manager, logging.Logger, workqueue.RateLimiter) error{
-		config.Setup,
-		workspace.Setup,
-	} {
-		if err := setup(mgr, l, wl); err != nil {
-			return err
-		}
+// Setup creates all terraform controllers with the supplied logger and adds
+// them to the supplied manager.
+func Setup(mgr ctrl.Manager, l logging.Logger, wl workqueue.RateLimiter, poll time.Duration) error {
+	if err := workspace.Setup(mgr, l, wl, poll); err != nil {
+		return err
 	}
-	return nil
+	return config.Setup(mgr, l, wl)
 }

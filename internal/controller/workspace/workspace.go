@@ -80,7 +80,7 @@ type tfclient interface {
 }
 
 // Setup adds a controller that reconciles Workspace managed resources.
-func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter) error {
+func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter, poll time.Duration) error {
 	name := managed.ControllerName(v1alpha1.WorkspaceGroupKind)
 
 	o := controller.Options{
@@ -102,6 +102,7 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter) error {
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1alpha1.WorkspaceGroupVersionKind),
 		managed.WithExternalConnecter(c),
+		managed.WithPollInterval(poll),
 		managed.WithLogger(l.WithValues("controller", name)),
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		managed.WithTimeout(timeout))
