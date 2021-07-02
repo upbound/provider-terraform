@@ -187,8 +187,10 @@ func (c *external) Observe(ctx context.Context, _ resource.Managed) (managed.Ext
 	}
 
 	// TODO(negz): Is there any value in running terraform plan to determine
-	// whether the workspace is up-to-date? Presumably running a no-op apply is
-	// about the same as running a plan.
+	// whether the workspace is up-to-date? Presumably running a no-op apply
+	// is about the same as running a plan. One downside of the current
+	// approach is that we'll emit an event stating that we're updating the
+	// workspace on every reconcile, even if the update is a no-op.
 	return managed.ExternalObservation{
 		ResourceExists:          len(r) > 0,
 		ResourceUpToDate:        false,
