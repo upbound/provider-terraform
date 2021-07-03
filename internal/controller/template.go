@@ -30,8 +30,8 @@ import (
 
 // Setup creates all terraform controllers with the supplied logger and adds
 // them to the supplied manager.
-func Setup(mgr ctrl.Manager, l logging.Logger, wl workqueue.RateLimiter, poll time.Duration) error {
-	if err := workspace.Setup(mgr, l, wl, poll); err != nil {
+func Setup(mgr ctrl.Manager, l logging.Logger, wl workqueue.RateLimiter, poll, timeout time.Duration) error {
+	if err := workspace.Setup(mgr, l, wl, poll, timeout); err != nil {
 		return err
 	}
 	return config.Setup(mgr, l, wl)

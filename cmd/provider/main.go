@@ -37,6 +37,7 @@ func main() {
 		debug          = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
 		syncInterval   = app.Flag("sync", "Sync interval controls how often all resources will be double checked for drift.").Short('s').Default("1h").Duration()
 		pollInterval   = app.Flag("poll", "Poll interval controls how often an individual resource should be checked for drift.").Default("1m").Duration()
+		timeout        = app.Flag("timeout", "Controls how long Terraform processes may run before they are killed.").Default("20m").Duration()
 		leaderElection = app.Flag("leader-election", "Use leader election for the controller manager.").Short('l').Default("false").OverrideDefaultFromEnvar("LEADER_ELECTION").Bool()
 	)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
@@ -64,6 +65,6 @@ func main() {
 
 	rl := ratelimiter.NewDefaultProviderRateLimiter(ratelimiter.DefaultProviderRPS)
 	kingpin.FatalIfError(apis.AddToScheme(mgr.GetScheme()), "Cannot add terraform APIs to scheme")
-	kingpin.FatalIfError(controller.Setup(mgr, log, rl, *pollInterval), "Cannot setup terraform controllers")
+	kingpin.FatalIfError(controller.Setup(mgr, log, rl, *pollInterval, *timeout), "Cannot setup terraform controllers")
 	kingpin.FatalIfError(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
 }

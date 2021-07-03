@@ -80,7 +80,7 @@ type tfclient interface {
 }
 
 // Setup adds a controller that reconciles Workspace managed resources.
-func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter, poll time.Duration) error {
+func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter, poll, timeout time.Duration) error {
 	name := managed.ControllerName(v1alpha1.WorkspaceGroupKind)
 
 	o := controller.Options{
@@ -93,11 +93,6 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter, poll ti
 		fs:        afero.Afero{Fs: afero.NewOsFs()},
 		terraform: func(dir string) tfclient { return terraform.Harness{Path: tfPath, Dir: dir} },
 	}
-
-	// TODO(negz): Increase this? Terraform operations can block for a long
-	// time. When this timeout is up the terraform process will be sent SIGKILL,
-	// and potentially lose state for any changes that were in progress.
-	timeout := 20 * time.Minute
 
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1alpha1.WorkspaceGroupVersionKind),
