@@ -80,7 +80,7 @@ type tfclient interface {
 }
 
 // Setup adds a controller that reconciles Workspace managed resources.
-func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter, poll time.Duration) error {
+func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter, poll, timeout time.Duration) error {
 	name := managed.ControllerName(v1alpha1.WorkspaceGroupKind)
 
 	o := controller.Options{
@@ -93,11 +93,6 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter, poll ti
 		fs:        afero.Afero{Fs: afero.NewOsFs()},
 		terraform: func(dir string) tfclient { return terraform.Harness{Path: tfPath, Dir: dir} },
 	}
-
-	// TODO(negz): Increase this? Terraform operations can block for a long
-	// time. When this timeout is up the terraform process will be sent SIGKILL,
-	// and potentially lose state for any changes that were in progress.
-	timeout := 20 * time.Minute
 
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1alpha1.WorkspaceGroupVersionKind),
@@ -187,8 +182,10 @@ func (c *external) Observe(ctx context.Context, _ resource.Managed) (managed.Ext
 	}
 
 	// TODO(negz): Is there any value in running terraform plan to determine
-	// whether the workspace is up-to-date? Presumably running a no-op apply is
-	// about the same as running a plan.
+	// whether the workspace is up-to-date? Presumably running a no-op apply
+	// is about the same as running a plan. One downside of the current
+	// approach is that we'll emit an event stating that we're updating the
+	// workspace on every reconcile, even if the update is a no-op.
 	return managed.ExternalObservation{
 		ResourceExists:          len(r) > 0,
 		ResourceUpToDate:        false,
