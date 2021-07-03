@@ -41,6 +41,7 @@ import (
 
 	"github.com/crossplane-contrib/provider-terraform/apis/v1alpha1"
 	"github.com/crossplane-contrib/provider-terraform/internal/terraform"
+	"github.com/crossplane-contrib/provider-terraform/internal/workdir"
 )
 
 const (
@@ -87,10 +88,14 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter, poll, t
 		RateLimiter: ratelimiter.NewDefaultManagedRateLimiter(rl),
 	}
 
+	fs := afero.Afero{Fs: afero.NewOsFs()}
+	gc := workdir.NewGarbageCollector(mgr.GetClient(), tfDir, workdir.WithFs(fs), workdir.WithLogger(l))
+	go gc.Run(context.TODO())
+
 	c := &connector{
 		kube:      mgr.GetClient(),
 		usage:     resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1alpha1.ProviderConfigUsage{}),
-		fs:        afero.Afero{Fs: afero.NewOsFs()},
+		fs:        fs,
 		terraform: func(dir string) tfclient { return terraform.Harness{Path: tfPath, Dir: dir} },
 	}
 
@@ -123,7 +128,8 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.New(errNotWorkspace)
 	}
 
-	// TODO(negz): Garbage collect this directory.
+	// NOTE(negz): This directory will be garbage collected by the workdir
+	// garbage collector that is started in Setup.
 	dir := filepath.Join(tfDir, string(cr.GetUID()))
 	if err := c.fs.MkdirAll(dir, 0700); resource.Ignore(os.IsExist, err) != nil {
 		return nil, errors.Wrap(err, errMkdir)

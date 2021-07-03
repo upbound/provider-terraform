@@ -52,8 +52,5 @@ Known limitations:
   process will be killed. You will potentially lose state and leak resources.
 * The provider won't emit an event until _after_ it has successfully applied the
   Terraform module, which can take a long time.
-* Each `Workspace` is allocated a directory under the `/tf` directory inside the
-  provider container. These directories are not yet garbage collected when a
-  Workspace is deleted.
 
 [Kubernetes]: https://www.terraform.io/docs/language/settings/backends/kubernetes.html
