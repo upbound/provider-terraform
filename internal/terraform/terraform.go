@@ -371,7 +371,7 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 		}
 	}
 
-	args := append([]string{"apply", "-no-color", "-auto-approve"}, ao.args...)
+	args := append([]string{"apply", "-no-color", "-auto-approve", "-input=false"}, ao.args...)
 	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 
@@ -392,7 +392,7 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 		}
 	}
 
-	args := append([]string{"destroy", "-no-color", "-auto-approve"}, do.args...)
+	args := append([]string{"destroy", "-no-color", "-auto-approve", "-input=false"}, do.args...)
 	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 
