@@ -65,6 +65,7 @@ type MockTf struct {
 	MockWorkspace func(ctx context.Context, name string) error
 	MockOutputs   func(ctx context.Context) ([]terraform.Output, error)
 	MockResources func(ctx context.Context) ([]string, error)
+	MockDiff      func(ctx context.Context, o ...terraform.Option) (bool, error)
 	MockApply     func(ctx context.Context, o ...terraform.Option) error
 	MockDestroy   func(ctx context.Context, o ...terraform.Option) error
 }
@@ -83,6 +84,10 @@ func (tf *MockTf) Outputs(ctx context.Context) ([]terraform.Output, error) {
 
 func (tf *MockTf) Resources(ctx context.Context) ([]string, error) {
 	return tf.MockResources(ctx)
+}
+
+func (tf *MockTf) Diff(ctx context.Context, o ...terraform.Option) (bool, error) {
+	return tf.MockDiff(ctx, o...)
 }
 
 func (tf *MockTf) Apply(ctx context.Context, o ...terraform.Option) error {
@@ -405,12 +410,99 @@ func TestObserve(t *testing.T) {
 		args   args
 		want   want
 	}{
+		"NotAWorkspaceError": {
+			reason: "We should return an error if the supplied managed resource is not a Workspace",
+			args: args{
+				mg: nil,
+			},
+			want: want{
+				err: errors.New(errNotWorkspace),
+			},
+		},
+		"GetConfigMapError": {
+			reason: "We should return any error we encounter getting tfvars from a ConfigMap",
+			fields: fields{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if _, ok := obj.(*corev1.ConfigMap); ok {
+							return errBoom
+						}
+						return nil
+					}),
+				},
+			},
+			args: args{
+				mg: &v1alpha1.Workspace{
+					Spec: v1alpha1.WorkspaceSpec{
+						ForProvider: v1alpha1.WorkspaceParameters{
+							VarFiles: []v1alpha1.VarFile{
+								{
+									Source:                v1alpha1.VarFileSourceConfigMapKey,
+									ConfigMapKeyReference: &v1alpha1.KeyReference{},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.Wrap(errBoom, errVarFile), errOptions),
+			},
+		},
+		"GetSecretError": {
+			reason: "We should return any error we encounter getting tfvars from a Secret",
+			fields: fields{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if _, ok := obj.(*corev1.Secret); ok {
+							return errBoom
+						}
+						return nil
+					}),
+				},
+			},
+			args: args{
+				mg: &v1alpha1.Workspace{
+					Spec: v1alpha1.WorkspaceSpec{
+						ForProvider: v1alpha1.WorkspaceParameters{
+							VarFiles: []v1alpha1.VarFile{
+								{
+									Source:             v1alpha1.VarFileSourceSecretKey,
+									SecretKeyReference: &v1alpha1.KeyReference{},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.Wrap(errBoom, errVarFile), errOptions),
+			},
+		},
+		"DiffError": {
+			reason: "We should return any error encountered while diffing the Terraform configuration",
+			fields: fields{
+				tf: &MockTf{
+					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
+				},
+			},
+			args: args{
+				mg: &v1alpha1.Workspace{},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDiff),
+			},
+		},
 		"ResourcesError": {
 			reason: "We should return any error encountered while listing extant Terraform resources",
 			fields: fields{
 				tf: &MockTf{
+					MockDiff:      func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, nil },
 					MockResources: func(ctx context.Context) ([]string, error) { return nil, errBoom },
 				},
+			},
+			args: args{
+				mg: &v1alpha1.Workspace{},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errResources),
@@ -420,9 +512,13 @@ func TestObserve(t *testing.T) {
 			reason: "We should return any error encountered while listing Terraform outputs",
 			fields: fields{
 				tf: &MockTf{
+					MockDiff:      func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, nil },
 					MockResources: func(ctx context.Context) ([]string, error) { return nil, nil },
 					MockOutputs:   func(ctx context.Context) ([]terraform.Output, error) { return nil, errBoom },
 				},
+			},
+			args: args{
+				mg: &v1alpha1.Workspace{},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errOutputs),
@@ -432,13 +528,18 @@ func TestObserve(t *testing.T) {
 			reason: "A workspace with zero resources should be considered to be non-existent",
 			fields: fields{
 				tf: &MockTf{
+					MockDiff:      func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, nil },
 					MockResources: func(ctx context.Context) ([]string, error) { return []string{}, nil },
 					MockOutputs:   func(ctx context.Context) ([]terraform.Output, error) { return nil, nil },
 				},
 			},
+			args: args{
+				mg: &v1alpha1.Workspace{},
+			},
 			want: want{
 				o: managed.ExternalObservation{
 					ResourceExists:    false,
+					ResourceUpToDate:  true,
 					ConnectionDetails: managed.ConnectionDetails{},
 				},
 			},
@@ -447,6 +548,7 @@ func TestObserve(t *testing.T) {
 			reason: "A workspace with resources should return its outputs as connection details",
 			fields: fields{
 				tf: &MockTf{
+					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, nil },
 					MockResources: func(ctx context.Context) ([]string, error) {
 						return []string{"cool_resource.very"}, nil
 					},
@@ -458,10 +560,13 @@ func TestObserve(t *testing.T) {
 					},
 				},
 			},
+			args: args{
+				mg: &v1alpha1.Workspace{},
+			},
 			want: want{
 				o: managed.ExternalObservation{
 					ResourceExists:   true,
-					ResourceUpToDate: false,
+					ResourceUpToDate: true,
 					ConnectionDetails: managed.ConnectionDetails{
 						"string": {},
 						"object": []byte("null"), // Because we JSON decode the the value, which is interface{}{}

@@ -56,6 +56,7 @@ const (
 	errInit       = "cannot initialize Terraform configuration"
 	errWorkspace  = "cannot select Terraform workspace"
 	errResources  = "cannot list Terraform resources"
+	errDiff       = "cannot diff (i.e. plan) Terraform configuration"
 	errOutputs    = "cannot list Terraform outputs"
 	errOptions    = "cannot determine Terraform options"
 	errApply      = "cannot apply Terraform configuration"
@@ -76,6 +77,7 @@ type tfclient interface {
 	Workspace(ctx context.Context, name string) error
 	Outputs(ctx context.Context) ([]terraform.Output, error)
 	Resources(ctx context.Context) ([]string, error)
+	Diff(ctx context.Context, o ...terraform.Option) (bool, error)
 	Apply(ctx context.Context, o ...terraform.Option) error
 	Destroy(ctx context.Context, o ...terraform.Option) error
 }
@@ -175,28 +177,38 @@ type external struct {
 	kube client.Reader
 }
 
-func (c *external) Observe(ctx context.Context, _ resource.Managed) (managed.ExternalObservation, error) {
+func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
+	cr, ok := mg.(*v1alpha1.Workspace)
+	if !ok {
+		return managed.ExternalObservation{}, errors.New(errNotWorkspace)
+	}
+
+	o, err := c.options(ctx, cr.Spec.ForProvider)
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(err, errOptions)
+	}
+
+	differs, err := c.tf.Diff(ctx, o...)
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(err, errDiff)
+	}
+
 	r, err := c.tf.Resources(ctx)
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, errResources)
 	}
 
 	// TODO(negz): Include any non-sensitive outputs in our status?
-	o, err := c.tf.Outputs(ctx)
+	op, err := c.tf.Outputs(ctx)
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, errOutputs)
 	}
 
-	// TODO(negz): Is there any value in running terraform plan to determine
-	// whether the workspace is up-to-date? Presumably running a no-op apply
-	// is about the same as running a plan. One downside of the current
-	// approach is that we'll emit an event stating that we're updating the
-	// workspace on every reconcile, even if the update is a no-op.
 	return managed.ExternalObservation{
 		ResourceExists:          len(r) > 0,
-		ResourceUpToDate:        false,
+		ResourceUpToDate:        !differs,
 		ResourceLateInitialized: false,
-		ConnectionDetails:       op2cd(o),
+		ConnectionDetails:       op2cd(op),
 	}, nil
 }
 
