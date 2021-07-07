@@ -358,6 +358,36 @@ func WithVarFile(data []byte, f FileFormat) Option {
 	}
 }
 
+// Diff invokes 'terraform plan' to determine whether there is a diff between
+// the desired and the actual state of the configuration. It returns true if
+// there is a diff.
+func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
+	ao := &options{}
+	for _, fn := range o {
+		fn(ao)
+	}
+
+	for _, vf := range ao.varFiles {
+		if err := ioutil.WriteFile(filepath.Join(h.Dir, vf.filename), vf.data, 0600); err != nil {
+			return false, errors.Wrap(err, errWriteVarFile)
+		}
+	}
+
+	args := append([]string{"plan", "-no-color", "-input=false", "-detailed-exitcode"}, ao.args...)
+	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
+	cmd.Dir = h.Dir
+
+	// The -detailed-exitcode flag will make terraform plan return:
+	// 0 - Succeeded, diff is empty (no changes)
+	// 1 - Errored
+	// 2 - Succeeded, there is a diff
+	_, err := cmd.Output()
+	if cmd.ProcessState.ExitCode() == 2 {
+		return true, nil
+	}
+	return false, Classify(err)
+}
+
 // Apply a Terraform configuration.
 func (h Harness) Apply(ctx context.Context, o ...Option) error {
 	ao := &options{}

@@ -229,7 +229,7 @@ func TestResources(t *testing.T) {
 	}
 }
 
-func TestInitApplyDestroy(t *testing.T) {
+func TestInitDiffApplyDestroy(t *testing.T) {
 	type initArgs struct {
 		ctx context.Context
 		o   []InitOption
@@ -240,13 +240,18 @@ func TestInitApplyDestroy(t *testing.T) {
 	}
 	type want struct {
 		init    error
+		diff    error
 		apply   error
 		destroy error
+
+		differsBeforeApply bool
+		differsAfterApply  bool
 	}
 
 	cases := map[string]struct {
 		reason      string
 		initArgs    initArgs
+		diffArgs    args
 		applyArgs   args
 		destroyArgs args
 		want        want
@@ -260,8 +265,14 @@ func TestInitApplyDestroy(t *testing.T) {
 			applyArgs: args{
 				ctx: context.Background(),
 			},
+			diffArgs: args{
+				ctx: context.Background(),
+			},
 			destroyArgs: args{
 				ctx: context.Background(),
+			},
+			want: want{
+				differsBeforeApply: false,
 			},
 		},
 		"WithVar": {
@@ -274,9 +285,16 @@ func TestInitApplyDestroy(t *testing.T) {
 				ctx: context.Background(),
 				o:   []Option{WithVar("coolness", "extreme")},
 			},
+			diffArgs: args{
+				ctx: context.Background(),
+				o:   []Option{WithVar("coolness", "extreme")},
+			},
 			destroyArgs: args{
 				ctx: context.Background(),
 				o:   []Option{WithVar("coolness", "extreme")},
+			},
+			want: want{
+				differsBeforeApply: true,
 			},
 		},
 		"WithHCLVarFile": {
@@ -285,6 +303,10 @@ func TestInitApplyDestroy(t *testing.T) {
 				ctx: context.Background(),
 				o:   []InitOption{FromModule(filepath.Join(tfTestDataPath(), "nullmodule"))},
 			},
+			diffArgs: args{
+				ctx: context.Background(),
+				o:   []Option{WithVarFile([]byte(`coolness = "extreme!"`), HCL)},
+			},
 			applyArgs: args{
 				ctx: context.Background(),
 				o:   []Option{WithVarFile([]byte(`coolness = "extreme!"`), HCL)},
@@ -292,6 +314,9 @@ func TestInitApplyDestroy(t *testing.T) {
 			destroyArgs: args{
 				ctx: context.Background(),
 				o:   []Option{WithVarFile([]byte(`coolness = "extreme!"`), HCL)},
+			},
+			want: want{
+				differsBeforeApply: true,
 			},
 		},
 		"WithJSONVarFile": {
@@ -300,6 +325,10 @@ func TestInitApplyDestroy(t *testing.T) {
 				ctx: context.Background(),
 				o:   []InitOption{FromModule(filepath.Join(tfTestDataPath(), "nullmodule"))},
 			},
+			diffArgs: args{
+				ctx: context.Background(),
+				o:   []Option{WithVarFile([]byte(`{"coolness":"extreme!"}`), JSON)},
+			},
 			applyArgs: args{
 				ctx: context.Background(),
 				o:   []Option{WithVarFile([]byte(`{"coolness":"extreme!"}`), JSON)},
@@ -307,6 +336,9 @@ func TestInitApplyDestroy(t *testing.T) {
 			destroyArgs: args{
 				ctx: context.Background(),
 				o:   []Option{WithVarFile([]byte(`{"coolness":"extreme!"}`), JSON)},
+			},
+			want: want{
+				differsBeforeApply: true,
 			},
 		},
 		// NOTE(negz): The goal of these error case tests is to validate that
@@ -319,6 +351,9 @@ func TestInitApplyDestroy(t *testing.T) {
 				ctx: context.Background(),
 				o:   []InitOption{FromModule("./nonexistent")},
 			},
+			diffArgs: args{
+				ctx: context.Background(),
+			},
 			applyArgs: args{
 				ctx: context.Background(),
 			},
@@ -327,6 +362,7 @@ func TestInitApplyDestroy(t *testing.T) {
 			},
 			want: want{
 				init:  errors.New("module not found"),
+				diff:  errors.New("no configuration files"),
 				apply: errors.New("no configuration files"),
 				// Apparently destroy 'works' in this situation ¯\_(ツ)_/¯
 			},
@@ -336,6 +372,9 @@ func TestInitApplyDestroy(t *testing.T) {
 			initArgs: initArgs{
 				ctx: context.Background(),
 				o:   []InitOption{FromModule(filepath.Join(tfTestDataPath(), "nullmodule"))},
+			},
+			diffArgs: args{
+				ctx: context.Background(),
 			},
 			applyArgs: args{
 				ctx: context.Background(),
@@ -352,7 +391,7 @@ func TestInitApplyDestroy(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
+			// t.Parallel()
 
 			dir, err := ioutil.TempDir("", "provider-terraform-test")
 			if err != nil {
@@ -362,19 +401,36 @@ func TestInitApplyDestroy(t *testing.T) {
 
 			tf := Harness{Path: tfBinaryPath, Dir: dir}
 
-			got := tf.Init(tc.initArgs.ctx, tc.initArgs.o...)
-			if diff := cmp.Diff(tc.want.init, got, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\ntf.Init(...): -want, +got:\n%s", tc.reason, diff)
+			err = tf.Init(tc.initArgs.ctx, tc.initArgs.o...)
+			if diff := cmp.Diff(tc.want.init, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ntf.Init(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
-			got = tf.Apply(tc.applyArgs.ctx, tc.applyArgs.o...)
-			if diff := cmp.Diff(tc.want.apply, got, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\ntf.Apply(...): -want, +got:\n%s", tc.reason, diff)
+			differs, err := tf.Diff(tc.diffArgs.ctx, tc.diffArgs.o...)
+			t.Logf("Want %t, got %t", tc.want.differsBeforeApply, differs)
+			if diff := cmp.Diff(tc.want.diff, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ntf.Diff(...): -want error, +got error (before apply):\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.differsBeforeApply, differs); diff != "" {
+				t.Errorf("\n%s\ntf.Diff(...): -want, +got (before apply):\n%s", tc.reason, diff)
 			}
 
-			got = tf.Destroy(tc.destroyArgs.ctx, tc.destroyArgs.o...)
-			if diff := cmp.Diff(tc.want.destroy, got, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\ntf.Destroy(...): -want, +got:\n%s", tc.reason, diff)
+			err = tf.Apply(tc.applyArgs.ctx, tc.applyArgs.o...)
+			if diff := cmp.Diff(tc.want.apply, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ntf.Apply(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			differs, err = tf.Diff(tc.diffArgs.ctx, tc.diffArgs.o...)
+			if diff := cmp.Diff(tc.want.diff, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ntf.Diff(...): -want error, +got error (after apply):\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.differsAfterApply, differs); diff != "" {
+				t.Errorf("\n%s\ntf.Diff(...): -want, +got (after apply):\n%s", tc.reason, diff)
+			}
+
+			err = tf.Destroy(tc.destroyArgs.ctx, tc.destroyArgs.o...)
+			if diff := cmp.Diff(tc.want.destroy, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ntf.Destroy(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}
