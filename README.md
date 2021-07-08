@@ -16,7 +16,7 @@ metadata:
 spec:
   forProvider:
     # Use any module source supported by terraform init -from-module. You can
-    # also specify a simple main.tf inline; see examples/example-inline.
+    # also specify a simple main.tf inline; see examples/workspace-inline.yaml
     module: https://github.com/crossplane/tf
     # Variables can be specified inline.
     vars:
@@ -48,8 +48,9 @@ Known limitations:
 * You must either use remote state or ensure the provider container's `/tf`
   directory is not lost. `provider-terraform` __does not persist state__;
   consider using the [Kubernetes] remote state backend.
-* If the module takes longer than 20 minutes to apply the underlying `terraform`
-  process will be killed. You will potentially lose state and leak resources.
+* If the module takes longer than the supplied `--timeout` to apply the
+  underlying `terraform` process will be killed. You will potentially lose state
+  and leak resources.
 * The provider won't emit an event until _after_ it has successfully applied the
   Terraform module, which can take a long time.
 
