@@ -8,10 +8,9 @@ metadata:
     crossplane.io/external-name: myworkspace
 spec:
   forProvider:
-    # The supplied module MUST use remote state; provider-terraform does not
-    # persist Terraform state. Any credentials loaded from a ProviderConfig will
-    # be written to a file named './credentials' relative to main.tf.
-    # You can also specify a simple main.tf inline; see example-inline.
+    # Any module supported by terraform init -from-module, for example a git
+    # repository. You can also specify a simple main.tf inline; see
+    # workspace-inline.yaml.
     module: https://github.com/crossplane/tf
     # Variables can be specified inline.
     vars:

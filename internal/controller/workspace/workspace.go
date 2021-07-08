@@ -50,26 +50,27 @@ const (
 	errGetPC        = "cannot get ProviderConfig"
 	errGetCreds     = "cannot get credentials"
 
-	errMkdir      = "cannot make Terraform configuration directory"
-	errWriteCreds = "cannot write Terraform credentials"
-	errWriteMain  = "cannot write Terraform configuration " + tfMain
-	errInit       = "cannot initialize Terraform configuration"
-	errWorkspace  = "cannot select Terraform workspace"
-	errResources  = "cannot list Terraform resources"
-	errDiff       = "cannot diff (i.e. plan) Terraform configuration"
-	errOutputs    = "cannot list Terraform outputs"
-	errOptions    = "cannot determine Terraform options"
-	errApply      = "cannot apply Terraform configuration"
-	errDestroy    = "cannot apply Terraform configuration"
-	errVarFile    = "cannot get tfvars"
+	errMkdir       = "cannot make Terraform configuration directory"
+	errWriteCreds  = "cannot write Terraform credentials"
+	errWriteConfig = "cannot write Terraform configuration " + tfConfig
+	errWriteMain   = "cannot write Terraform configuration " + tfMain
+	errInit        = "cannot initialize Terraform configuration"
+	errWorkspace   = "cannot select Terraform workspace"
+	errResources   = "cannot list Terraform resources"
+	errDiff        = "cannot diff (i.e. plan) Terraform configuration"
+	errOutputs     = "cannot list Terraform outputs"
+	errOptions     = "cannot determine Terraform options"
+	errApply       = "cannot apply Terraform configuration"
+	errDestroy     = "cannot apply Terraform configuration"
+	errVarFile     = "cannot get tfvars"
 )
 
 const (
 	// TODO(negz): Make the Terraform binary path and work dir configurable.
-	tfPath  = "terraform"
-	tfDir   = "/tf"
-	tfCreds = "credentials"
-	tfMain  = "main.tf"
+	tfPath   = "terraform"
+	tfDir    = "/tf"
+	tfMain   = "main.tf"
+	tfConfig = "crossplane-provider-config.tf"
 )
 
 type tfclient interface {
@@ -124,7 +125,11 @@ type connector struct {
 	terraform func(dir string) tfclient
 }
 
-func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
+func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) { //nolint:gocyclo
+	// NOTE(negz): This method is slightly over our complexity goal, but I
+	// can't immediately think of a clean way to decompose it without
+	// affecting readability.
+
 	cr, ok := mg.(*v1alpha1.Workspace)
 	if !ok {
 		return nil, errors.New(errNotWorkspace)
@@ -146,14 +151,21 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errGetPC)
 	}
 
-	cd := pc.Spec.Credentials
-	data, err := resource.CommonCredentialExtractor(ctx, cd.Source, c.kube, cd.CommonCredentialSelectors)
-	if err != nil {
-		return nil, errors.Wrap(err, errGetCreds)
+	for _, cd := range pc.Spec.Credentials {
+		data, err := resource.CommonCredentialExtractor(ctx, cd.Source, c.kube, cd.CommonCredentialSelectors)
+		if err != nil {
+			return nil, errors.Wrap(err, errGetCreds)
+		}
+		p := filepath.Clean(filepath.Join(dir, filepath.Base(cd.Filename)))
+		if err := c.fs.WriteFile(p, data, 0600); err != nil {
+			return nil, errors.Wrap(err, errWriteCreds)
+		}
 	}
 
-	if err := c.fs.WriteFile(filepath.Join(dir, tfCreds), data, 0600); err != nil {
-		return nil, errors.Wrap(err, errWriteCreds)
+	if pc.Spec.Configuration != nil {
+		if err := c.fs.WriteFile(filepath.Join(dir, tfConfig), []byte(*pc.Spec.Configuration), 0600); err != nil {
+			return nil, errors.Wrap(err, errWriteConfig)
+		}
 	}
 
 	io := []terraform.InitOption{terraform.FromModule(cr.Spec.ForProvider.Module)}

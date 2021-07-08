@@ -25,11 +25,21 @@ import (
 // A ProviderConfigSpec defines the desired state of a ProviderConfig.
 type ProviderConfigSpec struct {
 	// Credentials required to authenticate to this provider.
-	Credentials ProviderCredentials `json:"credentials"`
+	Credentials []ProviderCredentials `json:"credentials"`
+
+	// Configuration that should be injected into all workspaces that use
+	// this provider config, expressed as inline HCL. This can be used to
+	// automatically inject Terraform provider configuration blocks.
+	// +optional
+	Configuration *string `json:"configuration,omitempty"`
 }
 
 // ProviderCredentials required to authenticate.
 type ProviderCredentials struct {
+	// Filename (relative to main.tf) to which these provider credentials
+	// should be written.
+	Filename string `json:"filename"`
+
 	// Source of the provider credentials.
 	// +kubebuilder:validation:Enum=None;Secret;InjectedIdentity;Environment;Filesystem
 	Source xpv1.CredentialsSource `json:"source"`

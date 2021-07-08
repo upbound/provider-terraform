@@ -8,9 +8,9 @@ metadata:
     crossplane.io/external-name: coolbucket
 spec:
   forProvider:
-    # The default source is 'Remote', which allows you to specify any module
-    # supported by terraform init -from-module, for example a git repository
-    # like https://github.com/crossplane/tf
+    # Workspaces default to using a remote source - like workspace-remote.yaml.
+    # For simple cases you can use an inline source to specify the content of
+    # main.tf as opaque, inline HCL.
     source: Inline
     module: |
       // Outputs are written to the connection secret.
@@ -18,27 +18,12 @@ spec:
         value       = google_storage_bucket.example.self_link
       }
       
-      // Modules _must_ use remote state. The provider does not persist state.
-      // Consider using Kubernetes remote state.
-      // https://www.terraform.io/docs/language/settings/backends/kubernetes.html
-      terraform {
-        backend "gcs" {
-          bucket      = "crossplane-example-tf"
-          prefix      = "terraform/state"
-          credentials = "credentials"
-        }
-      }
-      
-      provider "google" {
-        // ProviderConfig credentials are written to the "credentials" file.
-        credentials = "credentials"
-        project     = "crossplane-example-tf"
-      }
-      
       resource "random_id" "example" {
         byte_length = 4
       }
       
+      // The google provider and remote state are configured by the provider
+      // config - see providerconfig.yaml.
       resource "google_storage_bucket" "example" {
         name = "crossplane-example-${terraform.workspace}-${random_id.example.hex}"
       }
