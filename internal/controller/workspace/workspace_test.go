@@ -101,6 +101,7 @@ func (tf *MockTf) Destroy(ctx context.Context, o ...terraform.Option) error {
 func TestConnect(t *testing.T) {
 	errBoom := errors.New("boom")
 	uid := types.UID("no-you-id")
+	tfCreds := "credentials"
 
 	type fields struct {
 		kube      client.Client
@@ -189,7 +190,9 @@ func TestConnect(t *testing.T) {
 							// here. We cause an error to be returned by asking
 							// for credentials from the environment, but not
 							// specifying an environment variable.
-							pc.Spec.Credentials.Source = xpv1.CredentialsSourceEnvironment
+							pc.Spec.Credentials = []v1alpha1.ProviderCredentials{{
+								Source: xpv1.CredentialsSourceEnvironment,
+							}}
 						}
 						return nil
 					}),
@@ -215,7 +218,10 @@ func TestConnect(t *testing.T) {
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
-							pc.Spec.Credentials.Source = xpv1.CredentialsSourceNone
+							pc.Spec.Credentials = []v1alpha1.ProviderCredentials{{
+								Filename: tfCreds,
+								Source:   xpv1.CredentialsSourceNone,
+							}}
 						}
 						return nil
 					}),
@@ -240,16 +246,47 @@ func TestConnect(t *testing.T) {
 			},
 			want: errors.Wrap(errBoom, errWriteCreds),
 		},
-		"WriteMainError": {
-			reason: "We should return any error encountered while writing our main.tf file",
+		"WriteConfigError": {
+			reason: "We should return any error encountered while writing our crossplane-provider-config.tf file",
 			fields: fields{
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
-							pc.Spec.Credentials.Source = xpv1.CredentialsSourceNone
+							cfg := "I'm HCL!"
+							pc.Spec.Configuration = &cfg
 						}
 						return nil
 					}),
+				},
+				usage: resource.TrackerFn(func(_ context.Context, _ resource.Managed) error { return nil }),
+				fs: afero.Afero{
+					Fs: &ErrFs{
+						Fs:   afero.NewMemMapFs(),
+						errs: map[string]error{filepath.Join(tfDir, string(uid), tfConfig): errBoom},
+					},
+				},
+			},
+			args: args{
+				mg: &v1alpha1.Workspace{
+					ObjectMeta: metav1.ObjectMeta{UID: uid},
+					Spec: v1alpha1.WorkspaceSpec{
+						ResourceSpec: xpv1.ResourceSpec{
+							ProviderConfigReference: &xpv1.Reference{},
+						},
+						ForProvider: v1alpha1.WorkspaceParameters{
+							Module: "I'm HCL!",
+							Source: v1alpha1.ModuleSourceInline,
+						},
+					},
+				},
+			},
+			want: errors.Wrap(errBoom, errWriteConfig),
+		},
+		"WriteMainError": {
+			reason: "We should return any error encountered while writing our main.tf file",
+			fields: fields{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil),
 				},
 				usage: resource.TrackerFn(func(_ context.Context, _ resource.Managed) error { return nil }),
 				fs: afero.Afero{
@@ -279,12 +316,7 @@ func TestConnect(t *testing.T) {
 			reason: "We should return any error encountered while initializing Terraform",
 			fields: fields{
 				kube: &test.MockClient{
-					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
-							pc.Spec.Credentials.Source = xpv1.CredentialsSourceNone
-						}
-						return nil
-					}),
+					MockGet: test.NewMockGetFn(nil),
 				},
 				usage: resource.TrackerFn(func(_ context.Context, _ resource.Managed) error { return nil }),
 				fs:    afero.Afero{Fs: afero.NewMemMapFs()},
@@ -308,12 +340,7 @@ func TestConnect(t *testing.T) {
 			reason: "We should return any error encountered while selecting a Terraform workspace",
 			fields: fields{
 				kube: &test.MockClient{
-					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
-							pc.Spec.Credentials.Source = xpv1.CredentialsSourceNone
-						}
-						return nil
-					}),
+					MockGet: test.NewMockGetFn(nil),
 				},
 				usage: resource.TrackerFn(func(_ context.Context, _ resource.Managed) error { return nil }),
 				fs:    afero.Afero{Fs: afero.NewMemMapFs()},
@@ -340,12 +367,7 @@ func TestConnect(t *testing.T) {
 			reason: "We should not return an error when we successfully 'connect' to Terraform",
 			fields: fields{
 				kube: &test.MockClient{
-					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
-							pc.Spec.Credentials.Source = xpv1.CredentialsSourceNone
-						}
-						return nil
-					}),
+					MockGet: test.NewMockGetFn(nil),
 				},
 				usage: resource.TrackerFn(func(_ context.Context, _ resource.Managed) error { return nil }),
 				fs:    afero.Afero{Fs: afero.NewMemMapFs()},

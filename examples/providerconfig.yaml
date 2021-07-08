@@ -1,23 +1,35 @@
-apiVersion: v1
-kind: Secret
-metadata:
-  namespace: crossplane-system
-  name: default-terraform-credentials
-type: Opaque
-data:
-  # credentials: BASE64ENCODED_PROVIDER_CREDS
----
 apiVersion: tf.crossplane.io/v1alpha1
 kind: ProviderConfig
 metadata:
   name: default
 spec:
-  # These will be written to a file named 'credentials' inside each Terraform
-  # configuration workdir - i.e. next to main.tf.
+  # Note that unlike most provider configs this one supports an array of
+  # credentials. This is because each Terraform workspace uses a single
+  # Crossplane provider config, but could use multiple Terraform providers each
+  # with their own credentials.
   credentials:
+  - filename: gcp-credentials.json
     source: Secret
     secretRef:
       namespace: crossplane-system
-      # name: default-terraform-credentials
       name: gcp-credentials
       key: credentials
+  # This optional configuration block can be used to inject HCL into any
+  # workspace that uses this provider config, for example to setup Terraform
+  # providers.
+  configuration: |
+      provider "google" {
+        credentials = "gcp-credentials.json"
+        project     = "crossplane-example-project"
+      }
+
+      // Modules _must_ use remote state. The provider does not persist state.
+      // Consider using Kubernetes remote state.
+      // https://www.terraform.io/docs/language/settings/backends/kubernetes.html
+      terraform {
+        backend "gcs" {
+          bucket      = "crossplane-example-tf"
+          prefix      = "provider-terraform/default"
+          credentials = "gcp-credentials.json"
+        }
+      }
