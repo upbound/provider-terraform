@@ -98,7 +98,6 @@ type WorkspaceParameters struct {
 	Module string `json:"module"`
 
 	// Source of the root module of this workspace.
-	// +kubebuilder:default=Remote
 	Source ModuleSource `json:"source"`
 
 	// Configuration variables.

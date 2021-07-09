@@ -52,6 +52,7 @@ metadata:
 spec:
   forProvider:
     # Use any module source supported by terraform init -from-module.
+    source: Remote
     module: https://github.com/crossplane/tf
     # Variables can be specified inline, or loaded from a ConfigMap or Secret.
     vars:
