@@ -24,12 +24,10 @@ spec:
       }
 
       // Modules _must_ use remote state. The provider does not persist state.
-      // Consider using Kubernetes remote state.
-      // https://www.terraform.io/docs/language/settings/backends/kubernetes.html
       terraform {
-        backend "gcs" {
-          bucket      = "crossplane-example-tf"
-          prefix      = "provider-terraform/default"
-          credentials = "gcp-credentials.json"
+        backend "kubernetes" {
+          secret_suffix     = "providerconfig-default"
+          namespace         = "crossplane-system"
+          in_cluster_config = true
         }
       }
