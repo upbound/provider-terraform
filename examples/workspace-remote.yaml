@@ -11,6 +11,7 @@ spec:
     # Any module supported by terraform init -from-module, for example a git
     # repository. You can also specify a simple main.tf inline; see
     # workspace-inline.yaml.
+    source: Remote
     module: https://github.com/crossplane/tf
     # Variables can be specified inline.
     vars:

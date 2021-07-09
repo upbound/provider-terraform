@@ -48,7 +48,6 @@ spec:
                     description: The root module of this workspace; i.e. the module containing its main.tf file. When the workspace's source is 'Remote' (the default) this can be any address supported by terraform init -from-module, for example a git repository or an S3 bucket. When the workspace's source is 'Inline' the content of a simple main.tf file may be written inline.
                     type: string
                   source:
-                    default: Remote
                     description: Source of the root module of this workspace.
                     enum:
                     - Remote

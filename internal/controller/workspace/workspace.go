@@ -151,6 +151,25 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errGetPC)
 	}
 
+	tf := c.terraform(dir)
+	switch cr.Spec.ForProvider.Source {
+	case v1alpha1.ModuleSourceRemote:
+		// TODO(negz): Handle errors initialising from a remote module.
+		// Terraform will refuse to init from a remote module if there
+		// are files in the workdir. On the other hand it sometimes
+		// needs these files, e.g. credentials or additional HCL. In the
+		// latter case it will download everything before failing so we
+		// work around the issue by attempting a best-effort init from
+		// a remote module, then adding the files, then later running a
+		// regular local init. The downside to this approach is that we
+		// currently drop errors indicating an invalid remote.
+		_ = tf.Init(ctx, terraform.FromModule(cr.Spec.ForProvider.Module))
+	case v1alpha1.ModuleSourceInline:
+		if err := c.fs.WriteFile(filepath.Join(dir, tfMain), []byte(cr.Spec.ForProvider.Module), 0600); err != nil {
+			return nil, errors.Wrap(err, errWriteMain)
+		}
+	}
+
 	for _, cd := range pc.Spec.Credentials {
 		data, err := resource.CommonCredentialExtractor(ctx, cd.Source, c.kube, cd.CommonCredentialSelectors)
 		if err != nil {
@@ -168,16 +187,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		}
 	}
 
-	io := []terraform.InitOption{terraform.FromModule(cr.Spec.ForProvider.Module)}
-	if cr.Spec.ForProvider.Source == v1alpha1.ModuleSourceInline {
-		if err := c.fs.WriteFile(filepath.Join(dir, tfMain), []byte(cr.Spec.ForProvider.Module), 0600); err != nil {
-			return nil, errors.Wrap(err, errWriteMain)
-		}
-		io = nil
-	}
-
-	tf := c.terraform(dir)
-	if err := tf.Init(ctx, io...); err != nil {
+	if err := tf.Init(ctx); err != nil {
 		return nil, errors.Wrap(err, errInit)
 	}
 

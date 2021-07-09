@@ -199,6 +199,11 @@ func TestConnect(t *testing.T) {
 				},
 				usage: resource.TrackerFn(func(_ context.Context, _ resource.Managed) error { return nil }),
 				fs:    afero.Afero{Fs: afero.NewMemMapFs()},
+				terraform: func(_ string) tfclient {
+					return &MockTf{
+						MockInit: func(ctx context.Context, o ...terraform.InitOption) error { return nil },
+					}
+				},
 			},
 			args: args{
 				mg: &v1alpha1.Workspace{
@@ -233,6 +238,11 @@ func TestConnect(t *testing.T) {
 						errs: map[string]error{filepath.Join(tfDir, string(uid), tfCreds): errBoom},
 					},
 				},
+				terraform: func(_ string) tfclient {
+					return &MockTf{
+						MockInit: func(ctx context.Context, o ...terraform.InitOption) error { return nil },
+					}
+				},
 			},
 			args: args{
 				mg: &v1alpha1.Workspace{
@@ -265,6 +275,11 @@ func TestConnect(t *testing.T) {
 						errs: map[string]error{filepath.Join(tfDir, string(uid), tfConfig): errBoom},
 					},
 				},
+				terraform: func(_ string) tfclient {
+					return &MockTf{
+						MockInit: func(ctx context.Context, o ...terraform.InitOption) error { return nil },
+					}
+				},
 			},
 			args: args{
 				mg: &v1alpha1.Workspace{
@@ -294,6 +309,11 @@ func TestConnect(t *testing.T) {
 						Fs:   afero.NewMemMapFs(),
 						errs: map[string]error{filepath.Join(tfDir, string(uid), tfMain): errBoom},
 					},
+				},
+				terraform: func(_ string) tfclient {
+					return &MockTf{
+						MockInit: func(ctx context.Context, o ...terraform.InitOption) error { return nil },
+					}
 				},
 			},
 			args: args{
