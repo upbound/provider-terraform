@@ -27,11 +27,11 @@ spec:
       output "url" {
         value       = google_storage_bucket.example.self_link
       }
-      
+
       resource "random_id" "example" {
         byte_length = 4
       }
-      
+
       // The google provider and remote state are configured by the provider
       // config - see examples/providerconfig.yaml.
       resource "google_storage_bucket" "example" {
@@ -70,7 +70,39 @@ spec:
     name: terraform-workspace-example-inline
 ```
 
-Known limitations:
+## Private Git repository support
+
+To securely propagate git credentials create a `git-credentials` secret in [git credentials store] format.
+
+```sh
+cat .git-credentials
+https://<user>:<token>@github.com
+
+kubectl create secret generic git-credentials --from-file=.git-credentials
+```
+
+Reference it in ProviderConfig.
+
+```yaml
+apiVersion: tf.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+  - filename: .git-credentials # use exactly this filename
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: git-credentials
+      key: .git-credentials
+...
+```
+
+Standard `.git-credentials` filename is important to keep so provider-terraform
+controller will be able to automatically pick it up.
+
+## Known limitations:
 
 * You must either use remote state or ensure the provider container's `/tf`
   directory is not lost. `provider-terraform` __does not persist state__;
@@ -82,3 +114,4 @@ Known limitations:
   Terraform module, which can take a long time.
 
 [Kubernetes]: https://www.terraform.io/docs/language/settings/backends/kubernetes.html
+[git credentials store]: https://git-scm.com/docs/git-credential-store

@@ -1,0 +1,2 @@
+[credential]
+	helper = store --file=$GIT_CRED_DIR/.git-credentials
