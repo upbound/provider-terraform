@@ -66,6 +66,8 @@ const (
 	errApply         = "cannot apply Terraform configuration"
 	errDestroy       = "cannot apply Terraform configuration"
 	errVarFile       = "cannot get tfvars"
+
+	gitCredentialsFilename = ".git-credentials"
 )
 
 const (
@@ -165,22 +167,24 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 			return nil, errors.Wrap(err, errWriteGitCreds)
 		}
 		for _, cd := range pc.Spec.Credentials {
+			if cd.Filename != gitCredentialsFilename {
+				continue
+			}
 			data, err := resource.CommonCredentialExtractor(ctx, cd.Source, c.kube, cd.CommonCredentialSelectors)
 			if err != nil {
 				return nil, errors.Wrap(err, errGetCreds)
 			}
-			if cd.Filename == ".git-credentials" {
-				p := filepath.Clean(filepath.Join(gitCredDir, filepath.Base(cd.Filename)))
-				if err := c.fs.WriteFile(p, data, 0600); err != nil {
-					return nil, errors.Wrap(err, errWriteGitCreds)
-				}
+			p := filepath.Clean(filepath.Join(gitCredDir, filepath.Base(cd.Filename)))
+			if err := c.fs.WriteFile(p, data, 0600); err != nil {
+				return nil, errors.Wrap(err, errWriteGitCreds)
+			}
+			// NOTE(ytsarev): Make go-getter pick up .git-credentials, see /.gitconfig in the container image
+			err = os.Setenv("GIT_CRED_DIR", gitCredDir)
+			if err != nil {
+				return nil, errors.Wrap(err, errRemoteModule)
 			}
 		}
-		// NOTE(ytsarev): Make go-getter pick up .git-credentials, see /.gitconfig in the container image
-		err := os.Setenv("GIT_CRED_DIR", gitCredDir)
-		if err != nil {
-			return nil, errors.Wrap(err, errRemoteModule)
-		}
+
 		client := getter.Client{
 			Src: cr.Spec.ForProvider.Module,
 			Dst: dir,
@@ -188,7 +192,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 
 			Mode: getter.ClientModeDir,
 		}
-		err = client.Get()
+		err := client.Get()
 		if err != nil {
 			return nil, errors.Wrap(err, errRemoteModule)
 		}
