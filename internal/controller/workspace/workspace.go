@@ -302,7 +302,7 @@ func (c *external) options(ctx context.Context, p v1alpha1.WorkspaceParameters) 
 			if err := c.kube.Get(ctx, nn, cm); err != nil {
 				return nil, errors.Wrap(err, errVarFile)
 			}
-			o = append(o, terraform.WithVarFile(cm.BinaryData[r.Key], fmt))
+			o = append(o, terraform.WithVarFile([]byte(cm.Data[r.Key]), fmt))
 
 		case v1alpha1.VarFileSourceSecretKey:
 			s := &corev1.Secret{}
