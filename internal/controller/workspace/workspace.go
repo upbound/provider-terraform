@@ -42,6 +42,7 @@ import (
 	"github.com/crossplane-contrib/provider-terraform/apis/v1alpha1"
 	"github.com/crossplane-contrib/provider-terraform/internal/terraform"
 	"github.com/crossplane-contrib/provider-terraform/internal/workdir"
+	getter "github.com/hashicorp/go-getter"
 )
 
 const (
@@ -50,19 +51,23 @@ const (
 	errGetPC        = "cannot get ProviderConfig"
 	errGetCreds     = "cannot get credentials"
 
-	errMkdir       = "cannot make Terraform configuration directory"
-	errWriteCreds  = "cannot write Terraform credentials"
-	errWriteConfig = "cannot write Terraform configuration " + tfConfig
-	errWriteMain   = "cannot write Terraform configuration " + tfMain
-	errInit        = "cannot initialize Terraform configuration"
-	errWorkspace   = "cannot select Terraform workspace"
-	errResources   = "cannot list Terraform resources"
-	errDiff        = "cannot diff (i.e. plan) Terraform configuration"
-	errOutputs     = "cannot list Terraform outputs"
-	errOptions     = "cannot determine Terraform options"
-	errApply       = "cannot apply Terraform configuration"
-	errDestroy     = "cannot apply Terraform configuration"
-	errVarFile     = "cannot get tfvars"
+	errMkdir         = "cannot make Terraform configuration directory"
+	errRemoteModule  = "cannot get remote Terraform module"
+	errWriteCreds    = "cannot write Terraform credentials"
+	errWriteGitCreds = "cannot write .git-credentials to /tmp dir"
+	errWriteConfig   = "cannot write Terraform configuration " + tfConfig
+	errWriteMain     = "cannot write Terraform configuration " + tfMain
+	errInit          = "cannot initialize Terraform configuration"
+	errWorkspace     = "cannot select Terraform workspace"
+	errResources     = "cannot list Terraform resources"
+	errDiff          = "cannot diff (i.e. plan) Terraform configuration"
+	errOutputs       = "cannot list Terraform outputs"
+	errOptions       = "cannot determine Terraform options"
+	errApply         = "cannot apply Terraform configuration"
+	errDestroy       = "cannot apply Terraform configuration"
+	errVarFile       = "cannot get tfvars"
+
+	gitCredentialsFilename = ".git-credentials"
 )
 
 const (
@@ -92,8 +97,11 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter, poll, t
 	}
 
 	fs := afero.Afero{Fs: afero.NewOsFs()}
-	gc := workdir.NewGarbageCollector(mgr.GetClient(), tfDir, workdir.WithFs(fs), workdir.WithLogger(l))
-	go gc.Run(context.TODO())
+	gcWorkspace := workdir.NewGarbageCollector(mgr.GetClient(), tfDir, workdir.WithFs(fs), workdir.WithLogger(l))
+	go gcWorkspace.Run(context.TODO())
+
+	gcTmp := workdir.NewGarbageCollector(mgr.GetClient(), filepath.Join("tmp", tfDir), workdir.WithFs(fs), workdir.WithLogger(l))
+	go gcTmp.Run(context.TODO())
 
 	c := &connector{
 		kube:      mgr.GetClient(),
@@ -151,19 +159,43 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errGetPC)
 	}
 
-	tf := c.terraform(dir)
 	switch cr.Spec.ForProvider.Source {
 	case v1alpha1.ModuleSourceRemote:
-		// TODO(negz): Handle errors initialising from a remote module.
-		// Terraform will refuse to init from a remote module if there
-		// are files in the workdir. On the other hand it sometimes
-		// needs these files, e.g. credentials or additional HCL. In the
-		// latter case it will download everything before failing so we
-		// work around the issue by attempting a best-effort init from
-		// a remote module, then adding the files, then later running a
-		// regular local init. The downside to this approach is that we
-		// currently drop errors indicating an invalid remote.
-		_ = tf.Init(ctx, terraform.FromModule(cr.Spec.ForProvider.Module))
+		// NOTE(ytsarev): Retrieve .git-credentials from Spec to /tmp outside of workspace directory
+		gitCredDir := filepath.Clean(filepath.Join("/tmp", dir))
+		if err := c.fs.MkdirAll(gitCredDir, 0700); err != nil {
+			return nil, errors.Wrap(err, errWriteGitCreds)
+		}
+		for _, cd := range pc.Spec.Credentials {
+			if cd.Filename != gitCredentialsFilename {
+				continue
+			}
+			data, err := resource.CommonCredentialExtractor(ctx, cd.Source, c.kube, cd.CommonCredentialSelectors)
+			if err != nil {
+				return nil, errors.Wrap(err, errGetCreds)
+			}
+			p := filepath.Clean(filepath.Join(gitCredDir, filepath.Base(cd.Filename)))
+			if err := c.fs.WriteFile(p, data, 0600); err != nil {
+				return nil, errors.Wrap(err, errWriteGitCreds)
+			}
+			// NOTE(ytsarev): Make go-getter pick up .git-credentials, see /.gitconfig in the container image
+			err = os.Setenv("GIT_CRED_DIR", gitCredDir)
+			if err != nil {
+				return nil, errors.Wrap(err, errRemoteModule)
+			}
+		}
+
+		client := getter.Client{
+			Src: cr.Spec.ForProvider.Module,
+			Dst: dir,
+			Pwd: dir,
+
+			Mode: getter.ClientModeDir,
+		}
+		err := client.Get()
+		if err != nil {
+			return nil, errors.Wrap(err, errRemoteModule)
+		}
 	case v1alpha1.ModuleSourceInline:
 		if err := c.fs.WriteFile(filepath.Join(dir, tfMain), []byte(cr.Spec.ForProvider.Module), 0600); err != nil {
 			return nil, errors.Wrap(err, errWriteMain)
@@ -187,9 +219,11 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		}
 	}
 
+	tf := c.terraform(dir)
 	if err := tf.Init(ctx); err != nil {
 		return nil, errors.Wrap(err, errInit)
 	}
+	// TODO(ytsarev): cache .terraform in /tmp to speed up `terraform init` on next reconcile
 
 	return &external{tf: tf, kube: c.kube}, errors.Wrap(tf.Workspace(ctx, meta.GetExternalName(cr)), errWorkspace)
 }

@@ -4,6 +4,7 @@ ARG ARCH
 ARG TINI_VERSION
 
 ADD provider /usr/local/bin/crossplane-terraform-provider
+ADD .gitconfig .gitconfig
 
 # As of Crossplane v1.3.0 provider controllers run as UID 2000.
 # https://github.com/crossplane/crossplane/blob/v1.3.0/internal/controller/pkg/revision/deployment.go#L32
