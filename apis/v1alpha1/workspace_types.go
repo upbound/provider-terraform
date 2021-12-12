@@ -55,6 +55,7 @@ type VarFile struct {
 
 	// Format of this vars file.
 	// +kubebuilder:default=HCL
+	// +optional
 	Format VarFileFormat `json:"format"`
 
 	// A ConfigMap key containing the vars file.

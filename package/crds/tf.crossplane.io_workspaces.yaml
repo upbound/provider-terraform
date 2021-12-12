@@ -106,7 +106,6 @@ spec:
                           - SecretKey
                           type: string
                       required:
-                      - format
                       - source
                       type: object
                     type: array
