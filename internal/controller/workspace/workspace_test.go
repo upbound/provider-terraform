@@ -826,7 +826,7 @@ func TestCreate(t *testing.T) {
 								{
 									Source:             v1alpha1.VarFileSourceSecretKey,
 									SecretKeyReference: &v1alpha1.KeyReference{},
-									Format:             v1alpha1.VarFileFormatJSON,
+									Format:             &v1alpha1.VarFileFormatJSON,
 								},
 							},
 						},
@@ -975,7 +975,7 @@ func TestDelete(t *testing.T) {
 								{
 									Source:             v1alpha1.VarFileSourceSecretKey,
 									SecretKeyReference: &v1alpha1.KeyReference{},
-									Format:             v1alpha1.VarFileFormatJSON,
+									Format:             &v1alpha1.VarFileFormatJSON,
 								},
 							},
 						},
