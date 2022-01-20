@@ -43,7 +43,7 @@ const (
 type VarFileFormat string
 
 // Vars file formats.
-const (
+var (
 	VarFileFormatHCL  VarFileFormat = "HCL"
 	VarFileFormatJSON VarFileFormat = "JSON"
 )
@@ -56,7 +56,7 @@ type VarFile struct {
 	// Format of this vars file.
 	// +kubebuilder:default=HCL
 	// +optional
-	Format VarFileFormat `json:"format"`
+	Format *VarFileFormat `json:"format,omitempty"`
 
 	// A ConfigMap key containing the vars file.
 	// +optional

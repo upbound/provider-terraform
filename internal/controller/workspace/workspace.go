@@ -324,7 +324,7 @@ func (c *external) options(ctx context.Context, p v1alpha1.WorkspaceParameters) 
 
 	for _, vf := range p.VarFiles {
 		fmt := terraform.HCL
-		if vf.Format == v1alpha1.VarFileFormatJSON {
+		if vf.Format == &v1alpha1.VarFileFormatJSON {
 			fmt = terraform.JSON
 		}
 
