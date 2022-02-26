@@ -10,4 +10,5 @@ guidelines and responsibilities for the steering committee and maintainers.
 
 ## Maintainers
 
+* Yury Tsarev <yury@upbound.io> ([ytsarev](https://github.com/ytsarev))
 * Nic Cope <negz@upbound.io> ([negz](https://github.com/negz))
