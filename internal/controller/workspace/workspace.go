@@ -185,6 +185,11 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 			}
 		}
 
+		// Workaround of https://github.com/hashicorp/go-getter/issues/114
+		if err := c.fs.Remove(dir); err != nil {
+			return nil, errors.Wrap(err, errRemoteModule)
+		}
+
 		client := getter.Client{
 			Src: cr.Spec.ForProvider.Module,
 			Dst: dir,

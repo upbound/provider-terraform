@@ -17,11 +17,11 @@ spec:
       output "url" {
         value       = google_storage_bucket.example.self_link
       }
-      
+
       resource "random_id" "example" {
         byte_length = 4
       }
-      
+
       // The google provider and remote state are configured by the provider
       // config - see providerconfig.yaml.
       resource "google_storage_bucket" "example" {
