@@ -8,11 +8,14 @@ metadata:
     crossplane.io/external-name: myworkspace
 spec:
   forProvider:
-    # Any module supported by terraform init -from-module, for example a git
-    # repository. You can also specify a simple main.tf inline; see
+    # Git based remote module is supported.
+    # See https://www.terraform.io/language/modules/sources#generic-git-repository
+    # and https://www.terraform.io/language/modules/sources#modules-in-package-sub-directories
+    # for URL structure.
+    # You can also specify a simple main.tf inline; see
     # workspace-inline.yaml.
     source: Remote
-    module: https://github.com/crossplane/tf
+    module: git::https://github.com/crossplane/tf?ref=main
     # Variables can be specified inline.
     vars:
     - key: region
@@ -35,4 +38,4 @@ spec:
   # All Terraform outputs are written to the connection secret.
   writeConnectionSecretToRef:
     namespace: default
-    name: terraform-workspace-example-inline
+    name: terraform-workspace-example-remote
