@@ -486,6 +486,7 @@ func TestObserve(t *testing.T) {
 
 	type want struct {
 		o   managed.ExternalObservation
+		wo  v1alpha1.WorkspaceObservation
 		err error
 	}
 
@@ -627,6 +628,9 @@ func TestObserve(t *testing.T) {
 					ResourceUpToDate:  true,
 					ConnectionDetails: managed.ConnectionDetails{},
 				},
+				wo: v1alpha1.WorkspaceObservation{
+					Outputs: map[string]string{},
+				},
 			},
 		},
 		"WorkspaceExists": {
@@ -639,8 +643,8 @@ func TestObserve(t *testing.T) {
 					},
 					MockOutputs: func(ctx context.Context) ([]terraform.Output, error) {
 						return []terraform.Output{
-							{Name: "string", Type: terraform.OutputTypeString},
-							{Name: "object", Type: terraform.OutputTypeObject},
+							{Name: "string", Type: terraform.OutputTypeString, Sensitive: false},
+							{Name: "object", Type: terraform.OutputTypeObject, Sensitive: true},
 						}, nil
 					},
 				},
@@ -657,6 +661,11 @@ func TestObserve(t *testing.T) {
 						"object": []byte("null"), // Because we JSON decode the the value, which is interface{}{}
 					},
 				},
+				wo: v1alpha1.WorkspaceObservation{
+					Outputs: map[string]string{
+						"string": "",
+					},
+				},
 			},
 		},
 	}
@@ -670,6 +679,11 @@ func TestObserve(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("\n%s\ne.Observe(...): -want, +got:\n%s\n", tc.reason, diff)
+			}
+			if tc.args.mg != nil {
+				if diff := cmp.Diff(tc.want.wo, tc.args.mg.(*v1alpha1.Workspace).Status.AtProvider); diff != "" {
+					t.Errorf("\n%s\ne.Observe(...): -want, +got:\n%s\n", tc.reason, diff)
+				}
 			}
 		})
 	}
@@ -690,6 +704,7 @@ func TestCreate(t *testing.T) {
 
 	type want struct {
 		c   managed.ExternalCreation
+		wo  v1alpha1.WorkspaceObservation
 		err error
 	}
 
@@ -804,8 +819,8 @@ func TestCreate(t *testing.T) {
 					MockApply: func(_ context.Context, _ ...terraform.Option) error { return nil },
 					MockOutputs: func(ctx context.Context) ([]terraform.Output, error) {
 						return []terraform.Output{
-							{Name: "string", Type: terraform.OutputTypeString},
-							{Name: "object", Type: terraform.OutputTypeObject},
+							{Name: "string", Type: terraform.OutputTypeString, Sensitive: true},
+							{Name: "object", Type: terraform.OutputTypeObject, Sensitive: false},
 						}, nil
 					},
 				},
@@ -837,7 +852,12 @@ func TestCreate(t *testing.T) {
 				c: managed.ExternalCreation{
 					ConnectionDetails: managed.ConnectionDetails{
 						"string": {},
-						"object": []byte("null"), // Because we JSON decode the the value, which is interface{}{}
+						"object": []byte("null"), // Because we JSON decode the value, which is interface{}{}
+					},
+				},
+				wo: v1alpha1.WorkspaceObservation{
+					Outputs: map[string]string{
+						"object": "null",
 					},
 				},
 			},
@@ -853,6 +873,11 @@ func TestCreate(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.c, got); diff != "" {
 				t.Errorf("\n%s\ne.Create(...): -want, +got:\n%s\n", tc.reason, diff)
+			}
+			if tc.args.mg != nil {
+				if diff := cmp.Diff(tc.want.wo, tc.args.mg.(*v1alpha1.Workspace).Status.AtProvider); diff != "" {
+					t.Errorf("\n%s\ne.Observe(...): -want, +got:\n%s\n", tc.reason, diff)
+				}
 			}
 		})
 	}

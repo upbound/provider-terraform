@@ -168,6 +168,11 @@ spec:
             properties:
               atProvider:
                 description: WorkspaceObservation are the observable fields of a Workspace.
+                properties:
+                  outputs:
+                    additionalProperties:
+                      type: string
+                    type: object
                 type: object
               conditions:
                 description: Conditions of the resource.

@@ -23,7 +23,8 @@ spec:
     # main.tf as opaque, inline HCL.
     source: Inline
     module: |
-      // Outputs are written to the connection secret.
+      // All outputs are written to the connection secret.  Non-sensitive outputs
+      // are stored as string values in the status.atProvider.outputs object.
       output "url" {
         value       = google_storage_bucket.example.self_link
       }
@@ -101,6 +102,62 @@ spec:
 
 Standard `.git-credentials` filename is important to keep so provider-terraform
 controller will be able to automatically pick it up.
+
+
+## Terraform Output support
+
+Non-sensitive outputs are mapped to the status.atProvider.outputs section
+as strings so they can be referenced by the Composition.
+Strings, numbers and booleans can be referenced directly in Compositions
+and can be used in the _convert_ transform if type conversion is needed.
+Tuple and object outputs will be available in the corresponding JSON form.
+This is required because undefined object attributes are not specified in the Workspace
+CRD and so will be sanitized before the status is stored in the database.
+
+That means that any output values required for use in the Composition must be published
+explicitly and individually, and they cannot be referenced inside a tuple or object.
+
+For example, the following terraform outputs:
+```yaml
+      output "string" {
+        value = "bar"
+        sensitive = false
+      }
+      output "number" {
+        value = 1.9
+        sensitive = false
+      }
+      output "object" {
+        // This will be a JSON string - the key/value pairs are not accessible
+        value = {"a": 3, "b": 2}
+        sensitive = false
+      }
+      output "tuple" {
+        // This will be a JSON string - the elements will not be accessible
+        value = ["foo", "bar"]
+        sensitive = false
+      }
+      output "bool" {
+        value = false
+        sensitive = false
+      }
+      output "sensitive" {
+        value = "SENSITIVE"
+        sensitive = true
+      }
+```
+Appear in the corresponding outputs section as:
+```yaml
+  status:
+    atProvider:
+      outputs:
+        bool: "false"
+        number: "1.9"
+        object: '{"a":3,"b":2}'
+        string: bar
+        tuple: '["foo", "bar"]'
+```
+Note that the "sensitive" output is not included in status.atProvider.outputs
 
 ## Known limitations:
 

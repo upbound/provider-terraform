@@ -262,11 +262,13 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.Wrap(err, errResources)
 	}
 
-	// TODO(negz): Include any non-sensitive outputs in our status?
+	// Include any non-sensitive outputs in our status
 	op, err := c.tf.Outputs(ctx)
+
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, errOutputs)
 	}
+	cr.Status.AtProvider = generateWorkspaceObservation(op)
 
 	return managed.ExternalObservation{
 		ResourceExists:          len(r) > 0,
@@ -301,7 +303,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	if err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, errOutputs)
 	}
-
+	cr.Status.AtProvider = generateWorkspaceObservation(op)
 	// TODO(negz): Allow Workspaces to optionally derive their readiness from an
 	// output - similar to the logic XRs use to derive readiness from a field of
 	// a composed resource.
@@ -372,4 +374,22 @@ func op2cd(o []terraform.Output) managed.ConnectionDetails {
 		}
 	}
 	return cd
+}
+
+// generateWorkspaceObservation is used to produce v1alpha1.WorkspaceObservation from
+// workspace_type.Workspace.
+func generateWorkspaceObservation(op []terraform.Output) v1alpha1.WorkspaceObservation {
+	wo := v1alpha1.WorkspaceObservation{
+		Outputs: make(map[string]string, len(op)),
+	}
+	for _, o := range op {
+		if !o.Sensitive {
+			if o.Type == terraform.OutputTypeString {
+				wo.Outputs[o.Name] = o.StringValue()
+			} else if j, err := o.JSONValue(); err == nil {
+				wo.Outputs[o.Name] = string(j)
+			}
+		}
+	}
+	return wo
 }

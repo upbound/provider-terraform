@@ -217,6 +217,11 @@ type Output struct {
 	value interface{}
 }
 
+// Value returns the output's actual value.
+func (o Output) Value() interface{} {
+	return o.value
+}
+
 // StringValue returns the output's value as a string. It should only be used
 // for outputs of type 'string'.
 func (o Output) StringValue() string {
