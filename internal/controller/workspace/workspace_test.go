@@ -473,6 +473,7 @@ func TestConnect(t *testing.T) {
 
 func TestObserve(t *testing.T) {
 	errBoom := errors.New("boom")
+	now := metav1.Now()
 
 	type fields struct {
 		tf   tfclient
@@ -577,6 +578,24 @@ func TestObserve(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errDiff),
+			},
+		},
+		"DiffErrorDeleted": {
+			reason: "We should ignore error encountered while diffing the Terraform configuration on a deleted Workspace",
+			fields: fields{
+				tf: &MockTf{
+					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
+				},
+			},
+			args: args{
+				mg: &v1alpha1.Workspace{
+					ObjectMeta: metav1.ObjectMeta{
+						DeletionTimestamp: &now,
+					},
+				},
+			},
+			want: want{
+				o: managed.ExternalObservation{},
 			},
 		},
 		"ResourcesError": {
