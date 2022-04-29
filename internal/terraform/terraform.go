@@ -108,6 +108,13 @@ func FromModule(module string) InitOption {
 	}
 }
 
+// WithInitArgs supplies a list of Terraform argument.
+func WithInitArgs(v []string) InitOption {
+	return func(o *initOptions) {
+		o.args = append(o.args, v...)
+	}
+}
+
 // Init initializes a Terraform configuration.
 func (h Harness) Init(ctx context.Context, o ...InitOption) error {
 	io := &initOptions{}
@@ -332,6 +339,13 @@ type options struct {
 
 // An Option affects how a Terraform is invoked.
 type Option func(o *options)
+
+// WithArgs supplies a list of Terraform argument.
+func WithArgs(v []string) Option {
+	return func(o *options) {
+		o.args = append(o.args, v...)
+	}
+}
 
 // WithVar supplies a Terraform variable.
 func WithVar(k, v string) Option {

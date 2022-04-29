@@ -233,7 +233,9 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	tf := c.terraform(dir)
-	if err := tf.Init(ctx); err != nil {
+	o := make([]terraform.InitOption, 0, len(cr.Spec.ForProvider.InitArgs))
+	o = append(o, terraform.WithInitArgs(cr.Spec.ForProvider.InitArgs))
+	if err := tf.Init(ctx, o...); err != nil {
 		return nil, errors.Wrap(err, errInit)
 	}
 	// TODO(ytsarev): cache .terraform in /tmp to speed up `terraform init` on next reconcile
@@ -257,11 +259,9 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.Wrap(err, errOptions)
 	}
 
+	o = append(o, terraform.WithArgs(cr.Spec.ForProvider.PlanArgs))
 	differs, err := c.tf.Diff(ctx, o...)
 	if err != nil {
-		if meta.WasDeleted(cr) {
-			return managed.ExternalObservation{}, nil
-		}
 		return managed.ExternalObservation{}, errors.Wrap(err, errDiff)
 	}
 
@@ -303,6 +303,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalUpdate{}, errors.Wrap(err, errOptions)
 	}
 
+	o = append(o, terraform.WithArgs(cr.Spec.ForProvider.ApplyArgs))
 	if err := c.tf.Apply(ctx, o...); err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, errApply)
 	}
@@ -330,6 +331,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 		return errors.Wrap(err, errOptions)
 	}
 
+	o = append(o, terraform.WithArgs(cr.Spec.ForProvider.DestroyArgs))
 	if err := c.tf.Destroy(ctx, o...); err != nil {
 		return errors.Wrap(err, errDestroy)
 	}
@@ -358,7 +360,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 }
 
 func (c *external) options(ctx context.Context, p v1alpha1.WorkspaceParameters) ([]terraform.Option, error) {
-	o := make([]terraform.Option, 0, len(p.Vars)+len(p.VarFiles))
+	o := make([]terraform.Option, 0, len(p.Vars)+len(p.VarFiles)+len(p.DestroyArgs)+len(p.ApplyArgs)+len(p.PlanArgs))
 
 	for _, v := range p.Vars {
 		o = append(o, terraform.WithVar(v.Key, v.Value))

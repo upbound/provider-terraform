@@ -108,6 +108,18 @@ type WorkspaceParameters struct {
 	// precedence.
 	// +optional
 	VarFiles []VarFile `json:"varFiles,omitempty"`
+
+	// Arguments to be included in the terraform init CLI command
+	InitArgs []string `json:"initArgs,omitempty"`
+
+	// Arguments to be included in the terraform plan CLI command
+	PlanArgs []string `json:"planArgs,omitempty"`
+
+	// Arguments to be included in the terraform apply CLI command
+	ApplyArgs []string `json:"applyArgs,omitempty"`
+
+	// Arguments to be included in the terraform destroy CLI command
+	DestroyArgs []string `json:"destroyArgs,omitempty"`
 }
 
 // WorkspaceObservation are the observable fields of a Workspace.

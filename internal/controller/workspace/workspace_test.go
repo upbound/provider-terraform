@@ -445,6 +445,9 @@ func TestConnect(t *testing.T) {
 				mg: &v1alpha1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{UID: uid},
 					Spec: v1alpha1.WorkspaceSpec{
+						ForProvider: v1alpha1.WorkspaceParameters{
+							InitArgs: []string{"-upgrade=true"},
+						},
 						ResourceSpec: xpv1.ResourceSpec{
 							ProviderConfigReference: &xpv1.Reference{},
 						},
@@ -473,7 +476,6 @@ func TestConnect(t *testing.T) {
 
 func TestObserve(t *testing.T) {
 	errBoom := errors.New("boom")
-	now := metav1.Now()
 
 	type fields struct {
 		tf   tfclient
@@ -580,24 +582,6 @@ func TestObserve(t *testing.T) {
 				err: errors.Wrap(errBoom, errDiff),
 			},
 		},
-		"DiffErrorDeleted": {
-			reason: "We should ignore error encountered while diffing the Terraform configuration on a deleted Workspace",
-			fields: fields{
-				tf: &MockTf{
-					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
-				},
-			},
-			args: args{
-				mg: &v1alpha1.Workspace{
-					ObjectMeta: metav1.ObjectMeta{
-						DeletionTimestamp: &now,
-					},
-				},
-			},
-			want: want{
-				o: managed.ExternalObservation{},
-			},
-		},
 		"ResourcesError": {
 			reason: "We should return any error encountered while listing extant Terraform resources",
 			fields: fields{
@@ -669,7 +653,13 @@ func TestObserve(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{},
+				mg: &v1alpha1.Workspace{
+					Spec: v1alpha1.WorkspaceSpec{
+						ForProvider: v1alpha1.WorkspaceParameters{
+							PlanArgs: []string{"-refresh=false"},
+						},
+					},
+				},
 			},
 			want: want{
 				o: managed.ExternalObservation{
@@ -851,7 +841,8 @@ func TestCreate(t *testing.T) {
 				mg: &v1alpha1.Workspace{
 					Spec: v1alpha1.WorkspaceSpec{
 						ForProvider: v1alpha1.WorkspaceParameters{
-							Vars: []v1alpha1.Var{{Key: "super", Value: "cool"}},
+							ApplyArgs: []string{"-refresh=false"},
+							Vars:      []v1alpha1.Var{{Key: "super", Value: "cool"}},
 							VarFiles: []v1alpha1.VarFile{
 								{
 									Source:                v1alpha1.VarFileSourceConfigMapKey,
@@ -1012,7 +1003,8 @@ func TestDelete(t *testing.T) {
 				mg: &v1alpha1.Workspace{
 					Spec: v1alpha1.WorkspaceSpec{
 						ForProvider: v1alpha1.WorkspaceParameters{
-							Vars: []v1alpha1.Var{{Key: "super", Value: "cool"}},
+							DestroyArgs: []string{"-refresh=false"},
+							Vars:        []v1alpha1.Var{{Key: "super", Value: "cool"}},
 							VarFiles: []v1alpha1.VarFile{
 								{
 									Source:                v1alpha1.VarFileSourceConfigMapKey,
