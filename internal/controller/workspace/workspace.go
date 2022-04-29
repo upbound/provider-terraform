@@ -24,6 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
+	coordv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -238,7 +239,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 
 type external struct {
 	tf   tfclient
-	kube client.Reader
+	kube client.Client
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
@@ -322,7 +323,23 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 		return errors.Wrap(err, errOptions)
 	}
 
-	return errors.Wrap(c.tf.Destroy(ctx, o...), errDestroy)
+	if err := c.tf.Destroy(ctx, o...); err != nil {
+		return errors.Wrap(err, errDestroy)
+	}
+	labels := map[string]string{"tfstate": "true", "tfstateWorkspace": cr.Name}
+	sl := &corev1.SecretList{}
+	_ = c.kube.List(ctx, sl, client.MatchingLabels(labels))
+	for s := range sl.Items {
+		sec := sl.Items[s]
+		_ = c.kube.Delete(ctx, &sec)
+	}
+	ll := &coordv1.LeaseList{}
+	_ = c.kube.List(ctx, ll, client.MatchingLabels(labels))
+	for l := range ll.Items {
+		ls := sl.Items[l]
+		_ = c.kube.Delete(ctx, &ls)
+	}
+	return nil
 }
 
 func (c *external) options(ctx context.Context, p v1alpha1.WorkspaceParameters) ([]terraform.Option, error) {
