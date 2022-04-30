@@ -336,7 +336,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 	ll := &coordv1.LeaseList{}
 	_ = c.kube.List(ctx, ll, client.MatchingLabels(labels))
 	for l := range ll.Items {
-		ls := sl.Items[l]
+		ls := ll.Items[l]
 		_ = c.kube.Delete(ctx, &ls)
 	}
 	return nil
