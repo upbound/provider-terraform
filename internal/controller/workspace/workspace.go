@@ -263,7 +263,10 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	differs, err := c.tf.Diff(ctx, o...)
 	if err != nil {
 		if meta.WasDeleted(mg) {
-			return managed.ExternalObservation{}, errors.Wrap(c.Delete(ctx, mg), errDiff)
+			if derr := c.Delete(ctx, mg); derr != nil {
+				return managed.ExternalObservation{}, errors.Wrap(derr, errDiff)
+			}
+			return managed.ExternalObservation{ResourceExists: false}, nil
 		}
 		return managed.ExternalObservation{}, errors.Wrap(err, errDiff)
 	}
