@@ -65,7 +65,7 @@ const (
 	errOutputs       = "cannot list Terraform outputs"
 	errOptions       = "cannot determine Terraform options"
 	errApply         = "cannot apply Terraform configuration"
-	errDestroy       = "cannot apply Terraform configuration"
+	errDestroy       = "cannot destroy Terraform configuration"
 	errVarFile       = "cannot get tfvars"
 
 	gitCredentialsFilename = ".git-credentials"
@@ -258,6 +258,9 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	o = append(o, terraform.WithArgs(cr.Spec.ForProvider.PlanArgs))
 	differs, err := c.tf.Diff(ctx, o...)
 	if err != nil {
+		if meta.WasDeleted(mg) {
+			return managed.ExternalObservation{}, errors.Wrap(c.Delete(ctx, mg), errDiff)
+		}
 		return managed.ExternalObservation{}, errors.Wrap(err, errDiff)
 	}
 
