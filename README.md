@@ -71,6 +71,16 @@ spec:
     name: terraform-workspace-example-inline
 ```
 
+## Installation
+
+We highly encourage to use a declarative way of provider installation:
+
+```
+kubectl apply -f examples/install.yaml
+```
+
+Notice that in this example Provider resource is referencing ControllerConfig with debug enabled.
+
 ## Private Git repository support
 
 To securely propagate git credentials create a `git-credentials` secret in [git credentials store] format.

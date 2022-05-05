@@ -1,0 +1,19 @@
+---
+apiVersion: pkg.crossplane.io/v1alpha1
+kind: ControllerConfig
+metadata:
+  name: terraform-config
+  labels:
+    app: crossplane-provider-terraform
+spec:
+  image: crossplane/provider-terraform-controller:v0.2.0
+  args: ["-d"]
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: crossplane-provider-terraform
+spec:
+  package: crossplane/provider-terraform:v0.2.0
+  controllerConfigRef:
+    name: terraform-config
