@@ -24,6 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
+	coordv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -39,10 +40,11 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
+	"github.com/hashicorp/go-getter"
+
 	"github.com/crossplane-contrib/provider-terraform/apis/v1alpha1"
 	"github.com/crossplane-contrib/provider-terraform/internal/terraform"
 	"github.com/crossplane-contrib/provider-terraform/internal/workdir"
-	getter "github.com/hashicorp/go-getter"
 )
 
 const (
@@ -51,22 +53,25 @@ const (
 	errGetPC        = "cannot get ProviderConfig"
 	errGetCreds     = "cannot get credentials"
 
-	errMkdir         = "cannot make Terraform configuration directory"
-	errRemoteModule  = "cannot get remote Terraform module"
-	errWriteCreds    = "cannot write Terraform credentials"
-	errWriteGitCreds = "cannot write .git-credentials to /tmp dir"
-	errWriteConfig   = "cannot write Terraform configuration " + tfConfig
-	errWriteMain     = "cannot write Terraform configuration " + tfMain
-	errInit          = "cannot initialize Terraform configuration"
-	errWorkspace     = "cannot select Terraform workspace"
-	errResources     = "cannot list Terraform resources"
-	errDiff          = "cannot diff (i.e. plan) Terraform configuration"
-	errOutputs       = "cannot list Terraform outputs"
-	errOptions       = "cannot determine Terraform options"
-	errApply         = "cannot apply Terraform configuration"
-	errDestroy       = "cannot apply Terraform configuration"
-	errVarFile       = "cannot get tfvars"
-
+	errMkdir               = "cannot make Terraform configuration directory"
+	errRemoteModule        = "cannot get remote Terraform module"
+	errWriteCreds          = "cannot write Terraform credentials"
+	errWriteGitCreds       = "cannot write .git-credentials to /tmp dir"
+	errWriteConfig         = "cannot write Terraform configuration " + tfConfig
+	errWriteMain           = "cannot write Terraform configuration " + tfMain
+	errInit                = "cannot initialize Terraform configuration"
+	errWorkspace           = "cannot select Terraform workspace"
+	errResources           = "cannot list Terraform resources"
+	errDiff                = "cannot diff (i.e. plan) Terraform configuration"
+	errOutputs             = "cannot list Terraform outputs"
+	errOptions             = "cannot determine Terraform options"
+	errApply               = "cannot apply Terraform configuration"
+	errDestroy             = "cannot apply Terraform configuration"
+	errVarFile             = "cannot get tfvars"
+	errListLeases          = "cannot get list of Lease objects"
+	errListSecrets         = "cannot get list of Secret objects"
+	errDeleteSecret        = "cannot delete Secret for Workspace"
+	errDeleteLease         = "cannot delete Least for Workspace"
 	gitCredentialsFilename = ".git-credentials"
 )
 
@@ -238,7 +243,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 
 type external struct {
 	tf   tfclient
-	kube client.Reader
+	kube client.Client
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
@@ -322,7 +327,31 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 		return errors.Wrap(err, errOptions)
 	}
 
-	return errors.Wrap(c.tf.Destroy(ctx, o...), errDestroy)
+	if err := c.tf.Destroy(ctx, o...); err != nil {
+		return errors.Wrap(err, errDestroy)
+	}
+	labels := map[string]string{"tfstate": "true", "tfstateWorkspace": cr.Name}
+	sl := &corev1.SecretList{}
+	if err := c.kube.List(ctx, sl, client.MatchingLabels(labels)); err != nil {
+		return errors.Wrap(err, errListSecrets)
+	}
+	for s := range sl.Items {
+		sec := sl.Items[s]
+		if err := c.kube.Delete(ctx, &sec); err != nil {
+			return errors.Wrap(err, errDeleteSecret)
+		}
+	}
+	ll := &coordv1.LeaseList{}
+	if err := c.kube.List(ctx, ll, client.MatchingLabels(labels)); err != nil {
+		return errors.Wrap(err, errListLeases)
+	}
+	for l := range ll.Items {
+		ls := ll.Items[l]
+		if err := c.kube.Delete(ctx, &ls); err != nil {
+			return errors.Wrap(err, errDeleteLease)
+		}
+	}
+	return nil
 }
 
 func (c *external) options(ctx context.Context, p v1alpha1.WorkspaceParameters) ([]terraform.Option, error) {
