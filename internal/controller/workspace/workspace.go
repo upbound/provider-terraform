@@ -53,25 +53,26 @@ const (
 	errGetPC        = "cannot get ProviderConfig"
 	errGetCreds     = "cannot get credentials"
 
-	errMkdir               = "cannot make Terraform configuration directory"
-	errRemoteModule        = "cannot get remote Terraform module"
-	errWriteCreds          = "cannot write Terraform credentials"
-	errWriteGitCreds       = "cannot write .git-credentials to /tmp dir"
-	errWriteConfig         = "cannot write Terraform configuration " + tfConfig
-	errWriteMain           = "cannot write Terraform configuration " + tfMain
-	errInit                = "cannot initialize Terraform configuration"
-	errWorkspace           = "cannot select Terraform workspace"
-	errResources           = "cannot list Terraform resources"
-	errDiff                = "cannot diff (i.e. plan) Terraform configuration"
-	errOutputs             = "cannot list Terraform outputs"
-	errOptions             = "cannot determine Terraform options"
-	errApply               = "cannot apply Terraform configuration"
-	errDestroy             = "cannot destroy Terraform configuration"
-	errVarFile             = "cannot get tfvars"
-	errListLeases          = "cannot get list of Lease objects"
-	errListSecrets         = "cannot get list of Secret objects"
-	errDeleteSecret        = "cannot delete Secret for Workspace"
-	errDeleteLease         = "cannot delete Least for Workspace"
+	errMkdir         = "cannot make Terraform configuration directory"
+	errRemoteModule  = "cannot get remote Terraform module"
+	errWriteCreds    = "cannot write Terraform credentials"
+	errWriteGitCreds = "cannot write .git-credentials to /tmp dir"
+	errWriteConfig   = "cannot write Terraform configuration " + tfConfig
+	errWriteMain     = "cannot write Terraform configuration " + tfMain
+	errInit          = "cannot initialize Terraform configuration"
+	errWorkspace     = "cannot select Terraform workspace"
+	errResources     = "cannot list Terraform resources"
+	errDiff          = "cannot diff (i.e. plan) Terraform configuration"
+	errOutputs       = "cannot list Terraform outputs"
+	errOptions       = "cannot determine Terraform options"
+	errApply         = "cannot apply Terraform configuration"
+	errDestroy       = "cannot destroy Terraform configuration"
+	errVarFile       = "cannot get tfvars"
+	errListLeases    = "cannot get list of Lease objects"
+	errListSecrets   = "cannot get list of Secret objects"
+	errDeleteSecret  = "cannot delete Secret for Workspace"
+	errDeleteLease   = "cannot delete Least for Workspace"
+
 	gitCredentialsFilename = ".git-credentials"
 )
 
