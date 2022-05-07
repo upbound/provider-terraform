@@ -590,6 +590,11 @@ func TestObserve(t *testing.T) {
 					MockDestroy: func(_ context.Context, _ ...terraform.Option) error { return nil },
 					MockDiff:    func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
 				},
+				kube: &test.MockClient{
+					MockDelete: test.NewMockDeleteFn(nil),
+					MockGet:    test.NewMockGetFn(nil),
+					MockList:   test.NewMockListFn(nil),
+				},
 			},
 			args: args{
 				mg: &v1alpha1.Workspace{
