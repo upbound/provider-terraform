@@ -50,9 +50,29 @@ spec:
               forProvider:
                 description: WorkspaceParameters are the configurable fields of a Workspace.
                 properties:
+                  applyArgs:
+                    description: Arguments to be included in the terraform apply CLI command
+                    items:
+                      type: string
+                    type: array
+                  destroyArgs:
+                    description: Arguments to be included in the terraform destroy CLI command
+                    items:
+                      type: string
+                    type: array
+                  initArgs:
+                    description: Arguments to be included in the terraform init CLI command
+                    items:
+                      type: string
+                    type: array
                   module:
                     description: The root module of this workspace; i.e. the module containing its main.tf file. When the workspace's source is 'Remote' (the default) this can be any address supported by terraform init -from-module, for example a git repository or an S3 bucket. When the workspace's source is 'Inline' the content of a simple main.tf file may be written inline.
                     type: string
+                  planArgs:
+                    description: Arguments to be included in the terraform plan CLI command
+                    items:
+                      type: string
+                    type: array
                   source:
                     description: Source of the root module of this workspace.
                     enum:

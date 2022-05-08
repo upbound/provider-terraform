@@ -445,6 +445,9 @@ func TestConnect(t *testing.T) {
 				mg: &v1alpha1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{UID: uid},
 					Spec: v1alpha1.WorkspaceSpec{
+						ForProvider: v1alpha1.WorkspaceParameters{
+							InitArgs: []string{"-upgrade=true"},
+						},
 						ResourceSpec: xpv1.ResourceSpec{
 							ProviderConfigReference: &xpv1.Reference{},
 						},
@@ -473,6 +476,7 @@ func TestConnect(t *testing.T) {
 
 func TestObserve(t *testing.T) {
 	errBoom := errors.New("boom")
+	now := metav1.Now()
 
 	type fields struct {
 		tf   tfclient
@@ -579,6 +583,50 @@ func TestObserve(t *testing.T) {
 				err: errors.Wrap(errBoom, errDiff),
 			},
 		},
+		"DiffErrorDeleted": {
+			reason: "We should call the Delete function when an error is encountered while diffing the Terraform configuration on a deleted Workspace",
+			fields: fields{
+				tf: &MockTf{
+					MockDestroy: func(_ context.Context, _ ...terraform.Option) error { return nil },
+					MockDiff:    func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
+				},
+				kube: &test.MockClient{
+					MockDelete: test.NewMockDeleteFn(nil),
+					MockGet:    test.NewMockGetFn(nil),
+					MockList:   test.NewMockListFn(nil),
+				},
+			},
+			args: args{
+				mg: &v1alpha1.Workspace{
+					ObjectMeta: metav1.ObjectMeta{
+						DeletionTimestamp: &now,
+					},
+				},
+			},
+			want: want{
+				o: managed.ExternalObservation{ResourceExists: false},
+			},
+		},
+		"DiffErrorDeletedDestroyError": {
+			reason: "We should raise an error when the Delete function fails after Diff fails on a deleted resource",
+			fields: fields{
+				tf: &MockTf{
+					MockDestroy: func(_ context.Context, _ ...terraform.Option) error { return errBoom },
+					MockDiff:    func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
+				},
+			},
+			args: args{
+				mg: &v1alpha1.Workspace{
+					ObjectMeta: metav1.ObjectMeta{
+						DeletionTimestamp: &now,
+					},
+				},
+			},
+			want: want{
+				o:   managed.ExternalObservation{},
+				err: errors.Wrap(errors.Wrap(errBoom, errDestroy), errDiff),
+			},
+		},
 		"ResourcesError": {
 			reason: "We should return any error encountered while listing extant Terraform resources",
 			fields: fields{
@@ -650,7 +698,13 @@ func TestObserve(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{},
+				mg: &v1alpha1.Workspace{
+					Spec: v1alpha1.WorkspaceSpec{
+						ForProvider: v1alpha1.WorkspaceParameters{
+							PlanArgs: []string{"-refresh=false"},
+						},
+					},
+				},
 			},
 			want: want{
 				o: managed.ExternalObservation{
@@ -832,7 +886,8 @@ func TestCreate(t *testing.T) {
 				mg: &v1alpha1.Workspace{
 					Spec: v1alpha1.WorkspaceSpec{
 						ForProvider: v1alpha1.WorkspaceParameters{
-							Vars: []v1alpha1.Var{{Key: "super", Value: "cool"}},
+							ApplyArgs: []string{"-refresh=false"},
+							Vars:      []v1alpha1.Var{{Key: "super", Value: "cool"}},
 							VarFiles: []v1alpha1.VarFile{
 								{
 									Source:                v1alpha1.VarFileSourceConfigMapKey,
@@ -975,7 +1030,7 @@ func TestDelete(t *testing.T) {
 			args: args{
 				mg: &v1alpha1.Workspace{},
 			},
-			want: errors.Wrap(errBoom, errApply),
+			want: errors.Wrap(errBoom, errDestroy),
 		},
 		"Success": {
 			reason: "We should not return an error if we successfully destroy the Terraform configuration",
@@ -993,7 +1048,8 @@ func TestDelete(t *testing.T) {
 				mg: &v1alpha1.Workspace{
 					Spec: v1alpha1.WorkspaceSpec{
 						ForProvider: v1alpha1.WorkspaceParameters{
-							Vars: []v1alpha1.Var{{Key: "super", Value: "cool"}},
+							DestroyArgs: []string{"-refresh=false"},
+							Vars:        []v1alpha1.Var{{Key: "super", Value: "cool"}},
 							VarFiles: []v1alpha1.VarFile{
 								{
 									Source:                v1alpha1.VarFileSourceConfigMapKey,

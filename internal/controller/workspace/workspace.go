@@ -53,25 +53,26 @@ const (
 	errGetPC        = "cannot get ProviderConfig"
 	errGetCreds     = "cannot get credentials"
 
-	errMkdir               = "cannot make Terraform configuration directory"
-	errRemoteModule        = "cannot get remote Terraform module"
-	errWriteCreds          = "cannot write Terraform credentials"
-	errWriteGitCreds       = "cannot write .git-credentials to /tmp dir"
-	errWriteConfig         = "cannot write Terraform configuration " + tfConfig
-	errWriteMain           = "cannot write Terraform configuration " + tfMain
-	errInit                = "cannot initialize Terraform configuration"
-	errWorkspace           = "cannot select Terraform workspace"
-	errResources           = "cannot list Terraform resources"
-	errDiff                = "cannot diff (i.e. plan) Terraform configuration"
-	errOutputs             = "cannot list Terraform outputs"
-	errOptions             = "cannot determine Terraform options"
-	errApply               = "cannot apply Terraform configuration"
-	errDestroy             = "cannot apply Terraform configuration"
-	errVarFile             = "cannot get tfvars"
-	errListLeases          = "cannot get list of Lease objects"
-	errListSecrets         = "cannot get list of Secret objects"
-	errDeleteSecret        = "cannot delete Secret for Workspace"
-	errDeleteLease         = "cannot delete Least for Workspace"
+	errMkdir         = "cannot make Terraform configuration directory"
+	errRemoteModule  = "cannot get remote Terraform module"
+	errWriteCreds    = "cannot write Terraform credentials"
+	errWriteGitCreds = "cannot write .git-credentials to /tmp dir"
+	errWriteConfig   = "cannot write Terraform configuration " + tfConfig
+	errWriteMain     = "cannot write Terraform configuration " + tfMain
+	errInit          = "cannot initialize Terraform configuration"
+	errWorkspace     = "cannot select Terraform workspace"
+	errResources     = "cannot list Terraform resources"
+	errDiff          = "cannot diff (i.e. plan) Terraform configuration"
+	errOutputs       = "cannot list Terraform outputs"
+	errOptions       = "cannot determine Terraform options"
+	errApply         = "cannot apply Terraform configuration"
+	errDestroy       = "cannot destroy Terraform configuration"
+	errVarFile       = "cannot get tfvars"
+	errListLeases    = "cannot get list of Lease objects"
+	errListSecrets   = "cannot get list of Secret objects"
+	errDeleteSecret  = "cannot delete Secret for Workspace"
+	errDeleteLease   = "cannot delete Least for Workspace"
+
 	gitCredentialsFilename = ".git-credentials"
 )
 
@@ -233,7 +234,9 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	tf := c.terraform(dir)
-	if err := tf.Init(ctx); err != nil {
+	o := make([]terraform.InitOption, 0, len(cr.Spec.ForProvider.InitArgs))
+	o = append(o, terraform.WithInitArgs(cr.Spec.ForProvider.InitArgs))
+	if err := tf.Init(ctx, o...); err != nil {
 		return nil, errors.Wrap(err, errInit)
 	}
 	// TODO(ytsarev): cache .terraform in /tmp to speed up `terraform init` on next reconcile
@@ -257,8 +260,15 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.Wrap(err, errOptions)
 	}
 
+	o = append(o, terraform.WithArgs(cr.Spec.ForProvider.PlanArgs))
 	differs, err := c.tf.Diff(ctx, o...)
 	if err != nil {
+		if meta.WasDeleted(mg) {
+			if derr := c.Delete(ctx, mg); derr != nil {
+				return managed.ExternalObservation{}, errors.Wrap(derr, errDiff)
+			}
+			return managed.ExternalObservation{ResourceExists: false}, nil
+		}
 		return managed.ExternalObservation{}, errors.Wrap(err, errDiff)
 	}
 
@@ -300,6 +310,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalUpdate{}, errors.Wrap(err, errOptions)
 	}
 
+	o = append(o, terraform.WithArgs(cr.Spec.ForProvider.ApplyArgs))
 	if err := c.tf.Apply(ctx, o...); err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, errApply)
 	}
@@ -327,6 +338,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 		return errors.Wrap(err, errOptions)
 	}
 
+	o = append(o, terraform.WithArgs(cr.Spec.ForProvider.DestroyArgs))
 	if err := c.tf.Destroy(ctx, o...); err != nil {
 		return errors.Wrap(err, errDestroy)
 	}
@@ -355,7 +367,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 }
 
 func (c *external) options(ctx context.Context, p v1alpha1.WorkspaceParameters) ([]terraform.Option, error) {
-	o := make([]terraform.Option, 0, len(p.Vars)+len(p.VarFiles))
+	o := make([]terraform.Option, 0, len(p.Vars)+len(p.VarFiles)+len(p.DestroyArgs)+len(p.ApplyArgs)+len(p.PlanArgs))
 
 	for _, v := range p.Vars {
 		o = append(o, terraform.WithVar(v.Key, v.Value))
