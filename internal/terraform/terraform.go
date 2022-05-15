@@ -39,6 +39,8 @@ const (
 	errWriteVarFile = "cannot write tfvars file"
 
 	errFmtInvalidConfig = "invalid Terraform configuration: found %d errors"
+
+	tfDefault = "default"
 )
 
 const varFilePrefix = "crossplane-provider-terraform-"
@@ -182,6 +184,37 @@ func (h Harness) Workspace(ctx context.Context, name string) error {
 	cmd = exec.CommandContext(ctx, h.Path, "workspace", "new", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
 	_, err := cmd.Output()
+	return Classify(err)
+}
+
+// DeleteCurrentWorkspace deletes the current Terraform workspace if it is not the default.
+func (h Harness) DeleteCurrentWorkspace(ctx context.Context) error {
+	cmd := exec.CommandContext(ctx, h.Path, "workspace", "show", "-no-color") //nolint:gosec
+	cmd.Dir = h.Dir
+
+	n, err := cmd.Output()
+	if err != nil {
+		return Classify(err)
+	}
+	name := strings.TrimSuffix(string(n), "\n")
+	if name == tfDefault {
+		return nil
+	}
+
+	// Switch to the default workspace
+	err = h.Workspace(ctx, tfDefault)
+	if err != nil {
+		return Classify(err)
+	}
+	cmd = exec.CommandContext(ctx, h.Path, "workspace", "delete", "-no-color", name) //nolint:gosec
+	cmd.Dir = h.Dir
+
+	_, err = cmd.Output()
+	if err == nil {
+		// We successfully deleted the workspace; we're done.
+		return nil
+	}
+	// The working directory could be deleted here too instead of waiting for GC to clean it up
 	return Classify(err)
 }
 
