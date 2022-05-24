@@ -214,7 +214,7 @@ func (h Harness) DeleteCurrentWorkspace(ctx context.Context) error {
 		// We successfully deleted the workspace; we're done.
 		return nil
 	}
-	// The working directory could be deleted here too instead of waiting for GC to clean it up
+	// TODO(bobh66) The working directory could be deleted here instead of waiting for GC to clean it up
 	return Classify(err)
 }
 

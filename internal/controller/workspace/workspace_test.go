@@ -481,7 +481,7 @@ func TestConnect(t *testing.T) {
 
 func TestObserve(t *testing.T) {
 	errBoom := errors.New("boom")
-
+	now := metav1.Now()
 	type fields struct {
 		tf   tfclient
 		kube client.Client
@@ -585,6 +585,83 @@ func TestObserve(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errDiff),
+			},
+		},
+		"DiffErrorDeletedWithExistingResources": {
+			reason: "We should return ResourceUpToDate true when resource is deleted and there are existing resources but terraform plan fails",
+			fields: fields{
+				tf: &MockTf{
+					MockDiff:    func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
+					MockOutputs: func(ctx context.Context) ([]terraform.Output, error) { return nil, nil },
+					MockResources: func(ctx context.Context) ([]string, error) {
+						return []string{"cool_resource.very"}, nil
+					},
+				},
+			},
+			args: args{
+				mg: &v1alpha1.Workspace{
+					ObjectMeta: metav1.ObjectMeta{
+						DeletionTimestamp: &now,
+					},
+				},
+			},
+			want: want{
+				o: managed.ExternalObservation{
+					ResourceExists:    true,
+					ResourceUpToDate:  true,
+					ConnectionDetails: managed.ConnectionDetails{},
+				},
+				wo: v1alpha1.WorkspaceObservation{
+					Outputs: map[string]string{},
+				},
+			},
+		},
+		"DiffErrorDeletedWithoutExistingResources": {
+			reason: "We should return ResourceUpToDate true when resource is deleted and there are no existing resources and terraform plan fails",
+			fields: fields{
+				tf: &MockTf{
+					MockDiff:                   func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
+					MockOutputs:                func(ctx context.Context) ([]terraform.Output, error) { return nil, nil },
+					MockResources:              func(ctx context.Context) ([]string, error) { return nil, nil },
+					MockDeleteCurrentWorkspace: func(ctx context.Context) error { return nil },
+				},
+			},
+			args: args{
+				mg: &v1alpha1.Workspace{
+					ObjectMeta: metav1.ObjectMeta{
+						DeletionTimestamp: &now,
+					},
+				},
+			},
+			want: want{
+				o: managed.ExternalObservation{
+					ResourceExists:    false,
+					ResourceUpToDate:  true,
+					ConnectionDetails: managed.ConnectionDetails{},
+				},
+				wo: v1alpha1.WorkspaceObservation{
+					Outputs: map[string]string{},
+				},
+			},
+		},
+		"DiffErrorDeletedWithoutExistingResourcesWorkspaceDeleteError": {
+			reason: "We should return ResourceUpToDate true when resource is deleted and there are no existing resources and terraform plan fails",
+			fields: fields{
+				tf: &MockTf{
+					MockDiff:                   func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
+					MockResources:              func(ctx context.Context) ([]string, error) { return nil, nil },
+					MockDeleteCurrentWorkspace: func(ctx context.Context) error { return errBoom },
+				},
+			},
+			args: args{
+				mg: &v1alpha1.Workspace{
+					ObjectMeta: metav1.ObjectMeta{
+						DeletionTimestamp: &now,
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeleteWorkspace),
 			},
 		},
 		"ResourcesError": {
