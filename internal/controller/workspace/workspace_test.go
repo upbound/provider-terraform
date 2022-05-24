@@ -61,13 +61,14 @@ func (e *ErrFs) OpenFile(name string, flag int, perm os.FileMode) (afero.File, e
 }
 
 type MockTf struct {
-	MockInit      func(ctx context.Context, o ...terraform.InitOption) error
-	MockWorkspace func(ctx context.Context, name string) error
-	MockOutputs   func(ctx context.Context) ([]terraform.Output, error)
-	MockResources func(ctx context.Context) ([]string, error)
-	MockDiff      func(ctx context.Context, o ...terraform.Option) (bool, error)
-	MockApply     func(ctx context.Context, o ...terraform.Option) error
-	MockDestroy   func(ctx context.Context, o ...terraform.Option) error
+	MockInit                   func(ctx context.Context, o ...terraform.InitOption) error
+	MockWorkspace              func(ctx context.Context, name string) error
+	MockOutputs                func(ctx context.Context) ([]terraform.Output, error)
+	MockResources              func(ctx context.Context) ([]string, error)
+	MockDiff                   func(ctx context.Context, o ...terraform.Option) (bool, error)
+	MockApply                  func(ctx context.Context, o ...terraform.Option) error
+	MockDestroy                func(ctx context.Context, o ...terraform.Option) error
+	MockDeleteCurrentWorkspace func(ctx context.Context) error
 }
 
 func (tf *MockTf) Init(ctx context.Context, o ...terraform.InitOption) error {
@@ -96,6 +97,10 @@ func (tf *MockTf) Apply(ctx context.Context, o ...terraform.Option) error {
 
 func (tf *MockTf) Destroy(ctx context.Context, o ...terraform.Option) error {
 	return tf.MockDestroy(ctx, o...)
+}
+
+func (tf *MockTf) DeleteCurrentWorkspace(ctx context.Context) error {
+	return tf.MockDeleteCurrentWorkspace(ctx)
 }
 
 func TestConnect(t *testing.T) {
@@ -477,7 +482,6 @@ func TestConnect(t *testing.T) {
 func TestObserve(t *testing.T) {
 	errBoom := errors.New("boom")
 	now := metav1.Now()
-
 	type fields struct {
 		tf   tfclient
 		kube client.Client
@@ -583,17 +587,15 @@ func TestObserve(t *testing.T) {
 				err: errors.Wrap(errBoom, errDiff),
 			},
 		},
-		"DiffErrorDeleted": {
-			reason: "We should call the Delete function when an error is encountered while diffing the Terraform configuration on a deleted Workspace",
+		"DiffErrorDeletedWithExistingResources": {
+			reason: "We should return ResourceUpToDate true when resource is deleted and there are existing resources but terraform plan fails",
 			fields: fields{
 				tf: &MockTf{
-					MockDestroy: func(_ context.Context, _ ...terraform.Option) error { return nil },
 					MockDiff:    func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
-				},
-				kube: &test.MockClient{
-					MockDelete: test.NewMockDeleteFn(nil),
-					MockGet:    test.NewMockGetFn(nil),
-					MockList:   test.NewMockListFn(nil),
+					MockOutputs: func(ctx context.Context) ([]terraform.Output, error) { return nil, nil },
+					MockResources: func(ctx context.Context) ([]string, error) {
+						return []string{"cool_resource.very"}, nil
+					},
 				},
 			},
 			args: args{
@@ -604,15 +606,24 @@ func TestObserve(t *testing.T) {
 				},
 			},
 			want: want{
-				o: managed.ExternalObservation{ResourceExists: false},
+				o: managed.ExternalObservation{
+					ResourceExists:    true,
+					ResourceUpToDate:  true,
+					ConnectionDetails: managed.ConnectionDetails{},
+				},
+				wo: v1alpha1.WorkspaceObservation{
+					Outputs: map[string]string{},
+				},
 			},
 		},
-		"DiffErrorDeletedDestroyError": {
-			reason: "We should raise an error when the Delete function fails after Diff fails on a deleted resource",
+		"DiffErrorDeletedWithoutExistingResources": {
+			reason: "We should return ResourceUpToDate true when resource is deleted and there are no existing resources and terraform plan fails",
 			fields: fields{
 				tf: &MockTf{
-					MockDestroy: func(_ context.Context, _ ...terraform.Option) error { return errBoom },
-					MockDiff:    func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
+					MockDiff:                   func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
+					MockOutputs:                func(ctx context.Context) ([]terraform.Output, error) { return nil, nil },
+					MockResources:              func(ctx context.Context) ([]string, error) { return nil, nil },
+					MockDeleteCurrentWorkspace: func(ctx context.Context) error { return nil },
 				},
 			},
 			args: args{
@@ -623,8 +634,34 @@ func TestObserve(t *testing.T) {
 				},
 			},
 			want: want{
-				o:   managed.ExternalObservation{},
-				err: errors.Wrap(errors.Wrap(errBoom, errDestroy), errDiff),
+				o: managed.ExternalObservation{
+					ResourceExists:    false,
+					ResourceUpToDate:  true,
+					ConnectionDetails: managed.ConnectionDetails{},
+				},
+				wo: v1alpha1.WorkspaceObservation{
+					Outputs: map[string]string{},
+				},
+			},
+		},
+		"DiffErrorDeletedWithoutExistingResourcesWorkspaceDeleteError": {
+			reason: "We should return ResourceUpToDate true when resource is deleted and there are no existing resources and terraform plan fails",
+			fields: fields{
+				tf: &MockTf{
+					MockDiff:                   func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
+					MockResources:              func(ctx context.Context) ([]string, error) { return nil, nil },
+					MockDeleteCurrentWorkspace: func(ctx context.Context) error { return errBoom },
+				},
+			},
+			args: args{
+				mg: &v1alpha1.Workspace{
+					ObjectMeta: metav1.ObjectMeta{
+						DeletionTimestamp: &now,
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeleteWorkspace),
 			},
 		},
 		"ResourcesError": {
@@ -1039,9 +1076,7 @@ func TestDelete(t *testing.T) {
 					MockDestroy: func(_ context.Context, _ ...terraform.Option) error { return nil },
 				},
 				kube: &test.MockClient{
-					MockDelete: test.NewMockDeleteFn(nil),
-					MockGet:    test.NewMockGetFn(nil),
-					MockList:   test.NewMockListFn(nil),
+					MockGet: test.NewMockGetFn(nil),
 				},
 			},
 			args: args{

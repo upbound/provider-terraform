@@ -1,3 +1,4 @@
+//go:build invoke_terraform
 // +build invoke_terraform
 
 /*
@@ -122,6 +123,46 @@ func TestWorkspace(t *testing.T) {
 
 			tf := Harness{Path: tfBinaryPath, Dir: dir}
 			got := tf.Workspace(tc.args.ctx, tc.args.name)
+
+			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ntf.Workspace(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestDeleteWorkspace(t *testing.T) {
+	type args struct {
+		ctx  context.Context
+		name string
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   error
+	}{
+		"SuccessfulDelete": {
+			reason: "It should be possible to delete an existing workspace.",
+			args: args{
+				ctx:  context.Background(),
+				name: "cool",
+			},
+			want: nil,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			dir, err := ioutil.TempDir("", "provider-terraform-test")
+			if err != nil {
+				t.Fatalf("Cannot create temporary directory: %v", err)
+			}
+			defer os.RemoveAll(dir)
+
+			tf := Harness{Path: tfBinaryPath, Dir: dir}
+			ws := tf.Workspace(tc.args.ctx, tc.args.name)
+			got := tf.DeleteCurrentWorkspace(tc.args.ctx)
 
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ntf.Workspace(...): -want, +got:\n%s", tc.reason, diff)
