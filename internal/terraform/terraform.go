@@ -425,7 +425,7 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 		}
 	}
 
-	args := append([]string{"plan", "-no-color", "-input=false", "-detailed-exitcode"}, ao.args...)
+	args := append([]string{"plan", "-no-color", "-input=false", "-detailed-exitcode", "-lock=false"}, ao.args...)
 	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 
