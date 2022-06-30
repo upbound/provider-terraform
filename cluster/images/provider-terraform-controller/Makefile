@@ -6,7 +6,7 @@ include ../../../build/makelib/common.mk
 
 # ====================================================================================
 #  Options
-OSBASEIMAGE = hashicorp/terraform:1.0.1
+OSBASEIMAGE = hashicorp/terraform:1.2.3
 IMAGE = $(BUILD_REGISTRY)/provider-terraform-controller-$(ARCH)
 include ../../../build/makelib/image.mk
 

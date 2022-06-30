@@ -22,11 +22,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/crossplane-contrib/provider-terraform/apis/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/crossplane-contrib/provider-terraform/apis/v1alpha1"
 )
 
 // Error strings.
@@ -99,6 +101,11 @@ func (gc *GarbageCollector) Run(ctx context.Context) {
 	}
 }
 
+func isUUID(u string) bool {
+	_, err := uuid.Parse(u)
+	return err == nil
+}
+
 func (gc *GarbageCollector) collect(ctx context.Context) error {
 	l := &v1alpha1.WorkspaceList{}
 	if err := gc.kube.List(ctx, l); err != nil {
@@ -109,7 +116,6 @@ func (gc *GarbageCollector) collect(ctx context.Context) error {
 	for _, ws := range l.Items {
 		exists[string(ws.GetUID())] = true
 	}
-
 	fis, err := gc.fs.ReadDir(gc.parentDir)
 	if err != nil {
 		return errors.Wrapf(err, errFmtReadDir, gc.parentDir)
@@ -117,7 +123,7 @@ func (gc *GarbageCollector) collect(ctx context.Context) error {
 
 	failed := make([]string, 0)
 	for _, fi := range fis {
-		if !fi.IsDir() {
+		if !fi.IsDir() || !isUUID(fi.Name()) {
 			continue
 		}
 		if exists[fi.Name()] {
