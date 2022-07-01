@@ -102,21 +102,23 @@ func TestCollect(t *testing.T) {
 			fields: fields{
 				kube: &test.MockClient{MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 					*obj.(*v1alpha1.WorkspaceList) = v1alpha1.WorkspaceList{Items: []v1alpha1.Workspace{
-						{ObjectMeta: metav1.ObjectMeta{UID: types.UID("a")}},
-						{ObjectMeta: metav1.ObjectMeta{UID: types.UID("b")}},
+						{ObjectMeta: metav1.ObjectMeta{UID: types.UID("8371dd9e-dd3f-4a42-bd8c-340c4744f6de")}},
+						{ObjectMeta: metav1.ObjectMeta{UID: types.UID("ebaac629-43a3-4b39-8138-d7ac19cafe11")}},
 					}}
 					return nil
 				})},
 				parentdDir: parentDir,
 				fs: withDirs(afero.Afero{Fs: afero.NewMemMapFs()},
 					parentDir,
-					filepath.Join(parentDir, "a"),
-					filepath.Join(parentDir, "b"),
-					filepath.Join(parentDir, "c"),
+					filepath.Join(parentDir, "8371dd9e-dd3f-4a42-bd8c-340c4744f6de"),
+					filepath.Join(parentDir, "ebaac629-43a3-4b39-8138-d7ac19cafe11"),
+					filepath.Join(parentDir, "0d177133-1a2f-4ce2-93d2-f8212d3344e7"),
+					filepath.Join(parentDir, "helm"),
+					filepath.Join(parentDir, "registry.terraform.io"),
 				),
 			},
 			want: want{
-				dirs: []string{"a", "b"},
+				dirs: []string{"8371dd9e-dd3f-4a42-bd8c-340c4744f6de", "ebaac629-43a3-4b39-8138-d7ac19cafe11", "helm", "registry.terraform.io"},
 			},
 		},
 	}
