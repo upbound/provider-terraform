@@ -759,6 +759,47 @@ func TestObserve(t *testing.T) {
 				},
 			},
 		},
+		"WorkspaceExistsOnlyOutputs": {
+			reason: "A workspace with only outputs and no resources should set ResourceExists to true",
+			fields: fields{
+				tf: &MockTf{
+					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, nil },
+					MockResources: func(ctx context.Context) ([]string, error) {
+						return nil, nil
+					},
+					MockOutputs: func(ctx context.Context) ([]terraform.Output, error) {
+						return []terraform.Output{
+							{Name: "string", Type: terraform.OutputTypeString, Sensitive: false},
+							{Name: "object", Type: terraform.OutputTypeObject, Sensitive: true},
+						}, nil
+					},
+				},
+			},
+			args: args{
+				mg: &v1alpha1.Workspace{
+					Spec: v1alpha1.WorkspaceSpec{
+						ForProvider: v1alpha1.WorkspaceParameters{
+							PlanArgs: []string{"-refresh=false"},
+						},
+					},
+				},
+			},
+			want: want{
+				o: managed.ExternalObservation{
+					ResourceExists:   true,
+					ResourceUpToDate: true,
+					ConnectionDetails: managed.ConnectionDetails{
+						"string": {},
+						"object": []byte("null"), // Because we JSON decode the the value, which is interface{}{}
+					},
+				},
+				wo: v1alpha1.WorkspaceObservation{
+					Outputs: map[string]string{
+						"string": "",
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {

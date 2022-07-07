@@ -286,7 +286,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	cr.Status.AtProvider = generateWorkspaceObservation(op)
 
 	return managed.ExternalObservation{
-		ResourceExists:          len(r) > 0,
+		ResourceExists:          len(r)+len(op) > 0,
 		ResourceUpToDate:        !differs,
 		ResourceLateInitialized: false,
 		ConnectionDetails:       op2cd(op),
