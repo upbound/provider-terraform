@@ -1,6 +1,6 @@
 # provider-terraform
 
-An __experimental__ Crossplane provider for Terraform. Use this provider to
+An **experimental** Crossplane provider for Terraform. Use this provider to
 define new Crossplane Composite Resources (XRs) that are composed of a mix of
 'native' Crossplane managed resources and your existing Terraform modules.
 
@@ -57,14 +57,14 @@ spec:
     module: https://github.com/crossplane/tf
     # Variables can be specified inline, or loaded from a ConfigMap or Secret.
     vars:
-    - key: region
-      value: us-west-1
+      - key: region
+        value: us-west-1
     varFiles:
-    - source: SecretKey
-      secretKeyRef:
-        namespace: default
-        name: terraform
-        key: example.tfvar.json
+      - source: SecretKey
+        secretKeyRef:
+          namespace: default
+          name: terraform
+          key: example.tfvar.json
   # All Terraform outputs are written to the connection secret.
   writeConnectionSecretToRef:
     namespace: default
@@ -75,7 +75,7 @@ spec:
 
 We highly encourage to use a declarative way of provider installation:
 
-```
+```sh
 kubectl apply -f examples/install.yaml
 ```
 
@@ -101,18 +101,16 @@ metadata:
   name: default
 spec:
   credentials:
-  - filename: .git-credentials # use exactly this filename
-    source: Secret
-    secretRef:
-      namespace: crossplane-system
-      name: git-credentials
-      key: .git-credentials
-...
+    - filename: .git-credentials # use exactly this filename
+      source: Secret
+      secretRef:
+        namespace: crossplane-system
+        name: git-credentials
+        key: .git-credentials
 ```
 
 Standard `.git-credentials` filename is important to keep so provider-terraform
 controller will be able to automatically pick it up.
-
 
 ## Terraform Output support
 
@@ -128,6 +126,7 @@ That means that any output values required for use in the Composition must be pu
 explicitly and individually, and they cannot be referenced inside a tuple or object.
 
 For example, the following terraform outputs:
+
 ```yaml
       output "string" {
         value = "bar"
@@ -156,24 +155,29 @@ For example, the following terraform outputs:
         sensitive = true
       }
 ```
+
 Appear in the corresponding outputs section as:
+
 ```yaml
-  status:
-    atProvider:
-      outputs:
-        bool: "false"
-        number: "1.9"
-        object: '{"a":3,"b":2}'
-        string: bar
-        tuple: '["foo", "bar"]'
+status:
+  atProvider:
+    outputs:
+      bool: "false"
+      number: "1.9"
+      object: '{"a":3,"b":2}'
+      string: bar
+      tuple: '["foo", "bar"]'
 ```
+
 Note that the "sensitive" output is not included in status.atProvider.outputs
 
 ## Terraform CLI Command Arguments
+
 Additional arguments can be passed to the Terraform plan, apply, and destroy commands by specifying
 the planArgs, applyArgs and destroyArgs options.
 
 For example:
+
 ```yaml
 apiVersion: tf.crossplane.io/v1alpha1
 kind: Workspace
@@ -201,6 +205,7 @@ spec:
     namespace: default
     name: terraform-workspace-example-inline
 ```
+
 This will cause the _terraform init_ command to be run with the "-upgrade=true" argument,
 the _terraform plan_ command to be run with the -parallelism=2 argument,
 the _terraform apply_ command to be run with the -target=specificresource argument,
@@ -209,19 +214,19 @@ and the _terraform destroy_ command to be run with the -refresh=false argument.
 Note that by default the terraform _init_ command is run with the "-input=false", and "-no-color" arguments,
 the terraform _apply_ and _destroy_ commands are run with the
 "-no-color", "-auto-approve", and "-input=false" arguments, and the terraform _plan_ command is
-run with the "-no-color", "-input=false", and "-detailed-exitcode" arguments.  Arguments specified in
+run with the "-no-color", "-input=false", and "-detailed-exitcode" arguments. Arguments specified in
 applyArgs, destroyArgs and planArgs will be added to these default arguments.
 
-## Known limitations:
+## Known limitations
 
-* You must either use remote state or ensure the provider container's `/tf`
-  directory is not lost. `provider-terraform` __does not persist state__;
+- You must either use remote state or ensure the provider container's `/tf`
+  directory is not lost. `provider-terraform` **does not persist state**;
   consider using the [Kubernetes] remote state backend.
-* If the module takes longer than the supplied `--timeout` to apply the
+- If the module takes longer than the supplied `--timeout` to apply the
   underlying `terraform` process will be killed. You will potentially lose state
   and leak resources.
-* The provider won't emit an event until _after_ it has successfully applied the
+- The provider won't emit an event until _after_ it has successfully applied the
   Terraform module, which can take a long time.
 
-[Kubernetes]: https://www.terraform.io/docs/language/settings/backends/kubernetes.html
+[kubernetes]: https://www.terraform.io/docs/language/settings/backends/kubernetes.html
 [git credentials store]: https://git-scm.com/docs/git-credential-store
