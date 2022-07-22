@@ -89,7 +89,6 @@ spec:
                       enum:
                       - None
                       - Secret
-                      - InjectedIdentity
                       - Environment
                       - Filesystem
                       type: string
