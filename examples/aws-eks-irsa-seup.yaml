@@ -1,0 +1,66 @@
+# NOTE: You need a trust policy associated with the role matching the Service Account and OIDC provider
+# Something like the following:
+# {
+#     "Version": "2012-10-17",
+#     "Statement": [
+#         {
+#             "Effect": "Allow",
+#             "Principal": {
+#                 "Federated": "arn:aws:iam::${AWS_ACCOUNT_ID}:oidc-provider/${OIDC_PROVIDER}"
+#             },
+#             "Action": "sts:AssumeRoleWithWebIdentity",
+#             "Condition": {
+#                 "StringLike": {
+#                     "${OIDC_PROVIDER}:sub": "system:serviceaccount:${SERVICE_ACCOUNT_NAMESPACE}:provider-terraform-*"
+#                 }
+#             }
+#         }
+#     ]
+# }
+#
+# Where:
+# OIDC_PROVIDER=$(aws eks describe-cluster --name "${CLUSTER_NAME}" --region "${AWS_REGION}" --query "cluster.identity.oidc.issuer" --output text | sed -e "s/^https:\/\///")
+---
+apiVersion: pkg.crossplane.io/v1alpha1
+kind: ControllerConfig
+metadata:
+  name: terraform-config
+  labels:
+    app: crossplane-provider-terraform
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNTID:role/provider-terraform
+spec:
+  image: crossplane/provider-terraform-controller:v0.2.0
+  args:
+    - "--debug"
+  podSecurityContext:
+    fsGroup: 2000
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: crossplane-provider-terraform
+spec:
+  package: crossplane/provider-terraform:v0.2.0
+  controllerConfigRef:
+    name: terraform-config
+---
+apiVersion: tf.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  annotations: {}
+  name: aws-irsa
+spec:
+  configuration: |
+    terraform {
+      backend "kubernetes" {
+        secret_suffix     = "providerconfig-tf-aws"
+        namespace         = "crossplane-system"
+        in_cluster_config = true
+      }
+    }
+    provider "aws" {}
+  credentials:
+    # Terraform natively supports IRSA auth so we can use None here
+    - filename: aws.json
+      source: None

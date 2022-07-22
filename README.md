@@ -81,6 +81,12 @@ kubectl apply -f examples/install.yaml
 
 Notice that in this example Provider resource is referencing ControllerConfig with debug enabled.
 
+You can also setup the Terraform Provider using AWS
+[IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
+For more information, check out the example [setup](./examples/aws-eks-irsa-seup.yaml), the process is
+similar to what you would use for the
+[provider-aws](https://github.com/crossplane-contrib/provider-aws/blob/master/AUTHENTICATION.md#using-iam-roles-for-serviceaccounts).
+
 ## Private Git repository support
 
 To securely propagate git credentials create a `git-credentials` secret in [git credentials store] format.
