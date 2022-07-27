@@ -165,32 +165,35 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errGetPC)
 	}
 
-	switch cr.Spec.ForProvider.Source {
-	case v1alpha1.ModuleSourceRemote:
-		// NOTE(ytsarev): Retrieve .git-credentials from Spec to /tmp outside of workspace directory
+	// Make git credentials available to inline and remote sources
+	for _, cd := range pc.Spec.Credentials {
+		if cd.Filename != gitCredentialsFilename {
+			continue
+		}
+		data, err := resource.CommonCredentialExtractor(ctx, cd.Source, c.kube, cd.CommonCredentialSelectors)
+		if err != nil {
+			return nil, errors.Wrap(err, errGetCreds)
+		}
+		// NOTE(bobh66): Put the git credentials file in /tmp/tf/<UUID> so it doesn't get removed or overwritten
+		// by the remote module source case
 		gitCredDir := filepath.Clean(filepath.Join("/tmp", dir))
-		if err := c.fs.MkdirAll(gitCredDir, 0700); err != nil {
+		if err = c.fs.MkdirAll(gitCredDir, 0700); err != nil {
 			return nil, errors.Wrap(err, errWriteGitCreds)
 		}
-		for _, cd := range pc.Spec.Credentials {
-			if cd.Filename != gitCredentialsFilename {
-				continue
-			}
-			data, err := resource.CommonCredentialExtractor(ctx, cd.Source, c.kube, cd.CommonCredentialSelectors)
-			if err != nil {
-				return nil, errors.Wrap(err, errGetCreds)
-			}
-			p := filepath.Clean(filepath.Join(gitCredDir, filepath.Base(cd.Filename)))
-			if err := c.fs.WriteFile(p, data, 0600); err != nil {
-				return nil, errors.Wrap(err, errWriteGitCreds)
-			}
-			// NOTE(ytsarev): Make go-getter pick up .git-credentials, see /.gitconfig in the container image
-			err = os.Setenv("GIT_CRED_DIR", gitCredDir)
-			if err != nil {
-				return nil, errors.Wrap(err, errRemoteModule)
-			}
-		}
 
+		// NOTE(ytsarev): Make go-getter pick up .git-credentials, see /.gitconfig in the container image
+		err = os.Setenv("GIT_CRED_DIR", gitCredDir)
+		if err != nil {
+			return nil, errors.Wrap(err, errRemoteModule)
+		}
+		p := filepath.Clean(filepath.Join(gitCredDir, filepath.Base(cd.Filename)))
+		if err := c.fs.WriteFile(p, data, 0600); err != nil {
+			return nil, errors.Wrap(err, errWriteGitCreds)
+		}
+	}
+
+	switch cr.Spec.ForProvider.Source {
+	case v1alpha1.ModuleSourceRemote:
 		// Workaround of https://github.com/hashicorp/go-getter/issues/114
 		if err := c.fs.RemoveAll(dir); err != nil {
 			return nil, errors.Wrap(err, errRemoteModule)
