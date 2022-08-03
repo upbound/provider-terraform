@@ -41,7 +41,7 @@ type ProviderCredentials struct {
 	Filename string `json:"filename"`
 
 	// Source of the provider credentials.
-	// +kubebuilder:validation:Enum=None;Secret;InjectedIdentity;Environment;Filesystem
+	// +kubebuilder:validation:Enum=None;Secret;Environment;Filesystem
 	Source xpv1.CredentialsSource `json:"source"`
 
 	xpv1.CommonCredentialSelectors `json:",inline"`
