@@ -26,14 +26,12 @@ import (
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
@@ -92,20 +90,20 @@ type tfclient interface {
 }
 
 // Setup adds a controller that reconciles Workspace managed resources.
-func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter, poll, timeout time.Duration) error {
+func Setup(mgr ctrl.Manager, o controller.Options, timeout time.Duration) error {
 	name := managed.ControllerName(v1alpha1.WorkspaceGroupKind)
 
-	o := controller.Options{
-		RateLimiter: ratelimiter.NewDefaultManagedRateLimiter(rl),
-	}
-
 	fs := afero.Afero{Fs: afero.NewOsFs()}
-	gcWorkspace := workdir.NewGarbageCollector(mgr.GetClient(), tfDir, workdir.WithFs(fs), workdir.WithLogger(l))
+	gcWorkspace := workdir.NewGarbageCollector(mgr.GetClient(), tfDir, workdir.WithFs(fs), workdir.WithLogger(o.Logger))
 	go gcWorkspace.Run(context.TODO())
 
-	gcTmp := workdir.NewGarbageCollector(mgr.GetClient(), filepath.Join("/tmp", tfDir), workdir.WithFs(fs), workdir.WithLogger(l))
+	gcTmp := workdir.NewGarbageCollector(mgr.GetClient(), filepath.Join("/tmp", tfDir), workdir.WithFs(fs), workdir.WithLogger(o.Logger))
 	go gcTmp.Run(context.TODO())
 
+	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
+	// if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
+	// 	 cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), apisc1alpha1.StoreConfigGroupVersionKind))
+	// }
 	c := &connector{
 		kube:      mgr.GetClient(),
 		usage:     resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1alpha1.ProviderConfigUsage{}),
@@ -115,17 +113,18 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter, poll, t
 
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1alpha1.WorkspaceGroupVersionKind),
+		managed.WithPollInterval(o.PollInterval),
 		managed.WithExternalConnecter(c),
-		managed.WithPollInterval(poll),
-		managed.WithLogger(l.WithValues("controller", name)),
+		managed.WithLogger(o.Logger.WithValues("controller", name)),
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-		managed.WithTimeout(timeout))
+		managed.WithTimeout(timeout),
+		managed.WithConnectionPublishers(cps...))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		WithOptions(o).
+		WithOptions(o.ForControllerRuntime()).
 		For(&v1alpha1.Workspace{}).
-		Complete(r)
+		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
 type connector struct {
@@ -249,26 +248,34 @@ type external struct {
 	kube client.Client
 }
 
+func (c *external) checkDiff(ctx context.Context, cr *v1alpha1.Workspace) (bool, error) {
+	o, err := c.options(ctx, cr.Spec.ForProvider)
+	if err != nil {
+		return false, errors.Wrap(err, errOptions)
+	}
+
+	o = append(o, terraform.WithArgs(cr.Spec.ForProvider.PlanArgs))
+	differs, err := c.tf.Diff(ctx, o...)
+	if err != nil {
+		if !meta.WasDeleted(cr) {
+			return false, errors.Wrap(err, errDiff)
+		}
+		// terraform plan can fail on deleted resources, so let the reconciliation loop
+		// call Delete() if there are still resources in the tfstate file
+		differs = false
+	}
+	return differs, nil
+}
+
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
 	cr, ok := mg.(*v1alpha1.Workspace)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotWorkspace)
 	}
 
-	o, err := c.options(ctx, cr.Spec.ForProvider)
+	differs, err := c.checkDiff(ctx, cr)
 	if err != nil {
-		return managed.ExternalObservation{}, errors.Wrap(err, errOptions)
-	}
-
-	o = append(o, terraform.WithArgs(cr.Spec.ForProvider.PlanArgs))
-	differs, err := c.tf.Diff(ctx, o...)
-	if err != nil {
-		if !meta.WasDeleted(mg) {
-			return managed.ExternalObservation{}, errors.Wrap(err, errDiff)
-		}
-		// terraform plan can fail on deleted resources, so let the reconciliation loop
-		// call Delete() if there are still resources in the tfstate file
-		differs = false
+		return managed.ExternalObservation{}, err
 	}
 	r, err := c.tf.Resources(ctx)
 	if err != nil {
@@ -287,6 +294,13 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.Wrap(err, errOutputs)
 	}
 	cr.Status.AtProvider = generateWorkspaceObservation(op)
+
+	if !differs {
+		// TODO(negz): Allow Workspaces to optionally derive their readiness from an
+		// output - similar to the logic XRs use to derive readiness from a field of
+		// a composed resource.
+		cr.Status.SetConditions(xpv1.Available())
+	}
 
 	return managed.ExternalObservation{
 		ResourceExists:          len(r)+len(op) > 0,
@@ -326,7 +340,10 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	// TODO(negz): Allow Workspaces to optionally derive their readiness from an
 	// output - similar to the logic XRs use to derive readiness from a field of
 	// a composed resource.
-	mg.SetConditions(xpv1.Available())
+	// Note that since Create() calls this function the Reconciler will overwrite this Available condition with Creating
+	// on the first pass and it will get reset to Available() by Observe() on the next pass if there are no differences.
+	// Leave this call for the Update() case.
+	cr.Status.SetConditions(xpv1.Available())
 	return managed.ExternalUpdate{ConnectionDetails: op2cd(op)}, nil
 }
 
