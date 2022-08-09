@@ -19,20 +19,24 @@ package controller
 import (
 	"time"
 
-	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/controller"
 
 	"github.com/crossplane-contrib/provider-terraform/internal/controller/config"
 	"github.com/crossplane-contrib/provider-terraform/internal/controller/workspace"
 )
 
-// Setup creates all terraform controllers with the supplied logger and adds
+// Setup creates all terraform controllers with the supplied options and adds
 // them to the supplied manager.
-func Setup(mgr ctrl.Manager, l logging.Logger, wl workqueue.RateLimiter, poll, timeout time.Duration) error {
-	if err := workspace.Setup(mgr, l, wl, poll, timeout); err != nil {
-		return err
+func Setup(mgr ctrl.Manager, o controller.Options, timeout time.Duration) error {
+	for _, setup := range []func(ctrl.Manager, controller.Options, time.Duration) error{
+		config.Setup,
+		workspace.Setup,
+	} {
+		if err := setup(mgr, o, timeout); err != nil {
+			return err
+		}
 	}
-	return config.Setup(mgr, l, wl)
+	return nil
 }

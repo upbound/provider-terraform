@@ -30,14 +30,6 @@ fallthrough: submodules
 	@echo Initial setup complete. Running make again . . .
 	@make
 
-crds.clean:
-	@$(INFO) cleaning generated CRDs
-	@find package/crds -name *.yaml -exec sed -i.sed -e '1,2d' {} \; || $(FAIL)
-	@find package/crds -name *.yaml.sed -delete || $(FAIL)
-	@$(OK) cleaned generated CRDs
-
-generate.done: crds.clean
-
 # integration tests
 e2e.run: test-integration
 
@@ -75,7 +67,7 @@ dev-clean: $(KIND) $(KUBECTL)
 	@$(INFO) Deleting kind cluster
 	@$(KIND) delete cluster --name=$(PROJECT_NAME)-dev
 
-.PHONY: reviewable submodules fallthrough test-integration run crds.clean dev dev-clean
+.PHONY: reviewable submodules fallthrough test-integration run dev dev-clean
 
 # ====================================================================================
 # Special Targets

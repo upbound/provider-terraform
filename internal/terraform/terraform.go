@@ -31,12 +31,14 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"golang.org/x/sync/semaphore"
 )
 
 // Error strings.
 const (
 	errParse        = "cannot parse Terraform output"
 	errWriteVarFile = "cannot write tfvars file"
+	errSemAcquire   = "cannot acquire semaphore for tfinit"
 
 	errFmtInvalidConfig = "invalid Terraform configuration: found %d errors"
 
@@ -117,6 +119,10 @@ func WithInitArgs(v []string) InitOption {
 	}
 }
 
+// Semaphore to limit the number of concurrent terraform init commands to 1.
+// This is needed to support a shared provider cache with concurrent reconciliations.
+var sem = semaphore.NewWeighted(int64(1))
+
 // Init initializes a Terraform configuration.
 func (h Harness) Init(ctx context.Context, o ...InitOption) error {
 	io := &initOptions{}
@@ -127,8 +133,12 @@ func (h Harness) Init(ctx context.Context, o ...InitOption) error {
 	args := append([]string{"init", "-input=false", "-no-color"}, io.args...)
 	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
-
-	_, err := cmd.Output()
+	err := sem.Acquire(ctx, 1)
+	if err != nil {
+		return errors.Wrap(err, errSemAcquire)
+	}
+	_, err = cmd.Output()
+	sem.Release(1)
 	return Classify(err)
 }
 
