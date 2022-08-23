@@ -9,7 +9,7 @@ require (
 	github.com/google/uuid v1.1.2
 	github.com/hashicorp/go-getter v1.4.0
 	github.com/pkg/errors v0.9.1
-	github.com/spf13/afero v1.8.0
+	github.com/spf13/afero v1.9.2
 	go.uber.org/zap v1.19.1
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
