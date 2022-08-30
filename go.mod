@@ -1,6 +1,6 @@
 module github.com/crossplane-contrib/provider-terraform
 
-go 1.17
+go 1.18
 
 require (
 	github.com/crossplane/crossplane-runtime v0.17.0
