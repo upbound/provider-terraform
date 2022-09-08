@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"time"
@@ -28,25 +29,33 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 
 	"gopkg.in/alecthomas/kingpin.v2"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane-contrib/provider-terraform/apis"
+	"github.com/crossplane-contrib/provider-terraform/apis/v1alpha1"
 	workspace "github.com/crossplane-contrib/provider-terraform/internal/controller"
+	"github.com/crossplane-contrib/provider-terraform/internal/controller/features"
 )
 
 func main() {
 	var (
-		app              = kingpin.New(filepath.Base(os.Args[0]), "Terraform support for Crossplane.").DefaultEnvars()
-		debug            = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
-		syncInterval     = app.Flag("sync", "Sync interval controls how often all resources will be double checked for drift.").Short('s').Default("1h").Duration()
-		pollInterval     = app.Flag("poll", "Poll interval controls how often an individual resource should be checked for drift.").Default("1m").Duration()
-		timeout          = app.Flag("timeout", "Controls how long Terraform processes may run before they are killed.").Default("20m").Duration()
-		leaderElection   = app.Flag("leader-election", "Use leader election for the controller manager.").Short('l').Default("false").Envar("LEADER_ELECTION").Bool()
-		maxReconcileRate = app.Flag("max-reconcile-rate", "The maximum number of concurrent reconciliation operations.").Default("1").Int()
+		app                        = kingpin.New(filepath.Base(os.Args[0]), "Terraform support for Crossplane.").DefaultEnvars()
+		debug                      = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
+		syncInterval               = app.Flag("sync", "Sync interval controls how often all resources will be double checked for drift.").Short('s').Default("1h").Duration()
+		pollInterval               = app.Flag("poll", "Poll interval controls how often an individual resource should be checked for drift.").Default("1m").Duration()
+		timeout                    = app.Flag("timeout", "Controls how long Terraform processes may run before they are killed.").Default("20m").Duration()
+		leaderElection             = app.Flag("leader-election", "Use leader election for the controller manager.").Short('l').Default("false").Envar("LEADER_ELECTION").Bool()
+		maxReconcileRate           = app.Flag("max-reconcile-rate", "The maximum number of concurrent reconciliation operations.").Default("1").Int()
+		namespace                  = app.Flag("namespace", "Namespace used to set as default scope in default secret store config.").Default("crossplane-system").Envar("POD_NAMESPACE").String()
+		enableExternalSecretStores = app.Flag("enable-external-secret-stores", "Enable support for ExternalSecretStores.").Default("false").Envar("ENABLE_EXTERNAL_SECRET_STORES").Bool()
 	)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
@@ -90,6 +99,25 @@ func main() {
 		PollInterval:            *pollInterval,
 		GlobalRateLimiter:       ratelimiter.NewGlobal(*maxReconcileRate),
 		Features:                &feature.Flags{},
+	}
+
+	if *enableExternalSecretStores {
+		o.Features.Enable(features.EnableAlphaExternalSecretStores)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExternalSecretStores)
+
+		// Ensure default store config exists.
+		kingpin.FatalIfError(resource.Ignore(kerrors.IsAlreadyExists, mgr.GetClient().Create(context.Background(), &v1alpha1.StoreConfig{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "default",
+			},
+			Spec: v1alpha1.StoreConfigSpec{
+				// NOTE(turkenh): We only set required spec and expect optional
+				// ones to properly be initialized with CRD level default values.
+				SecretStoreConfig: xpv1.SecretStoreConfig{
+					DefaultScope: *namespace,
+				},
+			},
+		})), "cannot create default store config")
 	}
 
 	kingpin.FatalIfError(workspace.Setup(mgr, o, *timeout), "Cannot setup Workspace controllers")
