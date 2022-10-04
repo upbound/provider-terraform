@@ -100,6 +100,11 @@ type WorkspaceParameters struct {
 	// Source of the root module of this workspace.
 	Source ModuleSource `json:"source"`
 
+	// Entrypoint for `terraform init` within the module
+	// +kubebuilder:default=""
+	// +optional
+	Entrypoint string `json:"entrypoint"`
+
 	// Configuration variables.
 	// +optional
 	Vars []Var `json:"vars,omitempty"`

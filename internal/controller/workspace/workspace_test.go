@@ -261,6 +261,50 @@ func TestConnect(t *testing.T) {
 			},
 			want: errors.Wrap(errBoom, errWriteCreds),
 		},
+		"WriteProviderConfigCredentialsEntrypointError": {
+			reason: "We should return any error encountered while writing our ProviderConfig credentials to a file with entrypoint subdir",
+			fields: fields{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
+							pc.Spec.Credentials = []v1alpha1.ProviderCredentials{{
+								Filename: tfCreds,
+								Source:   xpv1.CredentialsSourceNone,
+							}}
+						}
+						return nil
+					}),
+				},
+				usage: resource.TrackerFn(func(_ context.Context, _ resource.Managed) error { return nil }),
+				fs: afero.Afero{
+					Fs: &ErrFs{
+						Fs:   afero.NewMemMapFs(),
+						errs: map[string]error{filepath.Join(tfDir, string(uid), "subdir", tfCreds): errBoom},
+					},
+				},
+				terraform: func(_ string) tfclient {
+					return &MockTf{
+						MockInit: func(ctx context.Context, o ...terraform.InitOption) error { return nil },
+					}
+				},
+			},
+			args: args{
+				mg: &v1alpha1.Workspace{
+					ObjectMeta: metav1.ObjectMeta{UID: uid},
+					Spec: v1alpha1.WorkspaceSpec{
+						ResourceSpec: xpv1.ResourceSpec{
+							ProviderConfigReference: &xpv1.Reference{},
+						},
+						ForProvider: v1alpha1.WorkspaceParameters{
+							Module:     "I'm HCL!",
+							Source:     v1alpha1.ModuleSourceInline,
+							Entrypoint: "subdir",
+						},
+					},
+				},
+			},
+			want: errors.Wrap(errBoom, errWriteCreds),
+		},
 		"WriteProviderGitCredentialsError": {
 			reason: "We should return any error encountered while writing our git credentials to a file",
 			fields: fields{
@@ -382,6 +426,48 @@ func TestConnect(t *testing.T) {
 						ForProvider: v1alpha1.WorkspaceParameters{
 							Module: "I'm HCL!",
 							Source: v1alpha1.ModuleSourceInline,
+						},
+					},
+				},
+			},
+			want: errors.Wrap(errBoom, errWriteConfig),
+		},
+		"WriteConfigEntrypointError": {
+			reason: "We should return any error encountered while writing our crossplane-provider-config.tf file to entrypoint subdir location",
+			fields: fields{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
+							cfg := "I'm HCL!"
+							pc.Spec.Configuration = &cfg
+						}
+						return nil
+					}),
+				},
+				usage: resource.TrackerFn(func(_ context.Context, _ resource.Managed) error { return nil }),
+				fs: afero.Afero{
+					Fs: &ErrFs{
+						Fs:   afero.NewMemMapFs(),
+						errs: map[string]error{filepath.Join(tfDir, string(uid), "subdir", tfConfig): errBoom},
+					},
+				},
+				terraform: func(_ string) tfclient {
+					return &MockTf{
+						MockInit: func(ctx context.Context, o ...terraform.InitOption) error { return nil },
+					}
+				},
+			},
+			args: args{
+				mg: &v1alpha1.Workspace{
+					ObjectMeta: metav1.ObjectMeta{UID: uid},
+					Spec: v1alpha1.WorkspaceSpec{
+						ResourceSpec: xpv1.ResourceSpec{
+							ProviderConfigReference: &xpv1.Reference{},
+						},
+						ForProvider: v1alpha1.WorkspaceParameters{
+							Module:     "I'm HCL!",
+							Source:     v1alpha1.ModuleSourceInline,
+							Entrypoint: "subdir",
 						},
 					},
 				},

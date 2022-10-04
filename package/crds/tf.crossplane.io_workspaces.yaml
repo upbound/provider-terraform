@@ -70,6 +70,10 @@ spec:
                     items:
                       type: string
                     type: array
+                  entrypoint:
+                    default: ""
+                    description: Entrypoint for `terraform init` within the module
+                    type: string
                   initArgs:
                     description: Arguments to be included in the terraform init CLI
                       command
