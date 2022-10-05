@@ -23,8 +23,8 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 
-	"github.com/crossplane-contrib/provider-terraform/internal/controller/config"
-	"github.com/crossplane-contrib/provider-terraform/internal/controller/workspace"
+	"github.com/upbound/provider-terraform/internal/controller/config"
+	"github.com/upbound/provider-terraform/internal/controller/workspace"
 )
 
 // Setup creates all terraform controllers with the supplied options and adds
