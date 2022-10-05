@@ -23,7 +23,6 @@ package terraform
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -115,7 +114,7 @@ func TestWorkspace(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			dir, err := ioutil.TempDir("", "provider-terraform-test")
+			dir, err := os.MkdirTemp("", "provider-terraform-test")
 			if err != nil {
 				t.Fatalf("Cannot create temporary directory: %v", err)
 			}
@@ -154,7 +153,7 @@ func TestDeleteWorkspace(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			dir, err := ioutil.TempDir("", "provider-terraform-test")
+			dir, err := os.MkdirTemp("", "provider-terraform-test")
 			if err != nil {
 				t.Fatalf("Cannot create temporary directory: %v", err)
 			}
@@ -193,14 +192,14 @@ func TestOutputs(t *testing.T) {
 					{
 						Name:  "object",
 						Type:  OutputTypeObject,
-						value: map[string]interface{}{"wow": "suchobject"},
+						value: map[string]any{"wow": "suchobject"},
 					},
 					{Name: "sensitive", Sensitive: true, Type: OutputTypeString, value: "very"},
 					{Name: "string", Type: OutputTypeString, value: "very"},
 					{
 						Name:  "tuple",
 						Type:  OutputTypeTuple,
-						value: []interface{}{"a", "really", "long", "tuple"},
+						value: []any{"a", "really", "long", "tuple"},
 					},
 				},
 			},
@@ -434,7 +433,7 @@ func TestInitDiffApplyDestroy(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// t.Parallel()
 
-			dir, err := ioutil.TempDir("", "provider-terraform-test")
+			dir, err := os.MkdirTemp("", "provider-terraform-test")
 			if err != nil {
 				t.Fatalf("Cannot create temporary directory: %v", err)
 			}
