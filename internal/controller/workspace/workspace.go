@@ -20,6 +20,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -52,6 +53,7 @@ const (
 
 	errMkdir           = "cannot make Terraform configuration directory"
 	errRemoteModule    = "cannot get remote Terraform module"
+	errSetGitCredDir   = "cannot set GIT_CRED_DIR environment variable"
 	errWriteCreds      = "cannot write Terraform credentials"
 	errWriteGitCreds   = "cannot write .git-credentials to /tmp dir"
 	errWriteConfig     = "cannot write Terraform configuration " + tfConfig
@@ -183,7 +185,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		// NOTE(ytsarev): Make go-getter pick up .git-credentials, see /.gitconfig in the container image
 		err = os.Setenv("GIT_CRED_DIR", gitCredDir)
 		if err != nil {
-			return nil, errors.Wrap(err, errRemoteModule)
+			return nil, errors.Wrap(err, errSetGitCredDir)
 		}
 		p := filepath.Clean(filepath.Join(gitCredDir, filepath.Base(cd.Filename)))
 		if err := c.fs.WriteFile(p, data, 0600); err != nil {
@@ -209,10 +211,16 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		if err != nil {
 			return nil, errors.Wrap(err, errRemoteModule)
 		}
+
 	case v1alpha1.ModuleSourceInline:
 		if err := c.fs.WriteFile(filepath.Join(dir, tfMain), []byte(cr.Spec.ForProvider.Module), 0600); err != nil {
 			return nil, errors.Wrap(err, errWriteMain)
 		}
+	}
+
+	if len(cr.Spec.ForProvider.Entrypoint) > 0 {
+		entrypoint := strings.ReplaceAll(cr.Spec.ForProvider.Entrypoint, "../", "")
+		dir = filepath.Join(dir, entrypoint)
 	}
 
 	for _, cd := range pc.Spec.Credentials {

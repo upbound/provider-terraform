@@ -218,6 +218,43 @@ the terraform _apply_ and _destroy_ commands are run with the
 run with the "-no-color", "-input=false", and "-detailed-exitcode" arguments.  Arguments specified in
 applyArgs, destroyArgs and planArgs will be added to these default arguments.
 
+## Custom Entrypoint for Terraform Invocation
+
+In some cases, you might want to initialize and apply terraform in the
+subdirectory of the repository checkout. It is most relevant for the cases when
+your terraform modules contain inline [relative paths](#83).
+
+To enable it, the `Workspace` spec has an **optional** `Entrypoint` field.
+
+Consider this example:
+
+```yml
+apiVersion: tf.crossplane.io/v1alpha1
+kind: Workspace
+metadata:
+  name: relative-path-test
+spec:
+  forProvider:
+    module: git::https://github.com/ytsarev/provider-terraform-test-module.git
+    source: Remote
+    entrypoint: relative-path-iam
+    vars:
+      - key: iamRole
+        value: relative-path-test
+```
+
+In this case, the whole repository will be checked out but terraform will be
+initialized in the `relative-path-iam` subdirectory with the module that
+contains relative path reference to the `iam` module located in the root of the
+tree.
+
+```HCL
+module "relative-path-iam" {
+  source  = "../iam"
+  iamRole = var.iamRole
+}
+```
+
 ## Known limitations:
 
 * You must either use remote state or ensure the provider container's `/tf`
