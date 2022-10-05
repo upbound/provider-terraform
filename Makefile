@@ -1,3 +1,5 @@
+GOLANGCILINT_VERSION ?= 1.50.0
+GO_REQUIRED_VERSION ?= 1.19
 # ====================================================================================
 # Setup Project
 PROJECT_NAME := provider-terraform
@@ -88,3 +90,34 @@ crossplane.help:
 help-special: crossplane.help
 
 .PHONY: crossplane.help help-special
+
+go.cachedir:
+	@go env GOCACHE
+
+.PHONY: go.cachedir
+
+go.mod.cachedir:
+	@go env GOMODCACHE
+
+.PHONY: go.mod.cachedir
+
+xpkg.build: $(UP) do.build.images
+	@$(INFO) Building package $(PROJECT_NAME)-$(VERSION).xpkg for $(PLATFORM)
+	@mkdir -p $(OUTPUT_DIR)/xpkg/$(PLATFORM)
+	@$(UP) xpkg build  --controller $(BUILD_REGISTRY)/$(PROJECT_NAME)-$(ARCH)  --package-root ./package  --examples-root ./examples  --output ./_output/xpkg/$(PLATFORM)/$(PROJECT_NAME)-$(VERSION).xpkg || $(FAIL)
+	@$(OK) Built package $(PROJECT_NAME)-$(VERSION).xpkg for $(PLATFORM)
+
+build.artifacts.platform: xpkg.build
+
+
+xpkg.push: $(UP)
+	@$(INFO) Pushing package $(PROJECT_NAME)-$(VERSION).xpkg
+	@$(UP) xpkg push  --package $(OUTPUT_DIR)/xpkg/linux_amd64/$(PROJECT_NAME)-$(VERSION).xpkg  --package $(OUTPUT_DIR)/xpkg/linux_arm64/$(PROJECT_NAME)-$(VERSION).xpkg  $(XPKG_REGISTRY)/$(XPKG_ORG)/$(XPKG_REPO):$(VERSION) || $(FAIL)
+	@$(OK) Pushed package $(PROJECT_NAME)-$(VERSION).xpkg
+
+
+xpkg.load: $(UP)
+	@$(INFO) Loading package $(PROJECT_NAME)-$(VERSION).xpkg for $(PLATFORM) into Docker daemon
+	@docker load -i $(OUTPUT_DIR)/xpkg/$(PLATFORM)/$(PROJECT_NAME)-$(VERSION).xpkg
+	@$(OK) Loaded package $(PROJECT_NAME)-$(VERSION).xpkg for $(PLATFORM) into Docker daemon
+
