@@ -1,19 +1,19 @@
 ---
 name: Bug Report
-about: Help us diagnose and fix bugs in Crossplane
+about: Help us diagnose and fix bugs in Official Terraform Provider
 labels: bug
+title: "rds: `DBInstance` CRD is not working..."
 ---
 <!--
-Thank you for helping to improve Crossplane!
+Thank you for helping to improve Official Terraform Provider!
 
 Please be sure to search for open issues before raising a new one. We use issues
-for bug reports and feature requests. Please find us at https://slack.crossplane.io
-for questions, support, and discussion.
+for bug reports and feature requests.
 -->
 
 ### What happened?
 <!--
-Please let us know what behaviour you expected and how Crossplane diverged from
+Please let us know what behaviour you expected and how Official Terraform Provider diverged from
 that behaviour.
 -->
 
@@ -26,10 +26,12 @@ appreciated!
 -->
 
 ### What environment did it happen in?
-Crossplane version: 
+
+* Universal Crossplane Version:
+* Provider Version:
 
 <!--
-Include at least the version or commit of Crossplane you were running. Consider
+Include at least the version or commit of Official Terraform Provider you were running. Consider
 also including your:
 
 * Cloud provider or hardware configuration
