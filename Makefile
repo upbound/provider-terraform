@@ -19,13 +19,39 @@ GO111MODULE = on
 -include build/makelib/golang.mk
 
 # Setup Kubernetes tools
+
+UP_VERSION = v0.13.0
+UP_CHANNEL = stable
 -include build/makelib/k8s_tools.mk
 
 # Setup Images
-DOCKER_REGISTRY ?= crossplane
-IMAGES = $(PROJECT_NAME) $(PROJECT_NAME)-controller
--include build/makelib/image.mk
+IMAGES = provider-terraform
+-include build/makelib/imagelight.mk
 
+# ====================================================================================
+# Setup XPKG
+
+XPKG_REG_ORGS ?= xpkg.upbound.io/crossplane-contrib index.docker.io/crossplanecontrib
+# NOTE(hasheddan): skip promoting on xpkg.upbound.io as channel tags are
+# inferred.
+XPKG_REG_ORGS_NO_PROMOTE ?= xpkg.upbound.io/crossplane-contrib
+XPKGS = provider-terraform
+-include build/makelib/xpkg.mk
+
+# NOTE(hasheddan): we force image building to happen prior to xpkg build so that
+# we ensure image is present in daemon.
+xpkg.build.provider-terraform: do.build.images
+
+# ====================================================================================
+# Targets
+
+# run `make help` to see the targets and options
+
+# We want submodules to be set up the first time `make` is run.
+# We manage the build/ folder and its Makefiles as a submodule.
+# The first time `make` is run, the includes of build/*.mk files will
+# all fail, and this target will be run. The next time, the default as defined
+# by the includes will be run instead.
 fallthrough: submodules
 	@echo Initial setup complete. Running make again . . .
 	@make
@@ -43,6 +69,11 @@ test-integration: $(KIND) $(KUBECTL) $(HELM3)
 submodules:
 	@git submodule sync
 	@git submodule update --init --recursive
+
+# NOTE(hasheddan): we must ensure up is installed in tool cache prior to build
+# as including the k8s_tools machinery prior to the xpkg machinery sets UP to
+# point to tool cache.
+build.init: $(UP)
 
 # This is for running out-of-cluster locally, and is for convenience. Running
 # this make target will print out the command which was used. For more control,

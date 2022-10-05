@@ -1,10 +1,15 @@
-apiVersion: meta.pkg.crossplane.io/v1alpha1
+apiVersion: meta.pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: provider-terraform
   annotations:
-    descriptionShort: |
-      The Terraform Crossplane provider enables management via Terraform.
-spec:
-  controller:
-    image: crossplane/provider-terraform-controller:VERSION
+    meta.crossplane.io/maintainer: Crossplane Maintainers <info@crossplane.io>
+    meta.crossplane.io/source: github.com/crossplane-contrib/provider-terraform
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      The Terraform Crossplane provider enables management of Terraform
+      modules by defining Crossplane Composite Resources.
+    meta.crossplane.io/readme: |
+      The Terraform provider adds support for a Workspace managed resource
+      that represents a Terraform workspace. The configuration of each workspace
+      may be either fetched from a remote source (e.g. git), or simply specified inline.
