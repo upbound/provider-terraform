@@ -33,6 +33,9 @@ IMAGES = provider-terraform
 # ====================================================================================
 # Setup XPKG
 
+XPKG_REGISTRY ?= xpkg.upbound.io
+XPKG_ORG ?= upbound
+XPKG_REPO ?= $(PROJECT_NAME)
 XPKG_REG_ORGS ?= xpkg.upbound.io/crossplane-contrib index.docker.io/crossplanecontrib
 # NOTE(hasheddan): skip promoting on xpkg.upbound.io as channel tags are
 # inferred.
