@@ -3,7 +3,7 @@ GO_REQUIRED_VERSION ?= 1.19
 # ====================================================================================
 # Setup Project
 PROJECT_NAME := provider-terraform
-PROJECT_REPO := github.com/crossplane-contrib/$(PROJECT_NAME)
+PROJECT_REPO := github.com/upbound/$(PROJECT_NAME)
 
 PLATFORMS ?= linux_amd64 linux_arm64
 -include build/makelib/common.mk

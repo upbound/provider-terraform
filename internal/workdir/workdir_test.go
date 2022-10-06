@@ -32,7 +32,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane-contrib/provider-terraform/apis/v1alpha1"
+	"github.com/upbound/provider-terraform/apis/v1alpha1"
 )
 
 func withDirs(fs afero.Afero, dir ...string) afero.Afero {

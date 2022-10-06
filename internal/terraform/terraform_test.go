@@ -127,13 +127,13 @@ func TestOutputJSONValue(t *testing.T) {
 			},
 		},
 		"ValueIsTuple": {
-			o: Output{value: []interface{}{"imastring", 42, true}},
+			o: Output{value: []any{"imastring", 42, true}},
 			want: want{
 				j: []byte(`["imastring",42,true]`),
 			},
 		},
 		"ValueIsObject": {
-			o: Output{value: map[string]interface{}{
+			o: Output{value: map[string]any{
 				"cool": 42,
 			}},
 			want: want{

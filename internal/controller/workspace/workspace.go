@@ -40,9 +40,9 @@ import (
 
 	"github.com/hashicorp/go-getter"
 
-	"github.com/crossplane-contrib/provider-terraform/apis/v1alpha1"
-	"github.com/crossplane-contrib/provider-terraform/internal/terraform"
-	"github.com/crossplane-contrib/provider-terraform/internal/workdir"
+	"github.com/upbound/provider-terraform/apis/v1alpha1"
+	"github.com/upbound/provider-terraform/internal/terraform"
+	"github.com/upbound/provider-terraform/internal/workdir"
 )
 
 const (
