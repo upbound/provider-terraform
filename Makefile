@@ -28,6 +28,13 @@ DOCKER_REGISTRY ?= crossplane
 IMAGES = $(PROJECT_NAME) $(PROJECT_NAME)-controller
 -include build/makelib/image.mk
 
+# ====================================================================================
+# Setup XPKG
+
+XPKG_REGISTRY ?= xpkg.upbound.io
+XPKG_ORG ?= upbound
+XPKG_REPO ?= $(PROJECT_NAME)
+
 fallthrough: submodules
 	@echo Initial setup complete. Running make again . . .
 	@make

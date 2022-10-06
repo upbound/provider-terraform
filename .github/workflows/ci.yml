@@ -15,7 +15,7 @@ env:
   DOCKER_BUILDX_VERSION: 'v0.8.2'
 
   UPBOUND_CI_ROBOT_USR: ${{ secrets.UPBOUND_CI_ROBOT_USR }}
-  UPBOUND_BOT_GITHUB_TOKEN: ${{ secrets.UPBOUND_BOT_GITHUB_TOKEN }}
+
 jobs:
   detect-changes:
     runs-on: ubuntu-22.04
@@ -62,12 +62,6 @@ jobs:
           path: .work/pkg
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-pkg-
-      
-      # git needs to be able to access private repositories under upbound.
-      - name: Login to Github
-        run: |
-          git config --global user.name "upbound-bot"
-          echo "machine github.com login upbound-bot password $UPBOUND_BOT_GITHUB_TOKEN" > ~/.netrc
 
       - name: Vendor Dependencies
         run: make vendor vendor.check
@@ -112,12 +106,6 @@ jobs:
           path: ${{ steps.go-cache-paths.outputs.go-build }}
           key: ${{ runner.os }}-build-check-diff-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-build-check-diff-
-      
-      # git needs to be able to access private repositories under upbound.
-      - name: Login to Github
-        run: |
-          git config --global user.name "upbound-bot"
-          echo "machine github.com login upbound-bot password $UPBOUND_BOT_GITHUB_TOKEN" > ~/.netrc
 
       - name: Cache Go Dependencies
         uses: actions/cache@v2
@@ -163,12 +151,6 @@ jobs:
           path: ${{ steps.go-cache-paths.outputs.go-build }}
           key: ${{ runner.os }}-build-unit-tests-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-build-unit-tests-
-      
-      # git needs to be able to access private repositories under upbound.
-      - name: Login to Github
-        run: |
-          git config --global user.name "upbound-bot"
-          echo "machine github.com login upbound-bot password $UPBOUND_BOT_GITHUB_TOKEN" > ~/.netrc
 
       - name: Cache Go Dependencies
         uses: actions/cache@v2
@@ -231,12 +213,6 @@ jobs:
           path: ${{ steps.go-cache-paths.outputs.go-build }}
           key: ${{ runner.os }}-build-e2e-tests-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-build-e2e-tests-
-      
-      # git needs to be able to access private repositories under upbound.
-      - name: Login to Github
-        run: |
-          git config --global user.name "upbound-bot"
-          echo "machine github.com login upbound-bot password $UPBOUND_BOT_GITHUB_TOKEN" > ~/.netrc
 
       - name: Cache Go Dependencies
         uses: actions/cache@v2
