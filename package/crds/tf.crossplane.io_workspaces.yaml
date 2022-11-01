@@ -9,6 +9,10 @@ metadata:
 spec:
   group: tf.crossplane.io
   names:
+    categories:
+    - crossplane
+    - managed
+    - terraform
     kind: Workspace
     listKind: WorkspaceList
     plural: workspaces

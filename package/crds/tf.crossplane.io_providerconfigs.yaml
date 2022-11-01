@@ -9,6 +9,10 @@ metadata:
 spec:
   group: tf.crossplane.io
   names:
+    categories:
+    - crossplane
+    - provider
+    - terraform
     kind: ProviderConfig
     listKind: ProviderConfigList
     plural: providerconfigs
