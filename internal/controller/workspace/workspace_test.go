@@ -391,6 +391,51 @@ func TestConnect(t *testing.T) {
 			},
 			want: errors.Wrap(errBoom, errWriteGitCreds),
 		},
+		"PluginCacheMkdirError": {
+			reason: "We should return any error encountered while creating the plugin cache directory",
+			fields: fields{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
+							pc.Spec.Credentials = []v1alpha1.ProviderCredentials{{
+								Filename: ".git-credentials",
+								Source:   xpv1.CredentialsSourceNone,
+							}}
+							pc.Spec.PluginCache = new(bool)
+							*pc.Spec.PluginCache = true
+						}
+						return nil
+					}),
+				},
+				usage: resource.TrackerFn(func(_ context.Context, _ resource.Managed) error { return nil }),
+				fs: afero.Afero{
+					Fs: &ErrFs{
+						Fs:   afero.NewMemMapFs(),
+						errs: map[string]error{filepath.Join(tfDir, "plugin-cache"): errBoom},
+					},
+				},
+				terraform: func(_ string) tfclient {
+					return &MockTf{
+						MockInit: func(ctx context.Context, o ...terraform.InitOption) error { return nil },
+					}
+				},
+			},
+			args: args{
+				mg: &v1alpha1.Workspace{
+					ObjectMeta: metav1.ObjectMeta{UID: uid},
+					Spec: v1alpha1.WorkspaceSpec{
+						ResourceSpec: xpv1.ResourceSpec{
+							ProviderConfigReference: &xpv1.Reference{},
+						},
+						ForProvider: v1alpha1.WorkspaceParameters{
+							Module: "github.com/crossplane/rocks",
+							Source: v1alpha1.ModuleSourceInline,
+						},
+					},
+				},
+			},
+			want: errors.Wrap(errBoom, errMkPluginCacheDir),
+		},
 		"WriteConfigError": {
 			reason: "We should return any error encountered while writing our crossplane-provider-config.tf file",
 			fields: fields{

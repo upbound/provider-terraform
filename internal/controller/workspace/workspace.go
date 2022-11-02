@@ -245,12 +245,18 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	tf := c.terraform(dir)
 	o := make([]terraform.InitOption, 0, len(cr.Spec.ForProvider.InitArgs))
 	o = append(o, terraform.WithInitArgs(cr.Spec.ForProvider.InitArgs))
-	pluginCacheDir := filepath.Join(tfDir, "plugin-cache")
-	if err := c.fs.MkdirAll(pluginCacheDir, 0700); err != nil {
-		return nil, errors.Wrap(err, errMkPluginCacheDir)
+	if pc.Spec.PluginCache == nil {
+		pc.Spec.PluginCache = new(bool)
+		*pc.Spec.PluginCache = true
 	}
-	if err := os.Setenv("TF_PLUGIN_CACHE_DIR", pluginCacheDir); err != nil {
-		return nil, errors.Wrap(err, errSetPluginCacheDir)
+	if *pc.Spec.PluginCache {
+		pluginCacheDir := filepath.Join(tfDir, "plugin-cache")
+		if err := c.fs.MkdirAll(pluginCacheDir, 0700); err != nil {
+			return nil, errors.Wrap(err, errMkPluginCacheDir)
+		}
+		if err := os.Setenv("TF_PLUGIN_CACHE_DIR", pluginCacheDir); err != nil {
+			return nil, errors.Wrap(err, errSetPluginCacheDir)
+		}
 	}
 	if err := tf.Init(ctx, o...); err != nil {
 		return nil, errors.Wrap(err, errInit)

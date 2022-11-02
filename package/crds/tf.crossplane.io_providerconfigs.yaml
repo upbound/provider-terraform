@@ -114,6 +114,11 @@ spec:
                   - source
                   type: object
                 type: array
+              pluginCache:
+                default: true
+                description: PluginCache enables terraform provider plugin caching
+                  mechanism https://developer.hashicorp.com/terraform/cli/config/config-file#provider-plugin-cache
+                type: boolean
             required:
             - credentials
             type: object
