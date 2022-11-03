@@ -51,23 +51,25 @@ const (
 	errGetPC        = "cannot get ProviderConfig"
 	errGetCreds     = "cannot get credentials"
 
-	errMkdir           = "cannot make Terraform configuration directory"
-	errRemoteModule    = "cannot get remote Terraform module"
-	errSetGitCredDir   = "cannot set GIT_CRED_DIR environment variable"
-	errWriteCreds      = "cannot write Terraform credentials"
-	errWriteGitCreds   = "cannot write .git-credentials to /tmp dir"
-	errWriteConfig     = "cannot write Terraform configuration " + tfConfig
-	errWriteMain       = "cannot write Terraform configuration " + tfMain
-	errInit            = "cannot initialize Terraform configuration"
-	errWorkspace       = "cannot select Terraform workspace"
-	errResources       = "cannot list Terraform resources"
-	errDiff            = "cannot diff (i.e. plan) Terraform configuration"
-	errOutputs         = "cannot list Terraform outputs"
-	errOptions         = "cannot determine Terraform options"
-	errApply           = "cannot apply Terraform configuration"
-	errDestroy         = "cannot destroy Terraform configuration"
-	errVarFile         = "cannot get tfvars"
-	errDeleteWorkspace = "cannot delete Terraform workspace"
+	errMkdir             = "cannot make Terraform configuration directory"
+	errMkPluginCacheDir  = "cannot make Terraform plugin cache directory"
+	errRemoteModule      = "cannot get remote Terraform module"
+	errSetGitCredDir     = "cannot set GIT_CRED_DIR environment variable"
+	errSetPluginCacheDir = "cannot set TF_PLUGIN_CACHE_DIR environment variable"
+	errWriteCreds        = "cannot write Terraform credentials"
+	errWriteGitCreds     = "cannot write .git-credentials to /tmp dir"
+	errWriteConfig       = "cannot write Terraform configuration " + tfConfig
+	errWriteMain         = "cannot write Terraform configuration " + tfMain
+	errInit              = "cannot initialize Terraform configuration"
+	errWorkspace         = "cannot select Terraform workspace"
+	errResources         = "cannot list Terraform resources"
+	errDiff              = "cannot diff (i.e. plan) Terraform configuration"
+	errOutputs           = "cannot list Terraform outputs"
+	errOptions           = "cannot determine Terraform options"
+	errApply             = "cannot apply Terraform configuration"
+	errDestroy           = "cannot destroy Terraform configuration"
+	errVarFile           = "cannot get tfvars"
+	errDeleteWorkspace   = "cannot delete Terraform workspace"
 
 	gitCredentialsFilename = ".git-credentials"
 )
@@ -243,10 +245,25 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	tf := c.terraform(dir)
 	o := make([]terraform.InitOption, 0, len(cr.Spec.ForProvider.InitArgs))
 	o = append(o, terraform.WithInitArgs(cr.Spec.ForProvider.InitArgs))
+	// NOTE(ytsarev): user tf provider cache mechanism to speed up
+	// reconciliation, see https://developer.hashicorp.com/terraform/cli/config/config-file#provider-plugin-cache
+	if pc.Spec.PluginCache == nil {
+		pc.Spec.PluginCache = new(bool)
+		*pc.Spec.PluginCache = true
+	}
+	if *pc.Spec.PluginCache {
+		pluginCacheDir := filepath.Join(tfDir, "plugin-cache")
+		if err := c.fs.MkdirAll(pluginCacheDir, 0700); err != nil {
+			return nil, errors.Wrap(err, errMkPluginCacheDir)
+		}
+		if err := os.Setenv("TF_PLUGIN_CACHE_DIR", pluginCacheDir); err != nil {
+			return nil, errors.Wrap(err, errSetPluginCacheDir)
+		}
+		defer os.Unsetenv("TF_PLUGIN_CACHE_DIR") // nolint: errcheck
+	}
 	if err := tf.Init(ctx, o...); err != nil {
 		return nil, errors.Wrap(err, errInit)
 	}
-	// TODO(ytsarev): cache .terraform in /tmp to speed up `terraform init` on next reconcile
 
 	return &external{tf: tf, kube: c.kube}, errors.Wrap(tf.Workspace(ctx, meta.GetExternalName(cr)), errWorkspace)
 }

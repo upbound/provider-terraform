@@ -255,6 +255,25 @@ module "relative-path-iam" {
 }
 ```
 
+## Provider Plugin Cache(enabled by default)
+
+[Provider Plugin
+Cache](https://developer.hashicorp.com/terraform/cli/config/config-file#provider-plugin-cache)
+is enabled by default to speed up reconciliation.
+
+In case you need to disable it, set optional `pluginCache` to `false` in
+`ProviderConfig`:
+
+```console
+apiVersion: tf.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: default
+spec:
+  pluginCache: false
+...
+```
+
 ## Known limitations:
 
 * You must either use remote state or ensure the provider container's `/tf`

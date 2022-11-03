@@ -32,6 +32,12 @@ type ProviderConfigSpec struct {
 	// automatically inject Terraform provider configuration blocks.
 	// +optional
 	Configuration *string `json:"configuration,omitempty"`
+
+	// PluginCache enables terraform provider plugin caching mechanism
+	// https://developer.hashicorp.com/terraform/cli/config/config-file#provider-plugin-cache
+	// +optional
+	// +kubebuilder:default=true
+	PluginCache *bool `json:"pluginCache,omitempty"`
 }
 
 // ProviderCredentials required to authenticate.
