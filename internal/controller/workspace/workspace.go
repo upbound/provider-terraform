@@ -245,6 +245,8 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	tf := c.terraform(dir)
 	o := make([]terraform.InitOption, 0, len(cr.Spec.ForProvider.InitArgs))
 	o = append(o, terraform.WithInitArgs(cr.Spec.ForProvider.InitArgs))
+	// NOTE(ytsarev): user tf provider cache mechanism to speed up
+	// reconciliation, see https://developer.hashicorp.com/terraform/cli/config/config-file#provider-plugin-cache
 	if pc.Spec.PluginCache == nil {
 		pc.Spec.PluginCache = new(bool)
 		*pc.Spec.PluginCache = true
@@ -257,11 +259,11 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		if err := os.Setenv("TF_PLUGIN_CACHE_DIR", pluginCacheDir); err != nil {
 			return nil, errors.Wrap(err, errSetPluginCacheDir)
 		}
+		defer os.Unsetenv("TF_PLUGIN_CACHE_DIR") // nolint: errcheck
 	}
 	if err := tf.Init(ctx, o...); err != nil {
 		return nil, errors.Wrap(err, errInit)
 	}
-	// TODO(ytsarev): cache .terraform in /tmp to speed up `terraform init` on next reconcile
 
 	return &external{tf: tf, kube: c.kube}, errors.Wrap(tf.Workspace(ctx, meta.GetExternalName(cr)), errWorkspace)
 }
