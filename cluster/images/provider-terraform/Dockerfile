@@ -1,11 +1,20 @@
-FROM hashicorp/terraform:1.2.3
+FROM alpine:3.16.2
+RUN apk --no-cache add ca-certificates bash git
 
 ARG TARGETOS
 ARG TARGETARCH
 
-ADD bin/$TARGETOS\_$TARGETARCH/provider /usr/local/bin/crossplane-terraform-provider
+ENV TERRAFORM_VERSION=1.3.4
+
+ADD "bin/${TARGETOS}_${TARGETARCH}/provider" /usr/local/bin/crossplane-terraform-provider
 ADD .gitconfig .gitconfig
 
+RUN cd /tmp \
+  && wget https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_${TARGETOS}_${TARGETARCH}.zip \
+  && unzip /tmp/terraform_${TERRAFORM_VERSION}_${TARGETOS}_${TARGETARCH}.zip -d /usr/local/bin \
+  && chmod +x /usr/local/bin/terraform \
+  && rm /tmp/terraform_${TERRAFORM_VERSION}_${TARGETOS}_${TARGETARCH}.zip
+  
 # As of Crossplane v1.3.0 provider controllers run as UID 2000.
 # https://github.com/crossplane/crossplane/blob/v1.3.0/internal/controller/pkg/revision/deployment.go#L32
 RUN mkdir /tf
