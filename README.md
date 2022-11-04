@@ -274,6 +274,85 @@ spec:
 ...
 ```
 
+## Enable External Secret Support
+
+If you need to store the sensitive output to an external secret store like Vault,
+you can specify the `--enable-external-secret-stores` flag to enable it:
+
+```yaml
+apiVersion: pkg.crossplane.io/v1alpha1
+kind: ControllerConfig
+metadata:
+  name: terraform-config
+  labels:
+    app: crossplane-provider-terraform
+spec:
+  image: crossplane/provider-terraform-controller:v0.3.0
+  args:
+    - -d
+    - --enable-external-secret-stores
+  metadata:
+    annotations:
+      vault.hashicorp.com/agent-inject: "true"
+      vault.hashicorp.com/agent-inject-token: "true"
+      vault.hashicorp.com/role: "crossplane"
+      vault.hashicorp.com/agent-run-as-user: "2000"
+```
+
+Prepare a `StoreConfig` for Vault:
+```yaml
+apiVersion: tf.crossplane.io/v1alpha1
+kind: StoreConfig
+metadata:
+  name: vault
+spec:
+  type: Vault
+  defaultScope: crossplane-system
+  vault:
+    server: http://vault.vault-system:8200
+    mountPath: secret/
+    version: v2
+    auth:
+      method: Token
+      token:
+        source: Filesystem
+        fs:
+          path: /vault/secrets/token
+```
+
+Specify it in `spec.publishConnectionDetailsTo`:
+```yaml
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: ...
+  labels:
+    feature: ess
+spec:
+  compositeTypeRef:
+    apiVersion: ...
+    kind: ...
+  resources:
+    - name: foo
+      base:
+        apiVersion: tf.crossplane.io/v1alpha1
+        kind: Workspace
+        metadata:
+          name: foo
+        spec:
+          forProvider:
+            ...
+          publishConnectionDetailsTo:
+            name: bar
+            configRef:
+              name: vault
+```
+
+At Vault side configuration is also needed to allow the write operation,
+see [example](https://crossplane.io/docs/v1.9/guides/vault-as-secret-store.html#prepare-vault) here for inspiration.
+
+A concrete provider terraform use case is also available [here](https://github.com/crossplane-contrib/provider-terraform/pull/101).
+
 ## Known limitations:
 
 * You must either use remote state or ensure the provider container's `/tf`

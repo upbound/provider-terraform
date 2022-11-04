@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/connection"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -41,6 +42,7 @@ import (
 	"github.com/hashicorp/go-getter"
 
 	"github.com/crossplane-contrib/provider-terraform/apis/v1alpha1"
+	"github.com/crossplane-contrib/provider-terraform/internal/controller/features"
 	"github.com/crossplane-contrib/provider-terraform/internal/terraform"
 	"github.com/crossplane-contrib/provider-terraform/internal/workdir"
 )
@@ -105,9 +107,9 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout time.Duration) error 
 	go gcTmp.Run(context.TODO())
 
 	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
-	// if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
-	// 	 cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), apisc1alpha1.StoreConfigGroupVersionKind))
-	// }
+	if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
+		cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), v1alpha1.StoreConfigGroupVersionKind))
+	}
 	c := &connector{
 		kube:      mgr.GetClient(),
 		usage:     resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1alpha1.ProviderConfigUsage{}),
