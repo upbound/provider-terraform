@@ -79,10 +79,18 @@ const (
 const (
 	// TODO(negz): Make the Terraform binary path and work dir configurable.
 	tfPath   = "terraform"
-	tfDir    = "/tf"
 	tfMain   = "main.tf"
 	tfConfig = "crossplane-provider-config.tf"
 )
+
+func envVarFallback(envvar string, fallback string) string {
+	if value, ok := os.LookupEnv(envvar); ok {
+		return value
+	}
+	return fallback
+}
+
+var tfDir = envVarFallback("XP_TF_DIR", "/tf")
 
 type tfclient interface {
 	Init(ctx context.Context, o ...terraform.InitOption) error
@@ -254,7 +262,10 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		*pc.Spec.PluginCache = true
 	}
 	if *pc.Spec.PluginCache {
-		pluginCacheDir := filepath.Join(tfDir, "plugin-cache")
+		pluginCacheDir, err := filepath.Abs(filepath.Join(tfDir, "plugin-cache"))
+		if err != nil {
+			return nil, errors.Wrap(err, errMkPluginCacheDir)
+		}
 		if err := c.fs.MkdirAll(pluginCacheDir, 0700); err != nil {
 			return nil, errors.Wrap(err, errMkPluginCacheDir)
 		}

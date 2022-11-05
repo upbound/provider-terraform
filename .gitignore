@@ -14,3 +14,6 @@ cover.out
 
 # ignore asdf local versions
 /.tool-versions
+
+# local tf dir
+/tf
