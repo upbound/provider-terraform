@@ -81,7 +81,9 @@ build.init: $(UP)
 run: go.build
 	@$(INFO) Running Crossplane locally out-of-cluster . . .
 	@# To see other arguments that can be provided, run the command with --help instead
-	$(GO_OUT_DIR)/$(PROJECT_NAME) --debug
+	@# KUBE_CONFIG_PATH explained at  https://developer.hashicorp.com/terraform/language/settings/backends/kubernetes
+	@# XP_TF_DIR is to override default tf work dir which is usually /tf and unreadable locally
+	KUBE_CONFIG_PATH=~/.kube/config XP_TF_DIR=./tf $(GO_OUT_DIR)/provider --debug
 
 dev: $(KIND) $(KUBECTL)
 	@$(INFO) Creating kind cluster
