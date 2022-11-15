@@ -3,9 +3,8 @@ kind: Provider
 metadata:
   name: provider-terraform
   annotations:
-    meta.crossplane.io/maintainer: Crossplane Maintainers <info@crossplane.io>
-    meta.crossplane.io/source: github.com/crossplane-contrib/provider-terraform
-    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/maintainer: Upbound <support@upbound.io>
+    meta.crossplane.io/source: github.com/upbound/provider-terraform
     meta.crossplane.io/description: |
       The Terraform Crossplane provider enables management of Terraform
       modules by defining Crossplane Composite Resources.
@@ -13,3 +12,4 @@ metadata:
       The Terraform provider adds support for a Workspace managed resource
       that represents a Terraform workspace. The configuration of each workspace
       may be either fetched from a remote source (e.g. git), or simply specified inline.
+    friendly-name.meta.crossplane.io: Provider Terraform
