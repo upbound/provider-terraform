@@ -1,5 +1,3 @@
-GOLANGCILINT_VERSION ?= 1.50.0
-GO_REQUIRED_VERSION ?= 1.19
 # ====================================================================================
 # Setup Project
 PROJECT_NAME := provider-terraform
@@ -13,6 +11,7 @@ PLATFORMS ?= linux_amd64 linux_arm64
 
 # Setup Go
 NPROCS ?= 1
+GOLANGCILINT_VERSION ?= 1.50.0
 GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/provider
 GO_LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
@@ -20,26 +19,27 @@ GO_SUBDIRS += cmd internal apis
 GO111MODULE = on
 -include build/makelib/golang.mk
 
+# ====================================================================================
 # Setup Kubernetes tools
 
-UP_VERSION = v0.13.0
+KIND_VERSION = v0.15.0
+UP_VERSION = v0.14.0
 UP_CHANNEL = stable
+UPTEST_VERSION = v0.3.0
 -include build/makelib/k8s_tools.mk
 
 # Setup Images
+REGISTRY_ORGS ?= xpkg.upbound.io/upbound
 IMAGES = provider-terraform
 -include build/makelib/imagelight.mk
 
 # ====================================================================================
 # Setup XPKG
 
-XPKG_REGISTRY ?= xpkg.upbound.io
-XPKG_ORG ?= upbound
-XPKG_REPO ?= $(PROJECT_NAME)
-XPKG_REG_ORGS ?= xpkg.upbound.io/crossplane-contrib index.docker.io/crossplanecontrib
+XPKG_REG_ORGS ?= xpkg.upbound.io/upbound
 # NOTE(hasheddan): skip promoting on xpkg.upbound.io as channel tags are
 # inferred.
-XPKG_REG_ORGS_NO_PROMOTE ?= xpkg.upbound.io/crossplane-contrib
+XPKG_REG_ORGS_NO_PROMOTE ?= xpkg.upbound.io/upbound
 XPKGS = provider-terraform
 -include build/makelib/xpkg.mk
 
@@ -60,15 +60,6 @@ xpkg.build.provider-terraform: do.build.images
 fallthrough: submodules
 	@echo Initial setup complete. Running make again . . .
 	@make
-
-# integration tests
-e2e.run: test-integration
-
-# Run integration tests.
-test-integration: $(KIND) $(KUBECTL) $(HELM3)
-	@$(INFO) running integration tests using kind $(KIND_VERSION)
-	@$(ROOT_DIR)/cluster/local/integration_tests.sh || $(FAIL)
-	@$(OK) integration tests passed
 
 # Update the submodules, such as the common build scripts.
 submodules:
@@ -108,6 +99,34 @@ dev-clean: $(KIND) $(KUBECTL)
 .PHONY: reviewable submodules fallthrough test-integration run dev dev-clean
 
 # ====================================================================================
+# End to End Testing
+CROSSPLANE_NAMESPACE = upbound-system
+-include build/makelib/local.xpkg.mk
+-include build/makelib/controlplane.mk
+
+# This target requires the following environment variables to be set:
+# - UPTEST_EXAMPLE_LIST, a comma-separated list of examples to test
+# - UPTEST_CLOUD_CREDENTIALS (optional), cloud credentials for the provider being tested, e.g. export UPTEST_CLOUD_CREDENTIALS=$(cat ~/.aws/credentials)
+# - UPTEST_DATASOURCE_PATH (optional), see https://github.com/upbound/uptest#injecting-dynamic-values-and-datasource
+uptest: $(UPTEST) $(KUBECTL) $(KUTTL)
+	@$(INFO) running automated tests
+	@KUBECTL=$(KUBECTL) KUTTL=$(KUTTL) $(UPTEST) e2e "${UPTEST_EXAMPLE_LIST}" --data-source="${UPTEST_DATASOURCE_PATH}" --setup-script=cluster/test/setup.sh --default-conditions="Test" || $(FAIL)
+	@$(OK) running automated tests
+
+local-deploy: build controlplane.up local.xpkg.deploy.provider.$(PROJECT_NAME)
+	@$(INFO) running locally built provider
+	@$(KUBECTL) wait provider.pkg $(PROJECT_NAME) --for condition=Healthy --timeout 5m
+	@$(KUBECTL) -n upbound-system wait --for=condition=Available deployment --all --timeout=5m
+	@$(OK) running locally built provider
+
+# This target requires the following environment variables to be set:
+# - UPTEST_CLOUD_CREDENTIALS, cloud credentials for the provider being tested, e.g. export UPTEST_CLOUD_CREDENTIALS=$(cat ~/.aws/credentials)
+# - UPTEST_EXAMPLE_LIST, a comma-separated list of examples to test
+# - UPTEST_DATASOURCE_PATH, see https://github.com/upbound/uptest#injecting-dynamic-values-and-datasource
+e2e: local-deploy uptest
+
+.PHONY: uptest e2e
+# ====================================================================================
 # Special Targets
 
 define CROSSPLANE_MAKE_HELP
@@ -136,24 +155,3 @@ go.mod.cachedir:
 	@go env GOMODCACHE
 
 .PHONY: go.mod.cachedir
-
-xpkg.build: $(UP) do.build.images
-	@$(INFO) Building package $(PROJECT_NAME)-$(VERSION).xpkg for $(PLATFORM)
-	@mkdir -p $(OUTPUT_DIR)/xpkg/$(PLATFORM)
-	@$(UP) xpkg build  --controller $(BUILD_REGISTRY)/$(PROJECT_NAME)-$(ARCH)  --package-root ./package  --examples-root ./examples  --output ./_output/xpkg/$(PLATFORM)/$(PROJECT_NAME)-$(VERSION).xpkg || $(FAIL)
-	@$(OK) Built package $(PROJECT_NAME)-$(VERSION).xpkg for $(PLATFORM)
-
-build.artifacts.platform: xpkg.build
-
-
-xpkg.push: $(UP)
-	@$(INFO) Pushing package $(PROJECT_NAME)-$(VERSION).xpkg
-	@$(UP) xpkg push  --package $(OUTPUT_DIR)/xpkg/linux_amd64/$(PROJECT_NAME)-$(VERSION).xpkg  --package $(OUTPUT_DIR)/xpkg/linux_arm64/$(PROJECT_NAME)-$(VERSION).xpkg  $(XPKG_REGISTRY)/$(XPKG_ORG)/$(XPKG_REPO):$(VERSION) || $(FAIL)
-	@$(OK) Pushed package $(PROJECT_NAME)-$(VERSION).xpkg
-
-
-xpkg.load: $(UP)
-	@$(INFO) Loading package $(PROJECT_NAME)-$(VERSION).xpkg for $(PLATFORM) into Docker daemon
-	@docker load -i $(OUTPUT_DIR)/xpkg/$(PLATFORM)/$(PROJECT_NAME)-$(VERSION).xpkg
-	@$(OK) Loaded package $(PROJECT_NAME)-$(VERSION).xpkg for $(PLATFORM) into Docker daemon
-
