@@ -26,6 +26,10 @@ spec:
       // config - see providerconfig.yaml.
       resource "google_storage_bucket" "example" {
         name = "crossplane-example-${terraform.workspace}-${random_id.example.hex}"
+        location      = "US"
+        force_destroy = true
+      
+        public_access_prevention = "enforced"
       }
   writeConnectionSecretToRef:
     namespace: default

@@ -19,8 +19,8 @@ spec:
   # providers.
   configuration: |
       provider "google" {
-        credentials = "gcp-creds.json"
-        project     = "crossplane-example-project"
+        credentials = "gcp-credentials.json"
+        project     = "official-provider-testing"
       }
 
       // Modules _must_ use remote state. The provider does not persist state.
