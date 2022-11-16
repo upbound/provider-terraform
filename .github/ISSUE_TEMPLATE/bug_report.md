@@ -2,7 +2,7 @@
 name: Bug Report
 about: Help us diagnose and fix bugs in Official Terraform Provider
 labels: bug
-title: "rds: `DBInstance` CRD is not working..."
+title: "terraform: `Workspace` CRD is not working..."
 ---
 <!--
 Thank you for helping to improve Official Terraform Provider!
