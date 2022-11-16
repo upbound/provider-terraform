@@ -11,8 +11,8 @@ spec:
   - filename: gcp-credentials.json
     source: Secret
     secretRef:
-      namespace: crossplane-system
-      name: gcp-credentials
+      namespace: upbound-system
+      name: gcp-creds
       key: credentials
   # This optional configuration block can be used to inject HCL into any
   # workspace that uses this provider config, for example to setup Terraform
@@ -20,14 +20,14 @@ spec:
   configuration: |
       provider "google" {
         credentials = "gcp-credentials.json"
-        project     = "crossplane-example-project"
+        project     = "official-provider-testing"
       }
 
       // Modules _must_ use remote state. The provider does not persist state.
       terraform {
         backend "kubernetes" {
           secret_suffix     = "providerconfig-default"
-          namespace         = "crossplane-system"
+          namespace         = "upbound-system"
           in_cluster_config = true
         }
       }

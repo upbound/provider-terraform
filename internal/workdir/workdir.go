@@ -28,7 +28,7 @@ import (
 	"github.com/spf13/afero"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane-contrib/provider-terraform/apis/v1alpha1"
+	"github.com/upbound/provider-terraform/apis/v1alpha1"
 )
 
 // Error strings.

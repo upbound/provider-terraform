@@ -3,6 +3,7 @@ kind: Workspace
 metadata:
   name: example-inline
   annotations:
+    meta.upbound.io/example-id: tf/v1alpha1/repository
     # The terraform workspace will be named 'coolbucket'. If you omit this
     # annotation it would be derived from metadata.name - e.g. 'example-inline'.
     crossplane.io/external-name: coolbucket
@@ -26,6 +27,10 @@ spec:
       // config - see providerconfig.yaml.
       resource "google_storage_bucket" "example" {
         name = "crossplane-example-${terraform.workspace}-${random_id.example.hex}"
+        location      = "US"
+        force_destroy = true
+      
+        public_access_prevention = "enforced"
       }
   writeConnectionSecretToRef:
     namespace: default
