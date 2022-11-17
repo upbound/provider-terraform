@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -124,7 +125,7 @@ func WithInitArgs(v []string) InitOption {
 var sem = semaphore.NewWeighted(int64(1))
 
 // Init initializes a Terraform configuration.
-func (h Harness) Init(ctx context.Context, o ...InitOption) error {
+func (h Harness) Init(ctx context.Context, cache bool, o ...InitOption) error {
 	io := &initOptions{}
 	for _, fn := range o {
 		fn(io)
@@ -133,6 +134,14 @@ func (h Harness) Init(ctx context.Context, o ...InitOption) error {
 	args := append([]string{"init", "-input=false", "-no-color"}, io.args...)
 	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
+	if !cache {
+		for _, e := range os.Environ() {
+			if strings.Contains(e, "TF_PLUGIN_CACHE_DIR") {
+				continue
+			}
+			cmd.Env = append(cmd.Env, e)
+		}
+	}
 	err := sem.Acquire(ctx, 1)
 	if err != nil {
 		return errors.Wrap(err, errSemAcquire)
