@@ -3,6 +3,7 @@ kind: Workspace
 metadata:
   name: example-remote
   annotations:
+    meta.upbound.io/example-id: tf/v1alpha1/repository
     # The terraform workspace will be named 'myworkspace'. If you omit this
     # annotation it would be derived from metadata.name - e.g. 'example-remote'.
     crossplane.io/external-name: myworkspace

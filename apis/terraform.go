@@ -20,7 +20,7 @@ package apis
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplane-contrib/provider-terraform/apis/v1alpha1"
+	"github.com/upbound/provider-terraform/apis/v1alpha1"
 )
 
 func init() {

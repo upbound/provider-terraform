@@ -35,8 +35,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane-contrib/provider-terraform/apis/v1alpha1"
-	"github.com/crossplane-contrib/provider-terraform/internal/terraform"
+	"github.com/upbound/provider-terraform/apis/v1alpha1"
+	"github.com/upbound/provider-terraform/internal/terraform"
 )
 
 type ErrFs struct {
@@ -878,7 +878,7 @@ func TestObserve(t *testing.T) {
 					ResourceUpToDate: true,
 					ConnectionDetails: managed.ConnectionDetails{
 						"string": {},
-						"object": []byte("null"), // Because we JSON decode the the value, which is interface{}{}
+						"object": []byte("null"), // Because we JSON decode the the value, which is any{}
 					},
 				},
 				wo: v1alpha1.WorkspaceObservation{
@@ -919,7 +919,7 @@ func TestObserve(t *testing.T) {
 					ResourceUpToDate: true,
 					ConnectionDetails: managed.ConnectionDetails{
 						"string": {},
-						"object": []byte("null"), // Because we JSON decode the the value, which is interface{}{}
+						"object": []byte("null"), // Because we JSON decode the the value, which is any{}
 					},
 				},
 				wo: v1alpha1.WorkspaceObservation{
@@ -1114,7 +1114,7 @@ func TestCreate(t *testing.T) {
 				c: managed.ExternalCreation{
 					ConnectionDetails: managed.ConnectionDetails{
 						"string": {},
-						"object": []byte("null"), // Because we JSON decode the value, which is interface{}{}
+						"object": []byte("null"), // Because we JSON decode the value, which is any{}
 					},
 				},
 				wo: v1alpha1.WorkspaceObservation{

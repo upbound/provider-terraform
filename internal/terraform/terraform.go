@@ -22,7 +22,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -273,11 +272,11 @@ type Output struct {
 	Sensitive bool
 	Type      OutputType
 
-	value interface{}
+	value any
 }
 
 // Value returns the output's actual value.
-func (o Output) Value() interface{} {
+func (o Output) Value() any {
 	return o.value
 }
 
@@ -320,9 +319,9 @@ func (h Harness) Outputs(ctx context.Context) ([]Output, error) {
 	cmd.Dir = h.Dir
 
 	type output struct {
-		Sensitive bool        `json:"sensitive"`
-		Value     interface{} `json:"value"`
-		Type      interface{} `json:"type"`
+		Sensitive bool `json:"sensitive"`
+		Value     any  `json:"value"`
+		Type      any  `json:"type"`
 	}
 
 	outputs := map[string]output{}
@@ -348,7 +347,7 @@ func (h Harness) Outputs(ctx context.Context) ([]Output, error) {
 
 		// The 'type' field is an array whose first element is a string for
 		// complex types like 'object'.
-		if a, ok := output.Type.([]interface{}); ok && len(a) > 0 {
+		if a, ok := output.Type.([]any); ok && len(a) > 0 {
 			if s, ok := a[0].(string); ok {
 				t = s
 			}
@@ -439,7 +438,7 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	}
 
 	for _, vf := range ao.varFiles {
-		if err := ioutil.WriteFile(filepath.Join(h.Dir, vf.filename), vf.data, 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(h.Dir, vf.filename), vf.data, 0600); err != nil {
 			return false, errors.Wrap(err, errWriteVarFile)
 		}
 	}
@@ -467,7 +466,7 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 	}
 
 	for _, vf := range ao.varFiles {
-		if err := ioutil.WriteFile(filepath.Join(h.Dir, vf.filename), vf.data, 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(h.Dir, vf.filename), vf.data, 0600); err != nil {
 			return errors.Wrap(err, errWriteVarFile)
 		}
 	}
@@ -488,7 +487,7 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	}
 
 	for _, vf := range do.varFiles {
-		if err := ioutil.WriteFile(filepath.Join(h.Dir, vf.filename), vf.data, 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(h.Dir, vf.filename), vf.data, 0600); err != nil {
 			return errors.Wrap(err, errWriteVarFile)
 		}
 	}

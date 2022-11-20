@@ -8,14 +8,14 @@ spec:
   - filename: aws-creds.ini
     source: Secret
     secretRef:
-      namespace: crossplane-system
+      namespace: upbound-system
       name: aws-creds
       key: credentials
   configuration: |
       terraform {
         backend "kubernetes" {
           secret_suffix     = "providerconfig-aws-eu-west-1"
-          namespace         = "crossplane-system"
+          namespace         = "upbound-system"
           in_cluster_config = true
         }
       }

@@ -17,3 +17,7 @@ cover.out
 
 # local tf dir
 /tf
+
+# common credentials
+kubeconfig
+credentials.json
