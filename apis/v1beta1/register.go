@@ -25,7 +25,7 @@ import (
 
 // Package type metadata.
 const (
-	Group   = "tf.crossplane.io"
+	Group   = "tf.upbound.io"
 	Version = "v1beta1"
 )
 

@@ -1,5 +1,5 @@
 ---
-apiVersion: tf.crossplane.io/v1beta1
+apiVersion: tf.upbound.io/v1beta1
 kind: ProviderConfig
 metadata:
   name: aws-eu-west-1
