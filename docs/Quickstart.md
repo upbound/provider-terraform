@@ -123,7 +123,7 @@ Create a `ProviderConfig` Kubernetes configuration file to attach the GCP creden
 **Note:** the `ProviderConfig` must contain the correct GCP project ID. The project ID must match the `project_id` from the JSON key file.
 
 ```yaml
-apiVersion: tf.crossplane.io/v1alpha1
+apiVersion: tf.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
   name: default
@@ -168,7 +168,7 @@ Verify the `ProviderConfig` with `kubectl describe providerconfigs`.
 $ kubectl describe providerconfigs
 Name:         default
 Namespace:
-API Version:  tf.crossplane.io/v1alpha1
+API Version:  tf.crossplane.io/v1beta1
 Kind:         ProviderConfig
 # Output truncated
 Spec:
@@ -201,12 +201,12 @@ Create a managed resource of type `Workspace` to verify the provider is function
 This example creates a GCP storage bucket with a globally unique name.
 
 ```yaml
-apiVersion: tf.crossplane.io/v1alpha1
+apiVersion: tf.crossplane.io/v1beta1
 kind: Workspace
 metadata:
   name: example-inline
   annotations:
-    meta.upbound.io/example-id: tf/v1alpha1/repository
+    meta.upbound.io/example-id: tf/v1beta1/workspace
     # The terraform workspace will be named 'coolbucket'. If you omit this
     # annotation it would be derived from metadata.name - e.g. 'example-inline'.
     crossplane.io/external-name: coolbucket

@@ -1,4 +1,4 @@
-apiVersion: tf.crossplane.io/v1alpha1
+apiVersion: tf.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
   name: default

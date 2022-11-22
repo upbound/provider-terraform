@@ -32,7 +32,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/upbound/provider-terraform/apis/v1alpha1"
+	"github.com/upbound/provider-terraform/apis/v1beta1"
 )
 
 func withDirs(fs afero.Afero, dir ...string) afero.Afero {
@@ -101,7 +101,7 @@ func TestCollect(t *testing.T) {
 			reason: "Workdirs belonging to workspaces that no longer exist should be successfully garbage collected.",
 			fields: fields{
 				kube: &test.MockClient{MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-					*obj.(*v1alpha1.WorkspaceList) = v1alpha1.WorkspaceList{Items: []v1alpha1.Workspace{
+					*obj.(*v1beta1.WorkspaceList) = v1beta1.WorkspaceList{Items: []v1beta1.Workspace{
 						{ObjectMeta: metav1.ObjectMeta{UID: types.UID("8371dd9e-dd3f-4a42-bd8c-340c4744f6de")}},
 						{ObjectMeta: metav1.ObjectMeta{UID: types.UID("ebaac629-43a3-4b39-8138-d7ac19cafe11")}},
 					}}

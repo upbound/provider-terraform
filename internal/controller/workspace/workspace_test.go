@@ -35,7 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/upbound/provider-terraform/apis/v1alpha1"
+	"github.com/upbound/provider-terraform/apis/v1beta1"
 	"github.com/upbound/provider-terraform/internal/terraform"
 )
 
@@ -145,7 +145,7 @@ func TestConnect(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
+				mg: &v1beta1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{UID: uid},
 				},
 			},
@@ -158,7 +158,7 @@ func TestConnect(t *testing.T) {
 				fs:    afero.Afero{Fs: afero.NewMemMapFs()},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
+				mg: &v1beta1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{UID: uid},
 				},
 			},
@@ -174,9 +174,9 @@ func TestConnect(t *testing.T) {
 				fs:    afero.Afero{Fs: afero.NewMemMapFs()},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
+				mg: &v1beta1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{UID: uid},
-					Spec: v1alpha1.WorkspaceSpec{
+					Spec: v1beta1.WorkspaceSpec{
 						ResourceSpec: xpv1.ResourceSpec{
 							ProviderConfigReference: &xpv1.Reference{},
 						},
@@ -190,12 +190,12 @@ func TestConnect(t *testing.T) {
 			fields: fields{
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
+						if pc, ok := obj.(*v1beta1.ProviderConfig); ok {
 							// We're testing through CommonCredentialsExtractor
 							// here. We cause an error to be returned by asking
 							// for credentials from the environment, but not
 							// specifying an environment variable.
-							pc.Spec.Credentials = []v1alpha1.ProviderCredentials{{
+							pc.Spec.Credentials = []v1beta1.ProviderCredentials{{
 								Source: xpv1.CredentialsSourceEnvironment,
 							}}
 						}
@@ -211,9 +211,9 @@ func TestConnect(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
+				mg: &v1beta1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{UID: uid},
-					Spec: v1alpha1.WorkspaceSpec{
+					Spec: v1beta1.WorkspaceSpec{
 						ResourceSpec: xpv1.ResourceSpec{
 							ProviderConfigReference: &xpv1.Reference{},
 						},
@@ -227,8 +227,8 @@ func TestConnect(t *testing.T) {
 			fields: fields{
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
-							pc.Spec.Credentials = []v1alpha1.ProviderCredentials{{
+						if pc, ok := obj.(*v1beta1.ProviderConfig); ok {
+							pc.Spec.Credentials = []v1beta1.ProviderCredentials{{
 								Filename: tfCreds,
 								Source:   xpv1.CredentialsSourceNone,
 							}}
@@ -250,9 +250,9 @@ func TestConnect(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
+				mg: &v1beta1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{UID: uid},
-					Spec: v1alpha1.WorkspaceSpec{
+					Spec: v1beta1.WorkspaceSpec{
 						ResourceSpec: xpv1.ResourceSpec{
 							ProviderConfigReference: &xpv1.Reference{},
 						},
@@ -266,8 +266,8 @@ func TestConnect(t *testing.T) {
 			fields: fields{
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
-							pc.Spec.Credentials = []v1alpha1.ProviderCredentials{{
+						if pc, ok := obj.(*v1beta1.ProviderConfig); ok {
+							pc.Spec.Credentials = []v1beta1.ProviderCredentials{{
 								Filename: tfCreds,
 								Source:   xpv1.CredentialsSourceNone,
 							}}
@@ -289,15 +289,15 @@ func TestConnect(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
+				mg: &v1beta1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{UID: uid},
-					Spec: v1alpha1.WorkspaceSpec{
+					Spec: v1beta1.WorkspaceSpec{
 						ResourceSpec: xpv1.ResourceSpec{
 							ProviderConfigReference: &xpv1.Reference{},
 						},
-						ForProvider: v1alpha1.WorkspaceParameters{
+						ForProvider: v1beta1.WorkspaceParameters{
 							Module:     "I'm HCL!",
-							Source:     v1alpha1.ModuleSourceInline,
+							Source:     v1beta1.ModuleSourceInline,
 							Entrypoint: "subdir",
 						},
 					},
@@ -310,8 +310,8 @@ func TestConnect(t *testing.T) {
 			fields: fields{
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
-							pc.Spec.Credentials = []v1alpha1.ProviderCredentials{{
+						if pc, ok := obj.(*v1beta1.ProviderConfig); ok {
+							pc.Spec.Credentials = []v1beta1.ProviderCredentials{{
 								Filename: ".git-credentials",
 								Source:   xpv1.CredentialsSourceNone,
 							}}
@@ -333,15 +333,15 @@ func TestConnect(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
+				mg: &v1beta1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{UID: uid},
-					Spec: v1alpha1.WorkspaceSpec{
+					Spec: v1beta1.WorkspaceSpec{
 						ResourceSpec: xpv1.ResourceSpec{
 							ProviderConfigReference: &xpv1.Reference{},
 						},
-						ForProvider: v1alpha1.WorkspaceParameters{
+						ForProvider: v1beta1.WorkspaceParameters{
 							Module: "github.com/crossplane/rocks",
-							Source: v1alpha1.ModuleSourceRemote,
+							Source: v1beta1.ModuleSourceRemote,
 						},
 					},
 				},
@@ -353,8 +353,8 @@ func TestConnect(t *testing.T) {
 			fields: fields{
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
-							pc.Spec.Credentials = []v1alpha1.ProviderCredentials{{
+						if pc, ok := obj.(*v1beta1.ProviderConfig); ok {
+							pc.Spec.Credentials = []v1beta1.ProviderCredentials{{
 								Filename: ".git-credentials",
 								Source:   xpv1.CredentialsSourceNone,
 							}}
@@ -376,15 +376,15 @@ func TestConnect(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
+				mg: &v1beta1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{UID: uid},
-					Spec: v1alpha1.WorkspaceSpec{
+					Spec: v1beta1.WorkspaceSpec{
 						ResourceSpec: xpv1.ResourceSpec{
 							ProviderConfigReference: &xpv1.Reference{},
 						},
-						ForProvider: v1alpha1.WorkspaceParameters{
+						ForProvider: v1beta1.WorkspaceParameters{
 							Module: "github.com/crossplane/rocks",
-							Source: v1alpha1.ModuleSourceRemote,
+							Source: v1beta1.ModuleSourceRemote,
 						},
 					},
 				},
@@ -396,7 +396,7 @@ func TestConnect(t *testing.T) {
 			fields: fields{
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
+						if pc, ok := obj.(*v1beta1.ProviderConfig); ok {
 							cfg := "I'm HCL!"
 							pc.Spec.Configuration = &cfg
 						}
@@ -417,15 +417,15 @@ func TestConnect(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
+				mg: &v1beta1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{UID: uid},
-					Spec: v1alpha1.WorkspaceSpec{
+					Spec: v1beta1.WorkspaceSpec{
 						ResourceSpec: xpv1.ResourceSpec{
 							ProviderConfigReference: &xpv1.Reference{},
 						},
-						ForProvider: v1alpha1.WorkspaceParameters{
+						ForProvider: v1beta1.WorkspaceParameters{
 							Module: "I'm HCL!",
-							Source: v1alpha1.ModuleSourceInline,
+							Source: v1beta1.ModuleSourceInline,
 						},
 					},
 				},
@@ -437,7 +437,7 @@ func TestConnect(t *testing.T) {
 			fields: fields{
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						if pc, ok := obj.(*v1alpha1.ProviderConfig); ok {
+						if pc, ok := obj.(*v1beta1.ProviderConfig); ok {
 							cfg := "I'm HCL!"
 							pc.Spec.Configuration = &cfg
 						}
@@ -458,15 +458,15 @@ func TestConnect(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
+				mg: &v1beta1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{UID: uid},
-					Spec: v1alpha1.WorkspaceSpec{
+					Spec: v1beta1.WorkspaceSpec{
 						ResourceSpec: xpv1.ResourceSpec{
 							ProviderConfigReference: &xpv1.Reference{},
 						},
-						ForProvider: v1alpha1.WorkspaceParameters{
+						ForProvider: v1beta1.WorkspaceParameters{
 							Module:     "I'm HCL!",
-							Source:     v1alpha1.ModuleSourceInline,
+							Source:     v1beta1.ModuleSourceInline,
 							Entrypoint: "subdir",
 						},
 					},
@@ -494,15 +494,15 @@ func TestConnect(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
+				mg: &v1beta1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{UID: uid},
-					Spec: v1alpha1.WorkspaceSpec{
+					Spec: v1beta1.WorkspaceSpec{
 						ResourceSpec: xpv1.ResourceSpec{
 							ProviderConfigReference: &xpv1.Reference{},
 						},
-						ForProvider: v1alpha1.WorkspaceParameters{
+						ForProvider: v1beta1.WorkspaceParameters{
 							Module: "I'm HCL!",
-							Source: v1alpha1.ModuleSourceInline,
+							Source: v1beta1.ModuleSourceInline,
 						},
 					},
 				},
@@ -522,9 +522,9 @@ func TestConnect(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
+				mg: &v1beta1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{UID: uid},
-					Spec: v1alpha1.WorkspaceSpec{
+					Spec: v1beta1.WorkspaceSpec{
 						ResourceSpec: xpv1.ResourceSpec{
 							ProviderConfigReference: &xpv1.Reference{},
 						},
@@ -549,9 +549,9 @@ func TestConnect(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
+				mg: &v1beta1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{UID: uid},
-					Spec: v1alpha1.WorkspaceSpec{
+					Spec: v1beta1.WorkspaceSpec{
 						ResourceSpec: xpv1.ResourceSpec{
 							ProviderConfigReference: &xpv1.Reference{},
 						},
@@ -576,10 +576,10 @@ func TestConnect(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
+				mg: &v1beta1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{UID: uid},
-					Spec: v1alpha1.WorkspaceSpec{
-						ForProvider: v1alpha1.WorkspaceParameters{
+					Spec: v1beta1.WorkspaceSpec{
+						ForProvider: v1beta1.WorkspaceParameters{
 							InitArgs: []string{"-upgrade=true"},
 						},
 						ResourceSpec: xpv1.ResourceSpec{
@@ -623,7 +623,7 @@ func TestObserve(t *testing.T) {
 
 	type want struct {
 		o   managed.ExternalObservation
-		wo  v1alpha1.WorkspaceObservation
+		wo  v1beta1.WorkspaceObservation
 		err error
 	}
 
@@ -655,13 +655,13 @@ func TestObserve(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
-					Spec: v1alpha1.WorkspaceSpec{
-						ForProvider: v1alpha1.WorkspaceParameters{
-							VarFiles: []v1alpha1.VarFile{
+				mg: &v1beta1.Workspace{
+					Spec: v1beta1.WorkspaceSpec{
+						ForProvider: v1beta1.WorkspaceParameters{
+							VarFiles: []v1beta1.VarFile{
 								{
-									Source:                v1alpha1.VarFileSourceConfigMapKey,
-									ConfigMapKeyReference: &v1alpha1.KeyReference{},
+									Source:                v1beta1.VarFileSourceConfigMapKey,
+									ConfigMapKeyReference: &v1beta1.KeyReference{},
 								},
 							},
 						},
@@ -685,13 +685,13 @@ func TestObserve(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
-					Spec: v1alpha1.WorkspaceSpec{
-						ForProvider: v1alpha1.WorkspaceParameters{
-							VarFiles: []v1alpha1.VarFile{
+				mg: &v1beta1.Workspace{
+					Spec: v1beta1.WorkspaceSpec{
+						ForProvider: v1beta1.WorkspaceParameters{
+							VarFiles: []v1beta1.VarFile{
 								{
-									Source:             v1alpha1.VarFileSourceSecretKey,
-									SecretKeyReference: &v1alpha1.KeyReference{},
+									Source:             v1beta1.VarFileSourceSecretKey,
+									SecretKeyReference: &v1beta1.KeyReference{},
 								},
 							},
 						},
@@ -710,7 +710,7 @@ func TestObserve(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{},
+				mg: &v1beta1.Workspace{},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errDiff),
@@ -728,7 +728,7 @@ func TestObserve(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
+				mg: &v1beta1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{
 						DeletionTimestamp: &now,
 					},
@@ -740,7 +740,7 @@ func TestObserve(t *testing.T) {
 					ResourceUpToDate:  true,
 					ConnectionDetails: managed.ConnectionDetails{},
 				},
-				wo: v1alpha1.WorkspaceObservation{
+				wo: v1beta1.WorkspaceObservation{
 					Outputs: map[string]string{},
 				},
 			},
@@ -756,7 +756,7 @@ func TestObserve(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
+				mg: &v1beta1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{
 						DeletionTimestamp: &now,
 					},
@@ -768,7 +768,7 @@ func TestObserve(t *testing.T) {
 					ResourceUpToDate:  true,
 					ConnectionDetails: managed.ConnectionDetails{},
 				},
-				wo: v1alpha1.WorkspaceObservation{
+				wo: v1beta1.WorkspaceObservation{
 					Outputs: map[string]string{},
 				},
 			},
@@ -783,7 +783,7 @@ func TestObserve(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
+				mg: &v1beta1.Workspace{
 					ObjectMeta: metav1.ObjectMeta{
 						DeletionTimestamp: &now,
 					},
@@ -802,7 +802,7 @@ func TestObserve(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{},
+				mg: &v1beta1.Workspace{},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errResources),
@@ -818,7 +818,7 @@ func TestObserve(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{},
+				mg: &v1beta1.Workspace{},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errOutputs),
@@ -834,7 +834,7 @@ func TestObserve(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{},
+				mg: &v1beta1.Workspace{},
 			},
 			want: want{
 				o: managed.ExternalObservation{
@@ -842,7 +842,7 @@ func TestObserve(t *testing.T) {
 					ResourceUpToDate:  true,
 					ConnectionDetails: managed.ConnectionDetails{},
 				},
-				wo: v1alpha1.WorkspaceObservation{
+				wo: v1beta1.WorkspaceObservation{
 					Outputs: map[string]string{},
 				},
 			},
@@ -864,9 +864,9 @@ func TestObserve(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
-					Spec: v1alpha1.WorkspaceSpec{
-						ForProvider: v1alpha1.WorkspaceParameters{
+				mg: &v1beta1.Workspace{
+					Spec: v1beta1.WorkspaceSpec{
+						ForProvider: v1beta1.WorkspaceParameters{
 							PlanArgs: []string{"-refresh=false"},
 						},
 					},
@@ -881,7 +881,7 @@ func TestObserve(t *testing.T) {
 						"object": []byte("null"), // Because we JSON decode the the value, which is any{}
 					},
 				},
-				wo: v1alpha1.WorkspaceObservation{
+				wo: v1beta1.WorkspaceObservation{
 					Outputs: map[string]string{
 						"string": "",
 					},
@@ -905,9 +905,9 @@ func TestObserve(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
-					Spec: v1alpha1.WorkspaceSpec{
-						ForProvider: v1alpha1.WorkspaceParameters{
+				mg: &v1beta1.Workspace{
+					Spec: v1beta1.WorkspaceSpec{
+						ForProvider: v1beta1.WorkspaceParameters{
 							PlanArgs: []string{"-refresh=false"},
 						},
 					},
@@ -922,7 +922,7 @@ func TestObserve(t *testing.T) {
 						"object": []byte("null"), // Because we JSON decode the the value, which is any{}
 					},
 				},
-				wo: v1alpha1.WorkspaceObservation{
+				wo: v1beta1.WorkspaceObservation{
 					Outputs: map[string]string{
 						"string": "",
 					},
@@ -942,7 +942,7 @@ func TestObserve(t *testing.T) {
 				t.Errorf("\n%s\ne.Observe(...): -want, +got:\n%s\n", tc.reason, diff)
 			}
 			if tc.args.mg != nil {
-				if diff := cmp.Diff(tc.want.wo, tc.args.mg.(*v1alpha1.Workspace).Status.AtProvider); diff != "" {
+				if diff := cmp.Diff(tc.want.wo, tc.args.mg.(*v1beta1.Workspace).Status.AtProvider); diff != "" {
 					t.Errorf("\n%s\ne.Observe(...): -want, +got:\n%s\n", tc.reason, diff)
 				}
 			}
@@ -965,7 +965,7 @@ func TestCreate(t *testing.T) {
 
 	type want struct {
 		c   managed.ExternalCreation
-		wo  v1alpha1.WorkspaceObservation
+		wo  v1beta1.WorkspaceObservation
 		err error
 	}
 
@@ -997,13 +997,13 @@ func TestCreate(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
-					Spec: v1alpha1.WorkspaceSpec{
-						ForProvider: v1alpha1.WorkspaceParameters{
-							VarFiles: []v1alpha1.VarFile{
+				mg: &v1beta1.Workspace{
+					Spec: v1beta1.WorkspaceSpec{
+						ForProvider: v1beta1.WorkspaceParameters{
+							VarFiles: []v1beta1.VarFile{
 								{
-									Source:                v1alpha1.VarFileSourceConfigMapKey,
-									ConfigMapKeyReference: &v1alpha1.KeyReference{},
+									Source:                v1beta1.VarFileSourceConfigMapKey,
+									ConfigMapKeyReference: &v1beta1.KeyReference{},
 								},
 							},
 						},
@@ -1027,13 +1027,13 @@ func TestCreate(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
-					Spec: v1alpha1.WorkspaceSpec{
-						ForProvider: v1alpha1.WorkspaceParameters{
-							VarFiles: []v1alpha1.VarFile{
+				mg: &v1beta1.Workspace{
+					Spec: v1beta1.WorkspaceSpec{
+						ForProvider: v1beta1.WorkspaceParameters{
+							VarFiles: []v1beta1.VarFile{
 								{
-									Source:             v1alpha1.VarFileSourceSecretKey,
-									SecretKeyReference: &v1alpha1.KeyReference{},
+									Source:             v1beta1.VarFileSourceSecretKey,
+									SecretKeyReference: &v1beta1.KeyReference{},
 								},
 							},
 						},
@@ -1052,7 +1052,7 @@ func TestCreate(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{},
+				mg: &v1beta1.Workspace{},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errApply),
@@ -1067,7 +1067,7 @@ func TestCreate(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{},
+				mg: &v1beta1.Workspace{},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errOutputs),
@@ -1090,20 +1090,20 @@ func TestCreate(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
-					Spec: v1alpha1.WorkspaceSpec{
-						ForProvider: v1alpha1.WorkspaceParameters{
+				mg: &v1beta1.Workspace{
+					Spec: v1beta1.WorkspaceSpec{
+						ForProvider: v1beta1.WorkspaceParameters{
 							ApplyArgs: []string{"-refresh=false"},
-							Vars:      []v1alpha1.Var{{Key: "super", Value: "cool"}},
-							VarFiles: []v1alpha1.VarFile{
+							Vars:      []v1beta1.Var{{Key: "super", Value: "cool"}},
+							VarFiles: []v1beta1.VarFile{
 								{
-									Source:                v1alpha1.VarFileSourceConfigMapKey,
-									ConfigMapKeyReference: &v1alpha1.KeyReference{},
+									Source:                v1beta1.VarFileSourceConfigMapKey,
+									ConfigMapKeyReference: &v1beta1.KeyReference{},
 								},
 								{
-									Source:             v1alpha1.VarFileSourceSecretKey,
-									SecretKeyReference: &v1alpha1.KeyReference{},
-									Format:             &v1alpha1.VarFileFormatJSON,
+									Source:             v1beta1.VarFileSourceSecretKey,
+									SecretKeyReference: &v1beta1.KeyReference{},
+									Format:             &v1beta1.VarFileFormatJSON,
 								},
 							},
 						},
@@ -1117,7 +1117,7 @@ func TestCreate(t *testing.T) {
 						"object": []byte("null"), // Because we JSON decode the value, which is any{}
 					},
 				},
-				wo: v1alpha1.WorkspaceObservation{
+				wo: v1beta1.WorkspaceObservation{
 					Outputs: map[string]string{
 						"object": "null",
 					},
@@ -1137,7 +1137,7 @@ func TestCreate(t *testing.T) {
 				t.Errorf("\n%s\ne.Create(...): -want, +got:\n%s\n", tc.reason, diff)
 			}
 			if tc.args.mg != nil {
-				if diff := cmp.Diff(tc.want.wo, tc.args.mg.(*v1alpha1.Workspace).Status.AtProvider); diff != "" {
+				if diff := cmp.Diff(tc.want.wo, tc.args.mg.(*v1beta1.Workspace).Status.AtProvider); diff != "" {
 					t.Errorf("\n%s\ne.Observe(...): -want, +got:\n%s\n", tc.reason, diff)
 				}
 			}
@@ -1184,13 +1184,13 @@ func TestDelete(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
-					Spec: v1alpha1.WorkspaceSpec{
-						ForProvider: v1alpha1.WorkspaceParameters{
-							VarFiles: []v1alpha1.VarFile{
+				mg: &v1beta1.Workspace{
+					Spec: v1beta1.WorkspaceSpec{
+						ForProvider: v1beta1.WorkspaceParameters{
+							VarFiles: []v1beta1.VarFile{
 								{
-									Source:                v1alpha1.VarFileSourceConfigMapKey,
-									ConfigMapKeyReference: &v1alpha1.KeyReference{},
+									Source:                v1beta1.VarFileSourceConfigMapKey,
+									ConfigMapKeyReference: &v1beta1.KeyReference{},
 								},
 							},
 						},
@@ -1212,13 +1212,13 @@ func TestDelete(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
-					Spec: v1alpha1.WorkspaceSpec{
-						ForProvider: v1alpha1.WorkspaceParameters{
-							VarFiles: []v1alpha1.VarFile{
+				mg: &v1beta1.Workspace{
+					Spec: v1beta1.WorkspaceSpec{
+						ForProvider: v1beta1.WorkspaceParameters{
+							VarFiles: []v1beta1.VarFile{
 								{
-									Source:             v1alpha1.VarFileSourceSecretKey,
-									SecretKeyReference: &v1alpha1.KeyReference{},
+									Source:             v1beta1.VarFileSourceSecretKey,
+									SecretKeyReference: &v1beta1.KeyReference{},
 								},
 							},
 						},
@@ -1235,7 +1235,7 @@ func TestDelete(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{},
+				mg: &v1beta1.Workspace{},
 			},
 			want: errors.Wrap(errBoom, errDestroy),
 		},
@@ -1250,20 +1250,20 @@ func TestDelete(t *testing.T) {
 				},
 			},
 			args: args{
-				mg: &v1alpha1.Workspace{
-					Spec: v1alpha1.WorkspaceSpec{
-						ForProvider: v1alpha1.WorkspaceParameters{
+				mg: &v1beta1.Workspace{
+					Spec: v1beta1.WorkspaceSpec{
+						ForProvider: v1beta1.WorkspaceParameters{
 							DestroyArgs: []string{"-refresh=false"},
-							Vars:        []v1alpha1.Var{{Key: "super", Value: "cool"}},
-							VarFiles: []v1alpha1.VarFile{
+							Vars:        []v1beta1.Var{{Key: "super", Value: "cool"}},
+							VarFiles: []v1beta1.VarFile{
 								{
-									Source:                v1alpha1.VarFileSourceConfigMapKey,
-									ConfigMapKeyReference: &v1alpha1.KeyReference{},
+									Source:                v1beta1.VarFileSourceConfigMapKey,
+									ConfigMapKeyReference: &v1beta1.KeyReference{},
 								},
 								{
-									Source:             v1alpha1.VarFileSourceSecretKey,
-									SecretKeyReference: &v1alpha1.KeyReference{},
-									Format:             &v1alpha1.VarFileFormatJSON,
+									Source:             v1beta1.VarFileSourceSecretKey,
+									SecretKeyReference: &v1beta1.KeyReference{},
+									Format:             &v1beta1.VarFileFormatJSON,
 								},
 							},
 						},

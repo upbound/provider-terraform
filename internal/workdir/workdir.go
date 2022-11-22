@@ -28,7 +28,7 @@ import (
 	"github.com/spf13/afero"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/upbound/provider-terraform/apis/v1alpha1"
+	"github.com/upbound/provider-terraform/apis/v1beta1"
 )
 
 // Error strings.
@@ -107,7 +107,7 @@ func isUUID(u string) bool {
 }
 
 func (gc *GarbageCollector) collect(ctx context.Context) error {
-	l := &v1alpha1.WorkspaceList{}
+	l := &v1beta1.WorkspaceList{}
 	if err := gc.kube.List(ctx, l); err != nil {
 		return errors.Wrap(err, errListWorkspaces)
 	}

@@ -29,7 +29,7 @@ spec:
     - jsonPath: .spec.defaultScope
       name: DEFAULT-SCOPE
       type: string
-    name: v1alpha1
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: A StoreConfig configures how GCP controller should store connection
