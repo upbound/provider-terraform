@@ -25,7 +25,7 @@ def load_crd_type(t):
 
 
 exception_set = {
-    'ProviderConfigUsage.tf.crossplane.io/v1alpha1'
+    'ProviderConfigUsage.tf.crossplane.io/v1beta1'
 }
 
 

@@ -41,7 +41,7 @@ import (
 
 	"github.com/hashicorp/go-getter"
 
-	"github.com/upbound/provider-terraform/apis/v1alpha1"
+	"github.com/upbound/provider-terraform/apis/v1beta1"
 	"github.com/upbound/provider-terraform/internal/controller/features"
 	"github.com/upbound/provider-terraform/internal/terraform"
 	"github.com/upbound/provider-terraform/internal/workdir"
@@ -103,7 +103,7 @@ type tfclient interface {
 
 // Setup adds a controller that reconciles Workspace managed resources.
 func Setup(mgr ctrl.Manager, o controller.Options, timeout time.Duration) error {
-	name := managed.ControllerName(v1alpha1.WorkspaceGroupKind)
+	name := managed.ControllerName(v1beta1.WorkspaceGroupKind)
 
 	fs := afero.Afero{Fs: afero.NewOsFs()}
 	gcWorkspace := workdir.NewGarbageCollector(mgr.GetClient(), tfDir, workdir.WithFs(fs), workdir.WithLogger(o.Logger))
@@ -114,17 +114,17 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout time.Duration) error 
 
 	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
 	if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
-		cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), v1alpha1.StoreConfigGroupVersionKind))
+		cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), v1beta1.StoreConfigGroupVersionKind))
 	}
 	c := &connector{
 		kube:      mgr.GetClient(),
-		usage:     resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1alpha1.ProviderConfigUsage{}),
+		usage:     resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1beta1.ProviderConfigUsage{}),
 		fs:        fs,
 		terraform: func(dir string) tfclient { return terraform.Harness{Path: tfPath, Dir: dir} },
 	}
 
 	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(v1alpha1.WorkspaceGroupVersionKind),
+		resource.ManagedKind(v1beta1.WorkspaceGroupVersionKind),
 		managed.WithPollInterval(o.PollInterval),
 		managed.WithExternalConnecter(c),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
@@ -135,7 +135,7 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout time.Duration) error 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
-		For(&v1alpha1.Workspace{}).
+		For(&v1beta1.Workspace{}).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
@@ -152,7 +152,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	// can't immediately think of a clean way to decompose it without
 	// affecting readability.
 
-	cr, ok := mg.(*v1alpha1.Workspace)
+	cr, ok := mg.(*v1beta1.Workspace)
 	if !ok {
 		return nil, errors.New(errNotWorkspace)
 	}
@@ -171,7 +171,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
 
-	pc := &v1alpha1.ProviderConfig{}
+	pc := &v1beta1.ProviderConfig{}
 	if err := c.kube.Get(ctx, types.NamespacedName{Name: cr.GetProviderConfigReference().Name}, pc); err != nil {
 		return nil, errors.Wrap(err, errGetPC)
 	}
@@ -204,7 +204,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	switch cr.Spec.ForProvider.Source {
-	case v1alpha1.ModuleSourceRemote:
+	case v1beta1.ModuleSourceRemote:
 		// Workaround of https://github.com/hashicorp/go-getter/issues/114
 		if err := c.fs.RemoveAll(dir); err != nil {
 			return nil, errors.Wrap(err, errRemoteModule)
@@ -222,7 +222,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 			return nil, errors.Wrap(err, errRemoteModule)
 		}
 
-	case v1alpha1.ModuleSourceInline:
+	case v1beta1.ModuleSourceInline:
 		if err := c.fs.WriteFile(filepath.Join(dir, tfMain), []byte(cr.Spec.ForProvider.Module), 0600); err != nil {
 			return nil, errors.Wrap(err, errWriteMain)
 		}
@@ -272,7 +272,7 @@ type external struct {
 	kube client.Client
 }
 
-func (c *external) checkDiff(ctx context.Context, cr *v1alpha1.Workspace) (bool, error) {
+func (c *external) checkDiff(ctx context.Context, cr *v1beta1.Workspace) (bool, error) {
 	o, err := c.options(ctx, cr.Spec.ForProvider)
 	if err != nil {
 		return false, errors.Wrap(err, errOptions)
@@ -292,7 +292,7 @@ func (c *external) checkDiff(ctx context.Context, cr *v1alpha1.Workspace) (bool,
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	cr, ok := mg.(*v1alpha1.Workspace)
+	cr, ok := mg.(*v1beta1.Workspace)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotWorkspace)
 	}
@@ -341,7 +341,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
-	cr, ok := mg.(*v1alpha1.Workspace)
+	cr, ok := mg.(*v1beta1.Workspace)
 	if !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotWorkspace)
 	}
@@ -372,7 +372,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
-	cr, ok := mg.(*v1alpha1.Workspace)
+	cr, ok := mg.(*v1beta1.Workspace)
 	if !ok {
 		return errors.New(errNotWorkspace)
 	}
@@ -386,7 +386,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 	return errors.Wrap(c.tf.Destroy(ctx, o...), errDestroy)
 }
 
-func (c *external) options(ctx context.Context, p v1alpha1.WorkspaceParameters) ([]terraform.Option, error) {
+func (c *external) options(ctx context.Context, p v1beta1.WorkspaceParameters) ([]terraform.Option, error) {
 	o := make([]terraform.Option, 0, len(p.Vars)+len(p.VarFiles)+len(p.DestroyArgs)+len(p.ApplyArgs)+len(p.PlanArgs))
 
 	for _, v := range p.Vars {
@@ -395,12 +395,12 @@ func (c *external) options(ctx context.Context, p v1alpha1.WorkspaceParameters) 
 
 	for _, vf := range p.VarFiles {
 		fmt := terraform.HCL
-		if vf.Format == &v1alpha1.VarFileFormatJSON {
+		if vf.Format == &v1beta1.VarFileFormatJSON {
 			fmt = terraform.JSON
 		}
 
 		switch vf.Source {
-		case v1alpha1.VarFileSourceConfigMapKey:
+		case v1beta1.VarFileSourceConfigMapKey:
 			cm := &corev1.ConfigMap{}
 			r := vf.ConfigMapKeyReference
 			nn := types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
@@ -409,7 +409,7 @@ func (c *external) options(ctx context.Context, p v1alpha1.WorkspaceParameters) 
 			}
 			o = append(o, terraform.WithVarFile([]byte(cm.Data[r.Key]), fmt))
 
-		case v1alpha1.VarFileSourceSecretKey:
+		case v1beta1.VarFileSourceSecretKey:
 			s := &corev1.Secret{}
 			r := vf.SecretKeyReference
 			nn := types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
@@ -437,10 +437,10 @@ func op2cd(o []terraform.Output) managed.ConnectionDetails {
 	return cd
 }
 
-// generateWorkspaceObservation is used to produce v1alpha1.WorkspaceObservation from
+// generateWorkspaceObservation is used to produce v1beta1.WorkspaceObservation from
 // workspace_type.Workspace.
-func generateWorkspaceObservation(op []terraform.Output) v1alpha1.WorkspaceObservation {
-	wo := v1alpha1.WorkspaceObservation{
+func generateWorkspaceObservation(op []terraform.Output) v1beta1.WorkspaceObservation {
+	wo := v1beta1.WorkspaceObservation{
 		Outputs: make(map[string]string, len(op)),
 	}
 	for _, o := range op {

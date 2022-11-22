@@ -27,7 +27,7 @@ spec:
       name: SECRET-NAME
       priority: 1
       type: string
-    name: v1alpha1
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: A ProviderConfig configures a Terraform provider.

@@ -24,7 +24,7 @@ kubectl create secret generic git-credentials --from-file=.git-credentials
 Reference it in ProviderConfig.
 
 ```yaml
-apiVersion: tf.crossplane.io/v1alpha1
+apiVersion: tf.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
   name: default
@@ -103,7 +103,7 @@ the planArgs, applyArgs and destroyArgs options.
 
 For example:
 ```yaml
-apiVersion: tf.crossplane.io/v1alpha1
+apiVersion: tf.crossplane.io/v1beta1
 kind: Workspace
 metadata:
   name: example-args
@@ -151,7 +151,7 @@ To enable it, the `Workspace` spec has an **optional** `Entrypoint` field.
 Consider this example:
 
 ```yml
-apiVersion: tf.crossplane.io/v1alpha1
+apiVersion: tf.crossplane.io/v1beta1
 kind: Workspace
 metadata:
   name: relative-path-test
@@ -187,7 +187,7 @@ In case you need to disable it, set optional `pluginCache` to `false` in
 `ProviderConfig`:
 
 ```console
-apiVersion: tf.crossplane.io/v1alpha1
+apiVersion: tf.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
   name: default
@@ -223,7 +223,7 @@ spec:
 
 Prepare a `StoreConfig` for Vault:
 ```yaml
-apiVersion: tf.crossplane.io/v1alpha1
+apiVersion: tf.crossplane.io/v1beta1
 kind: StoreConfig
 metadata:
   name: vault
@@ -257,7 +257,7 @@ spec:
   resources:
     - name: foo
       base:
-        apiVersion: tf.crossplane.io/v1alpha1
+        apiVersion: tf.crossplane.io/v1beta1
         kind: Workspace
         metadata:
           name: foo

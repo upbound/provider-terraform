@@ -16,7 +16,7 @@ represents a Terraform workspace. The configuration of each workspace may be
 either fetched from a remote source (e.g. git), or simply specified inline.
 
 ```yaml
-apiVersion: tf.crossplane.io/v1alpha1
+apiVersion: tf.crossplane.io/v1beta1
 kind: Workspace
 metadata:
   name: example-inline
@@ -51,7 +51,7 @@ spec:
 ```
 
 ```yaml
-apiVersion: tf.crossplane.io/v1alpha1
+apiVersion: tf.crossplane.io/v1beta1
 kind: Workspace
 metadata:
   name: example-remote
