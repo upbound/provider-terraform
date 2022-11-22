@@ -45,7 +45,7 @@ spec:
   controllerConfigRef:
     name: terraform-config
 ---
-apiVersion: tf.crossplane.io/v1beta1
+apiVersion: tf.upbound.io/v1beta1
 kind: ProviderConfig
 metadata:
   annotations: {}
