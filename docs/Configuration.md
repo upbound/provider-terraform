@@ -2,7 +2,11 @@
 title: Configuration
 weight: 2
 ---
-# Configuring official Terraform provider
+# Configuration Options
+
+There are several ways to provide configurations to the official Terraform 
+provider that will propagate to the underlying Terraform workspace. In the
+following sections, we will cover the most common ones.
 
 ## IAM Roles for Service Accounts (IRSA)
 
@@ -61,7 +65,7 @@ published explicitly and individually, and they cannot be referenced inside a
 tuple or object.
 
 For example, the following terraform outputs:
-```yaml
+```hcl
       output "string" {
         value = "bar"
         sensitive = false
