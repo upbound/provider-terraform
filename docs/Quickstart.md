@@ -4,9 +4,18 @@ weight: 1
 ---
 # Quickstart
 
-This guide walks through the process to install Upbound Universal Crossplane and install the Terraform official provider.
+The official Terraform Provider allows you to write Terraform HCL configuration
+as the desired configuration for your infrastructure. It allows you to use your
+existing Terraform modules from different sources and still get the experience
+of using Crossplane with all the features like automatic drift correction,
+composition and others.
 
-To use this official provider, install Upbound Universal Crossplane into your Kubernetes cluster, install the `Provider`, apply a `ProviderConfig`, and create a *managed resource* of type `Workspace` via Kubernetes.
+This guide walks through the process to install Upbound Universal Crossplane and
+install the Terraform official provider.
+
+To use this official provider, install Upbound Universal Crossplane into your
+Kubernetes cluster, install the `Provider`, apply a `ProviderConfig`, and create
+a *managed resource* of type `Workspace` via Kubernetes.
 
 ## Install the Up command-line
 Download and install the Upbound `up` command-line.
@@ -23,7 +32,8 @@ $ up --version
 v0.13.0
 ```
 
-_Note_: official providers only support `up` command-line versions v0.13.0 or later.
+_Note_: official providers only support `up` command-line versions v0.13.0 or
+later.
 
 ## Install Universal Crossplane
 Install Upbound Universal Crossplane with the Up command-line.
@@ -46,7 +56,8 @@ xgql-8fb949dcf-pxn4z                       1/1     Running   3 (52s ago)   93s
 
 ## Install the official Terraform provider
 
-Install the official provider into the Kubernetes cluster with a Kubernetes configuration file. 
+Install the official provider into the Kubernetes cluster with a Kubernetes
+configuration file. 
 
 ```yaml
 apiVersion: pkg.crossplane.io/v1
@@ -70,11 +81,14 @@ provider-terraform   True        True      xpkg.upbound.io/upbound/provider-terr
 It may take up to 5 minutes to report `HEALTHY`.
 
 ## Create a Kubernetes secret
-The provider requires credentials to create and manage cloud resources. In this guide, we will work with GCP as an
-example, but the process is the same for any cloud provider.
+The provider requires credentials to create and manage cloud resources. In this
+guide, we will work with GCP as an example, but the process is the same for any
+cloud provider.
 
 ### Generate a GCP JSON key file
-Create a JSON key file containing the GCP account credentials. GCP provides documentation on [how to create a key file](https://cloud.google.com/iam/docs/creating-managing-service-account-keys).
+Create a JSON key file containing the GCP account credentials. GCP provides
+documentation on [how to create a key
+file](https://cloud.google.com/iam/docs/creating-managing-service-account-keys).
 
 Here is an example key file:
 
@@ -96,15 +110,18 @@ Here is an example key file:
 Save this JSON file as `gcp-credentials.json`.
 
 ### Create a Kubernetes secret with GCP credentials
-Use `kubectl create secret -n upbound-system` to generate the Kubernetes secret object inside the Universal Crossplane cluster.
+Use the following command to create the Kubernetes secret object in the cluster.
 
-`kubectl create secret generic gcp-creds -n upbound-system --from-file=credentials=./gcp-credentials.json`
+```
+kubectl create secret generic tf-gcp-creds -n upbound-system \
+  --from-file=credentials=./gcp-credentials.json
+```
 
-View the secret with `kubectl describe secret`
+View the secret with `kubectl describe secret tf-gcp-creds -n upbound-system`
 
 ```shell
 $ kubectl describe secret gcp-creds -n upbound-system
-Name:         gcp-creds
+Name:         tf-gcp-creds
 Namespace:    upbound-system
 Labels:       <none>
 Annotations:  <none>
@@ -118,9 +135,11 @@ credentials:  2380 bytes
 
 ## Create a ProviderConfig
 
-Create a `ProviderConfig` Kubernetes configuration file to attach the GCP credentials to the installed official provider.
+Create a `ProviderConfig` Kubernetes configuration file to attach the GCP
+credentials to the installed official provider.
 
-**Note:** the `ProviderConfig` must contain the correct GCP project ID. The project ID must match the `project_id` from the JSON key file.
+**Note:** the `ProviderConfig` must contain the correct GCP project ID. The
+project ID must match the `project_id` from the JSON key file.
 
 ```yaml
 apiVersion: tf.upbound.io/v1beta1
@@ -137,7 +156,7 @@ spec:
       source: Secret
       secretRef:
         namespace: upbound-system
-        name: gcp-creds
+        name: tf-gcp-creds
         key: credentials
   # This optional configuration block can be used to inject HCL into any
   # workspace that uses this provider config, for example to setup Terraform
@@ -160,7 +179,9 @@ spec:
 
 Apply this configuration with `kubectl apply -f`.
 
-**Note:** the `ProviderConfig` value `spec.credentials[0].secretRef.name` must match the `name` of the secret in `kubectl get secrets -n upbound-system` and `spec.secretRef.key` must match the value in the `Data` section of the secret.
+**Note:** the `ProviderConfig` value `spec.credentials[0].secretRef.name` must
+match the `name` of the secret in `kubectl get secrets -n upbound-system` and
+`spec.secretRef.key` must match the value in the `Data` section of the secret.
 
 Verify the `ProviderConfig` with `kubectl describe providerconfigs`. 
 
@@ -196,7 +217,8 @@ Spec:
 ```
 
 ## Create a `Workspace` resource
-Create a managed resource of type `Workspace` to verify the provider is functioning. 
+Create a managed resource of type `Workspace` to verify the provider is
+functioning. 
 
 This example creates a GCP storage bucket with a globally unique name.
 
@@ -206,13 +228,10 @@ kind: Workspace
 metadata:
   name: example-inline
   annotations:
-    meta.upbound.io/example-id: tf/v1beta1/workspace
     # The terraform workspace will be named 'coolbucket'. If you omit this
     # annotation it would be derived from metadata.name - e.g. 'example-inline'.
     crossplane.io/external-name: coolbucket
 spec:
-  providerConfigRef:
-    name: default
   forProvider:
     # Workspaces default to using a remote source - like workspace-remote.yaml.
     # For simple cases you can use an inline source to specify the content of
@@ -242,7 +261,8 @@ spec:
     name: terraform-workspace-example-inline
 ```
 
-**Note:** the `spec.providerConfigRef.name` must match the `ProviderConfig` `metadata.name` value.
+**Note:** the `spec.providerConfigRef.name` must match the `ProviderConfig`
+`metadata.name` value.
 
 Apply this configuration with `kubectl apply -f`.
 
@@ -254,15 +274,18 @@ NAME             READY   SYNCED   AGE
 example-inline   True    True     46s
 ```
 
-Provider applied the core in the workspace when the values `READY` and `SYNCED` are `True`. Since the workspace
-resource we configured creates a `google_storage_bucket` resource, we can verify that the bucket was created by
+Provider applied the core in the workspace when the values `READY` and `SYNCED`
+are `True`. Since the workspace resource we configured creates a
+`google_storage_bucket` resource, we can verify that the bucket was created by
 checking the GCP console.
 
-If the `READY` or `SYNCED` are blank or `False` use `kubectl describe` to understand why.
+If the `READY` or `SYNCED` are blank or `False` use `kubectl describe` to
+understand why.
 
 ## Delete the managed resource
-Remove the workspace by using `kubectl delete -f` with the same `Workspace` object file. 
-The provider triggers a `terraform destroy` and removes the bucket with the deletion of the `Workspace` resource.
+Remove the workspace by using `kubectl delete -f` with the same `Workspace`
+object file. The provider triggers a `terraform destroy` and removes the bucket
+with the deletion of the `Workspace` resource.
 
 Verify the removal of the bucket with `kubectl get workspace`.
 

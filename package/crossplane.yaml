@@ -6,10 +6,10 @@ metadata:
     meta.crossplane.io/maintainer: Upbound <support@upbound.io>
     meta.crossplane.io/source: github.com/upbound/provider-terraform
     meta.crossplane.io/description: |
-      The Terraform Crossplane provider enables management of Terraform
-      modules by defining Crossplane Composite Resources.
+      Upbound's official Crossplane provider to manage Terraform workspaces.
     meta.crossplane.io/readme: |
-      The Terraform provider adds support for a Workspace managed resource
-      that represents a Terraform workspace. The configuration of each workspace
-      may be either fetched from a remote source (e.g. git), or simply specified inline.
+      Provider Terraform is a Crossplane provider that lets you manage resources
+      using virtual Terraform workspaces. It is developed and supported by
+      Upbound. Available resources and their fields can be found in the [Upbound
+      Marketplace](https://marketplace.upbound.io/providers/upbound/provider-terraform).
     friendly-name.meta.crossplane.io: Provider Terraform
