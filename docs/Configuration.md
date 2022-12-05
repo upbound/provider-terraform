@@ -2,17 +2,25 @@
 title: Configuration
 weight: 2
 ---
-# Configuring official Terraform provider
+# Configuration Options
+
+There are several ways to provide configurations to the official Terraform 
+provider that will propagate to the underlying Terraform workspace. In the
+following sections, we will cover the most common ones.
 
 ## IAM Roles for Service Accounts (IRSA)
 
-You can setup the Terraform Provider using AWS [IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
-For more information, check out the example [setup](./examples/aws-eks-irsa-seup.yaml), the process is similar to what
-you would use for the [provider-aws](https://github.com/upbound/provider-aws/blob/master/AUTHENTICATION.md#using-iam-roles-for-serviceaccounts).
+You can setup the Terraform Provider using AWS [IAM Roles for Service Accounts
+(IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
+For more information, check out the example
+[setup](./examples/aws-eks-irsa-seup.yaml), the process is similar to what you
+would use for the
+[provider-aws](https://github.com/upbound/provider-aws/blob/master/AUTHENTICATION.md#using-iam-roles-for-serviceaccounts).
 
 ## Private Git repository support
 
-To securely propagate git credentials create a `git-credentials` secret in [git credentials store] format.
+To securely propagate git credentials create a `git-credentials` secret in [git
+credentials store] format.
 
 ```sh
 cat .git-credentials
@@ -44,19 +52,20 @@ controller will be able to automatically pick it up.
 
 ## Terraform Output support
 
-Non-sensitive outputs are mapped to the status.atProvider.outputs section
-as strings so they can be referenced by the Composition.
-Strings, numbers and booleans can be referenced directly in Compositions
-and can be used in the _convert_ transform if type conversion is needed.
-Tuple and object outputs will be available in the corresponding JSON form.
-This is required because undefined object attributes are not specified in the Workspace
-CRD and so will be sanitized before the status is stored in the database.
+Non-sensitive outputs are mapped to the status.atProvider.outputs section as
+strings so they can be referenced by the Composition. Strings, numbers and
+booleans can be referenced directly in Compositions and can be used in the
+_convert_ transform if type conversion is needed. Tuple and object outputs will
+be available in the corresponding JSON form. This is required because undefined
+object attributes are not specified in the Workspace CRD and so will be
+sanitized before the status is stored in the database.
 
-That means that any output values required for use in the Composition must be published
-explicitly and individually, and they cannot be referenced inside a tuple or object.
+That means that any output values required for use in the Composition must be
+published explicitly and individually, and they cannot be referenced inside a
+tuple or object.
 
 For example, the following terraform outputs:
-```yaml
+```hcl
       output "string" {
         value = "bar"
         sensitive = false
@@ -98,8 +107,8 @@ Appear in the corresponding outputs section as:
 Note that the "sensitive" output is not included in status.atProvider.outputs
 
 ## Terraform CLI Command Arguments
-Additional arguments can be passed to the Terraform plan, apply, and destroy commands by specifying
-the planArgs, applyArgs and destroyArgs options.
+Additional arguments can be passed to the Terraform plan, apply, and destroy
+commands by specifying the planArgs, applyArgs and destroyArgs options.
 
 For example:
 ```yaml
@@ -129,15 +138,17 @@ spec:
     namespace: default
     name: terraform-workspace-example-inline
 ```
-This will cause the _terraform init_ command to be run with the "-upgrade=true" argument,
-the _terraform plan_ command to be run with the -parallelism=2 argument,
-the _terraform apply_ command to be run with the -target=specificresource argument,
-and the _terraform destroy_ command to be run with the -refresh=false argument.
+This will cause the _terraform init_ command to be run with the "-upgrade=true"
+argument, the _terraform plan_ command to be run with the -parallelism=2
+argument, the _terraform apply_ command to be run with the
+-target=specificresource argument, and the _terraform destroy_ command to be run
+with the -refresh=false argument.
 
-Note that by default the terraform _init_ command is run with the "-input=false", and "-no-color" arguments,
-the terraform _apply_ and _destroy_ commands are run with the
-"-no-color", "-auto-approve", and "-input=false" arguments, and the terraform _plan_ command is
-run with the "-no-color", "-input=false", and "-detailed-exitcode" arguments.  Arguments specified in
+Note that by default the terraform _init_ command is run with the
+"-input=false", and "-no-color" arguments, the terraform _apply_ and _destroy_
+commands are run with the "-no-color", "-auto-approve", and "-input=false"
+arguments, and the terraform _plan_ command is run with the "-no-color",
+"-input=false", and "-detailed-exitcode" arguments.  Arguments specified in
 applyArgs, destroyArgs and planArgs will be added to these default arguments.
 
 ## Custom Entrypoint for Terraform Invocation
@@ -198,8 +209,8 @@ spec:
 
 ## Enable External Secret Support
 
-If you need to store the sensitive output to an external secret store like Vault,
-you can specify the `--enable-external-secret-stores` flag to enable it:
+If you need to store the sensitive output to an external secret store like
+Vault, you can specify the `--enable-external-secret-stores` flag to enable it:
 
 ```yaml
 apiVersion: pkg.crossplane.io/v1alpha1
@@ -270,7 +281,9 @@ spec:
               name: vault
 ```
 
-At Vault side configuration is also needed to allow the write operation,
-see [example](https://crossplane.io/docs/v1.9/guides/vault-as-secret-store.html#prepare-vault) here for inspiration.
+At Vault side configuration is also needed to allow the write operation, see
+[example](https://crossplane.io/docs/v1.9/guides/vault-as-secret-store.html#prepare-vault)
+here for inspiration.
 
-A concrete provider terraform use case is also available [here](https://github.com/crossplane-contrib/provider-terraform/pull/101).
+A concrete provider terraform use case is also available
+[here](https://github.com/crossplane-contrib/provider-terraform/pull/101).
