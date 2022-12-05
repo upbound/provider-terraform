@@ -284,6 +284,3 @@ spec:
 At Vault side configuration is also needed to allow the write operation, see
 [example](https://crossplane.io/docs/v1.9/guides/vault-as-secret-store.html#prepare-vault)
 here for inspiration.
-
-A concrete provider terraform use case is also available
-[here](https://github.com/crossplane-contrib/provider-terraform/pull/101).

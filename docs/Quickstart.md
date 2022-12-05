@@ -32,9 +32,6 @@ $ up --version
 v0.13.0
 ```
 
-_Note_: official providers only support `up` command-line versions v0.13.0 or
-later.
-
 ## Install Universal Crossplane
 Install Upbound Universal Crossplane with the Up command-line.
 
