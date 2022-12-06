@@ -17,17 +17,20 @@ To prevent a conflict between two provider controllers reconciling for the same 
 we're scaling down the old provider.
 
 
-1) Backup Workspace managed resource manifests
+#### 1. Backup Workspace managed resource manifests
+
 ```bash
 kubectl get workspaces.tf.crossplane.io -o yaml > backup-mrs.yaml
 ```
-2) Update deletion policy to `Orphan` with the command below:
+
+#### 2. Update deletion policy to `Orphan` with the command below:
+
 ```bash
 kubectl patch -f backup-mrs.yaml -p '{"spec": {"deletionPolicy":"Orphan"}}' --type=merge
 ```
-3) Install the official provider following instructions at https://marketplace.upbound.io/providers/upbound/provider-terraform
+#### 3. Install the official provider following instructions at https://marketplace.upbound.io/providers/upbound/provider-terraform
 
-4) Install ProviderConfig for the official provider.
+#### 4. Install ProviderConfig for the official provider.
 
 Make sure that it matches the original ProviderConfig, especially the backend configuration.
 If you are using `kubernetes` backend, the `secret_suffix` and `namespace` should
@@ -79,7 +82,8 @@ kubectl apply -f op-providerconfig.yaml
 providerconfig.tf.upbound.io/default created
 ```
 
-5) Pause community provider following https://crossplane.io/docs/v1.10/reference/troubleshoot.html#pausing-providers
+#### 5. Pause community provider following https://crossplane.io/docs/v1.10/reference/troubleshoot.html#pausing-providers
+
 ```bash
 kubectl get providers crossplane-provider-terraform -o yaml > community-provider-terraform.yaml
 cp community-provider-terraform.yaml community-provider-terraform-paused.yaml
@@ -92,7 +96,7 @@ kubectl -n upbound-system get deploy|grep crossplane-provider-terraform
 crossplane-provider-terraform-e56e83bb443a      0/0     0            0           24m
 ```
 
-6) If the Workspace resources are instantiated as a part of Composition, pause
+#### 6. If the Workspace resources are instantiated as a part of Composition, pause
 the associated Claim or XR using the
 https://crossplane.io/docs/v1.10/reference/composition.html#pause-annotation,
 e.g.
@@ -101,7 +105,8 @@ e.g.
 kubectl annotate terraformclaim.example.upbound.io/iam-role-demo-001 crossplane.io/paused=true
 ```
 
-7) Update managed resource manifests to the new API version `tf.upbound.io/v1beta1`.
+#### 7. Update managed resource manifests to the new API version `tf.upbound.io/v1beta1`.
+
 ```bash
 cp backup-mrs.yaml op-mrs.yaml
 vi op-mrs.yaml
@@ -120,7 +125,8 @@ diff -u backup-mrs.yaml op-mrs.yaml
      annotations:
 ```
 
-8) Apply updated managed resources and wait until they become ready
+#### 8. Apply updated managed resources and wait until they become ready
+
 ```bash
 kubectl apply -f op-mrs.yaml
 ```
@@ -144,17 +150,21 @@ Remove
     name: iam-role-demo-001-tqkm2-68fff
 ```
 
-9) Delete old MRs
+#### 9. Delete old MRs
+
 ```bash
 kubectl delete -f backup-mrs.yaml
 kubectl patch -f backup-mrs.yaml -p '{"metadata":{"finalizers":[]}}' --type=merge
 ```
-10) Delete old provider configs
+#### 10. Delete old provider configs
+
 ```bash
 kubectl delete -f backup-providerconfigs.yaml
 kubectl patch -f backup-providerconfigs.yaml  -p '{"metadata":{"finalizers":[]}}' --type=merge
 ```
-11) Delete old provider
+
+#### 11. Delete old provider
+
 ```bash
 kubectl delete providers crossplane-provider-terraform
 ```
@@ -169,8 +179,10 @@ section.
 Configuration migration can be more challenging. Because, in addition to managed resource migration, we need to
 update our Composition files to match the new CRDs. In this case we extend managed resource migration with the additional steps.
 
-12) Update `crossplane.yaml` file with official provider dependency.
-13) Update Workspace resources within Composition files to the new API version `tf.upbound.io/v1beta1`, e.g.
+#### 12. Update `crossplane.yaml` file with official provider dependency.
+
+#### 13. Update Workspace resources within Composition files to the new API version `tf.upbound.io/v1beta1`, e.g.
+
 ```diff
    resources:
      - name: awsIAMRole
@@ -181,9 +193,11 @@ update our Composition files to match the new CRDs. In this case we extend manag
          spec:
            forProvider:
 ```
-14) Build and push the new configuration version
 
-15) Update the configuration to the new version
+#### 14. Build and push the new configuration version
+
+#### 15. Update the configuration to the new version
+
 ```bash
 cat <<EOF | kubectl apply -f -
 apiVersion: pkg.crossplane.io/v1
@@ -195,7 +209,7 @@ spec:
 EOF
 ```
 
-16) Update the Workspace resource reference within associated XR, e.g.
+#### 16. Update the Workspace resource reference within associated XR, e.g.
 
 ```bash
 kubectl edit terraformxr.example.upbound.io/iam-role-demo-001-5zlnw
@@ -209,8 +223,7 @@ kubectl edit terraformxr.example.upbound.io/iam-role-demo-001-5zlnw
 +    name: iam-role-demo-001-5zlnw-khtnv
 ```
 
-17) Remove the pause annnotation from associated Claim or XR (see step 6 where we
-initially set it)
+#### 17. Remove the pause annotation from associated Claim or XR (see step 6 where we initially set it)
 
 ```bash
 kubectl annotate terraformclaim.example.upbound.io/iam-role-demo-001 crossplane.io/paused=false
