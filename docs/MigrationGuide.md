@@ -1,3 +1,7 @@
+---
+title: Migration Guide
+weight: 3
+---
 ## Migration Guide from Community to Official Terraform Provider
 
 This document describes the steps that need to be applied to migrate from
