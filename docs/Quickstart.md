@@ -60,7 +60,7 @@ configuration file.
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
-  name: provider-gcp
+  name: provider-terraform
 spec:
   package: xpkg.upbound.io/upbound/provider-terraform:<version>
 ```
