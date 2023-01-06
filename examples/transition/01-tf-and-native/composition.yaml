@@ -1,0 +1,57 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xsubnets.aws.platformref.upbound.io
+  labels:
+    provider: aws
+spec:
+  compositeTypeRef:
+    apiVersion: aws.platformref.upbound.io/v1alpha1
+    kind: XSubnet
+  resources:
+    - name: vpc
+      base:
+        apiVersion: tf.upbound.io/v1beta1
+        kind: Workspace
+        metadata:
+          name: observe-only-vpc
+        spec:
+          forProvider:
+            source: Inline
+            module: |
+              resource "aws_vpc" "main" {
+                cidr_block       = "10.0.0.0/16"
+                tags = {
+                  Name = var.vpcName
+                }
+              }
+              output "vpc_id" {
+                value       = aws_vpc.main.id
+              }
+              variable "vpcName" {
+                description = "VPC name"
+                type        = string
+              }
+            vars:
+              - key: vpcName
+      patches:
+        - fromFieldPath: spec.vpcName
+          toFieldPath: spec.forProvider.vars[0].value
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.outputs.vpc_id
+          toFieldPath: status.share.vpcId
+          policy:
+            fromFieldPath: Optional
+    - name: subnet
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Subnet
+        spec:
+          forProvider:
+            region: eu-central-1
+            cidrBlock: 10.0.1.0/24
+      patches:
+        - fromFieldPath: status.share.vpcId
+          toFieldPath: spec.forProvider.vpcId
+          policy:
+            fromFieldPath: Required
