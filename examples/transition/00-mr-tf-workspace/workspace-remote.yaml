@@ -1,0 +1,11 @@
+apiVersion: tf.upbound.io/v1beta1
+kind: Workspace
+metadata:
+  name: sample-remote
+spec:
+  forProvider:
+    source: Remote
+    module: git::https://github.com/ytsarev/provider-terraform-test-module.git//transition?ref=main
+    vars:
+      - key: vpcName
+        value: sample-tf-remote

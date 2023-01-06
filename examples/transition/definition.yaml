@@ -1,0 +1,32 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xsubnets.aws.platformref.upbound.io
+spec:
+  group: aws.platformref.upbound.io
+  names:
+    kind: XSubnet
+    plural: xsubnets
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              vpcName:
+                type: string
+            required:
+            - vpcName
+          status:
+            description: A Status represents the observed state
+            properties:
+              share:
+                description: Freeform field containing status information
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+            type: object
