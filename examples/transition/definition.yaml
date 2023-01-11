@@ -1,12 +1,15 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: xsubnets.aws.platformref.upbound.io
+  name: xsubnets.aws.demo.upbound.io
 spec:
-  group: aws.platformref.upbound.io
+  group: aws.demo.upbound.io
   names:
     kind: XSubnet
     plural: xsubnets
+  claimNames:
+    kind: Subnet
+    plural: subnets
   versions:
   - name: v1alpha1
     served: true

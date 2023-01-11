@@ -1,0 +1,9 @@
+apiVersion: aws.demo.upbound.io/v1alpha1
+kind: Subnet
+metadata:
+  name: subnet-native
+spec:
+  vpcName: provider-terraform-demo-native
+  compositionSelector:
+    matchLabels:
+       implementation: native

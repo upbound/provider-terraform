@@ -12,5 +12,5 @@ It illustrates the following transition:
 
 All Composition-based steps are backed by the stable custom API defined by [XRD](definition.yaml).
 
-All Composition-based transition stages can be end-to-end tested by associated [Composite
-Resource](xsubnet.yaml) instantiation.
+All Composition-based transition stages can be end-to-end tested by associated
+Claim instantiation.

@@ -1,12 +1,13 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: xsubnets.aws.platformref.upbound.io
+  name: tf-xsubnets.aws.demo.upbound.io
   labels:
     provider: aws
+    implementation: terraform
 spec:
   compositeTypeRef:
-    apiVersion: aws.platformref.upbound.io/v1alpha1
+    apiVersion: aws.demo.upbound.io/v1alpha1
     kind: XSubnet
   resources:
     - name: tf-vpc-and-subnet

@@ -1,0 +1,9 @@
+apiVersion: aws.demo.upbound.io/v1alpha1
+kind: Subnet
+metadata:
+  name: subnet-tf
+spec:
+  vpcName: provider-terraform-demo-tf
+  compositionSelector:
+    matchLabels:
+       implementation: terraform
