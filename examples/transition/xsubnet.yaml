@@ -1,6 +1,0 @@
-apiVersion: aws.platformref.upbound.io/v1alpha1
-kind: XSubnet
-metadata:
-  name: subnet-with-vpc
-spec:
-  vpcName: provider-terraform-demo
