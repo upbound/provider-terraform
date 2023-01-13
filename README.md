@@ -92,18 +92,16 @@ You can find more information about configuring the provider further [here](http
 
 * You must either use remote state or ensure the provider container's `/tf`
   directory is not lost. `provider-terraform` __does not persist state__;
-  consider using the [Kubernetes] remote state backend.
+  consider using the [Kubernetes](https://www.terraform.io/docs/language/settings/backends/kubernetes.html) remote state backend.
 * If the module takes longer than the value of `--timeout` (default is 20m) to apply the
   underlying `terraform` process will be killed. You will potentially lose state
   and leak resources.  The workspace lock will also likely be left in place and need to be manually removed
   before the Workspace can be reconciled again.
 * The provider won't emit an event until _after_ it has successfully applied the
   Terraform module, which can take a long time.
-* Setting --max-reconcile-rate to a value greater than 1 will potentially cause the provider
+* Setting `--max-reconcile-rate` to a value greater than 1 will potentially cause the provider
   to use up to the same number of CPUs.  Add a resources section to the ControllerConfig to restrict
   CPU usage as needed.
-  [Kubernetes]: https://www.terraform.io/docs/language/settings/backends/kubernetes.html
-  [git credentials store]: https://git-scm.com/docs/git-credential-store
 
 ## Report a Bug
 
