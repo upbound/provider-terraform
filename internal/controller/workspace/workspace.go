@@ -18,6 +18,7 @@ package workspace
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -418,6 +419,14 @@ func (c *external) options(ctx context.Context, p v1beta1.WorkspaceParameters) (
 			}
 			o = append(o, terraform.WithVarFile(s.Data[r.Key], fmt))
 		}
+	}
+
+	if p.VarMap != nil {
+		jsonBytes, err := json.Marshal(p.VarMap)
+		if err != nil {
+			return nil, errors.Wrap(err, errVarFile)
+		}
+		o = append(o, terraform.WithVarFile(jsonBytes, terraform.JSON))
 	}
 
 	return o, nil

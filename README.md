@@ -66,6 +66,10 @@ spec:
     vars:
     - key: region
       value: us-west-1
+    varmap:
+      an: example
+      with:
+        nested: variables
     varFiles:
     - source: SecretKey
       secretKeyRef:

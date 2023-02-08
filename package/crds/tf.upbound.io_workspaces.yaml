@@ -161,6 +161,10 @@ spec:
                       - source
                       type: object
                     type: array
+                  varmap:
+                    description: Terraform Variable Map
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
                   vars:
                     description: Configuration variables.
                     items:
