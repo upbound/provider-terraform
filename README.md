@@ -62,6 +62,10 @@ spec:
     # Use any module source supported by terraform init -from-module.
     source: Remote
     module: https://github.com/crossplane/tf
+    # Environment variables can be passed through
+    env:
+      - key: TFENV_TERRAFORM_VERSION
+        value: '1.3.5'
     # Variables can be specified inline, or loaded from a ConfigMap or Secret.
     vars:
     - key: region
