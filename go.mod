@@ -17,7 +17,7 @@ require (
 	k8s.io/apimachinery v0.26.1
 	k8s.io/client-go v0.26.1
 	sigs.k8s.io/controller-runtime v0.14.4
-	sigs.k8s.io/controller-tools v0.11.1
+	sigs.k8s.io/controller-tools v0.11.3
 )
 
 replace github.com/crossplane/crossplane-runtime v0.18.0 => github.com/bobh66/crossplane-runtime v0.15.1-0.20230116231839-46d6a0a87fed
