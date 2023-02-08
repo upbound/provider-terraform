@@ -117,10 +117,12 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout time.Duration) error 
 		cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), v1beta1.StoreConfigGroupVersionKind))
 	}
 	c := &connector{
-		kube:      mgr.GetClient(),
-		usage:     resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1beta1.ProviderConfigUsage{}),
-		fs:        fs,
-		terraform: func(dir string) tfclient { return terraform.Harness{Path: tfPath, Dir: dir} },
+		kube:  mgr.GetClient(),
+		usage: resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1beta1.ProviderConfigUsage{}),
+		fs:    fs,
+		terraform: func(dir string, envs ...string) tfclient {
+			return terraform.Harness{Path: tfPath, Dir: dir, Envs: envs}
+		},
 	}
 
 	r := managed.NewReconciler(mgr,
@@ -144,7 +146,7 @@ type connector struct {
 	usage resource.Tracker
 
 	fs        afero.Afero
-	terraform func(dir string) tfclient
+	terraform func(dir string, envs ...string) tfclient
 }
 
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) { //nolint:gocyclo
@@ -250,7 +252,12 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		}
 	}
 
-	tf := c.terraform(dir)
+	var envs []string
+	for _, env := range cr.Spec.ForProvider.Env {
+		envs = append(envs, strings.Join([]string{env.Key, env.Value}, "="))
+	}
+
+	tf := c.terraform(dir, envs...)
 	o := make([]terraform.InitOption, 0, len(cr.Spec.ForProvider.InitArgs))
 	o = append(o, terraform.WithInitArgs(cr.Spec.ForProvider.InitArgs))
 	// NOTE(ytsarev): user tf provider cache mechanism to speed up

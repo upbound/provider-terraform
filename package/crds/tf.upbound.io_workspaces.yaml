@@ -78,6 +78,20 @@ spec:
                     default: ""
                     description: Entrypoint for `terraform init` within the module
                     type: string
+                  env:
+                    description: Environment variables.
+                    items:
+                      description: A Var represents a configuration variable.
+                      properties:
+                        key:
+                          type: string
+                        value:
+                          type: string
+                      required:
+                      - key
+                      - value
+                      type: object
+                    type: array
                   initArgs:
                     description: Arguments to be included in the terraform init CLI
                       command
@@ -164,7 +178,7 @@ spec:
                   vars:
                     description: Configuration variables.
                     items:
-                      description: A Var represents a Terraform configuration variable.
+                      description: A Var represents a configuration variable.
                       properties:
                         key:
                           type: string

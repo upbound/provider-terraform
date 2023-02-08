@@ -21,7 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// A Var represents a Terraform configuration variable.
+// A Var represents a configuration variable.
 type Var struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
@@ -108,6 +108,10 @@ type WorkspaceParameters struct {
 	// Configuration variables.
 	// +optional
 	Vars []Var `json:"vars,omitempty"`
+
+	// Environment variables.
+	// +optional
+	Env []Var `json:"env,omitempty"`
 
 	// Files of configuration variables. Explicitly declared vars take
 	// precedence.

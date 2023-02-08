@@ -89,6 +89,8 @@ type Harness struct {
 	// Dir in which to execute the terraform binary.
 	Dir string
 
+	Envs []string
+
 	// TODO(negz): Harness is a subset of exec.Cmd. If callers need more insight
 	// into what the underlying Terraform binary is doing (e.g. for debugging)
 	// we could consider allowing them to attach io.Writers to Stdout and Stdin
@@ -140,6 +142,9 @@ func (h Harness) Init(ctx context.Context, cache bool, o ...InitOption) error {
 			}
 			cmd.Env = append(cmd.Env, e)
 		}
+		cmd.Env = append(cmd.Env, h.Envs...)
+	} else if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
 	}
 	err := sem.Acquire(ctx, 1)
 	if err != nil {
@@ -157,6 +162,9 @@ func (h Harness) Init(ctx context.Context, cache bool, o ...InitOption) error {
 func (h Harness) Validate(ctx context.Context) error {
 	cmd := exec.CommandContext(ctx, h.Path, "validate", "-json") //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	type result struct {
 		Valid      bool `json:"valid"`
@@ -190,6 +198,9 @@ func (h Harness) Validate(ctx context.Context) error {
 func (h Harness) Workspace(ctx context.Context, name string) error {
 	cmd := exec.CommandContext(ctx, h.Path, "workspace", "select", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	if _, err := cmd.Output(); err == nil {
 		// We successfully selected the workspace; we're done.
@@ -209,6 +220,9 @@ func (h Harness) Workspace(ctx context.Context, name string) error {
 func (h Harness) DeleteCurrentWorkspace(ctx context.Context) error {
 	cmd := exec.CommandContext(ctx, h.Path, "workspace", "show", "-no-color") //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	n, err := cmd.Output()
 	if err != nil {
@@ -226,6 +240,9 @@ func (h Harness) DeleteCurrentWorkspace(ctx context.Context) error {
 	}
 	cmd = exec.CommandContext(ctx, h.Path, "workspace", "delete", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	_, err = cmd.Output()
 	if err == nil {
@@ -317,6 +334,9 @@ func (o Output) JSONValue() ([]byte, error) {
 func (h Harness) Outputs(ctx context.Context) ([]Output, error) {
 	cmd := exec.CommandContext(ctx, h.Path, "output", "-json") //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	type output struct {
 		Sensitive bool `json:"sensitive"`
@@ -368,6 +388,9 @@ func (h Harness) Outputs(ctx context.Context) ([]Output, error) {
 func (h Harness) Resources(ctx context.Context) ([]string, error) {
 	cmd := exec.CommandContext(ctx, h.Path, "state", "list") //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	out, err := cmd.Output()
 	if err != nil {
@@ -446,6 +469,9 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	args := append([]string{"plan", "-no-color", "-input=false", "-detailed-exitcode", "-lock=false"}, ao.args...)
 	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	// The -detailed-exitcode flag will make terraform plan return:
 	// 0 - Succeeded, diff is empty (no changes)
@@ -474,6 +500,9 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 	args := append([]string{"apply", "-no-color", "-auto-approve", "-input=false"}, ao.args...)
 	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	_, err := cmd.Output()
 	return Classify(err)
@@ -495,6 +524,9 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	args := append([]string{"destroy", "-no-color", "-auto-approve", "-input=false"}, do.args...)
 	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	_, err := cmd.Output()
 	return Classify(err)
