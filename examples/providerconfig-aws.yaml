@@ -20,6 +20,6 @@ spec:
         }
       }
       provider "aws" {
-        shared_credentials_file = "aws-creds.ini"
+        shared_credentials_file = "${path.module}/aws-creds.ini"
         region = "eu-west-1"
       }
