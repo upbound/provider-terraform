@@ -27,7 +27,7 @@ appreciated!
 
 ### What environment did it happen in?
 
-* Universal Crossplane Version:
+* Crossplane Version:
 * Provider Version:
 
 <!--
