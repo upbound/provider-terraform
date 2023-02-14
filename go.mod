@@ -20,8 +20,6 @@ require (
 	sigs.k8s.io/controller-tools v0.11.3
 )
 
-replace github.com/crossplane/crossplane-runtime v0.18.0 => github.com/bobh66/crossplane-runtime v0.15.1-0.20230116231839-46d6a0a87fed
-
 require (
 	cloud.google.com/go v0.97.0 // indirect
 	cloud.google.com/go/storage v1.14.0 // indirect

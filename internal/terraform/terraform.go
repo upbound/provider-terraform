@@ -145,8 +145,8 @@ func (h Harness) Init(ctx context.Context, cache bool, o ...InitOption) error {
 	if err != nil {
 		return errors.Wrap(err, errSemAcquire)
 	}
+	defer sem.Release(1)
 	_, err = cmd.Output()
-	sem.Release(1)
 	return Classify(err)
 }
 
