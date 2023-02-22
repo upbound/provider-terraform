@@ -87,9 +87,9 @@ dev: $(KIND) $(KUBECTL)
 	@$(KUBECTL) cluster-info --context kind-$(PROJECT_NAME)-dev
 	@$(INFO) Installing Crossplane CRDs
 	@$(KUBECTL) apply -k https://github.com/crossplane/crossplane//cluster?ref=master
-	@$(INFO) Installing Provider SQL CRDs
+	@$(INFO) Installing Provider CRDs
 	@$(KUBECTL) apply -R -f package/crds
-	@$(INFO) Starting Provider SQL controllers
+	@$(INFO) Starting Provider controllers
 	@$(GO) run cmd/provider/main.go --debug
 
 dev-clean: $(KIND) $(KUBECTL)
