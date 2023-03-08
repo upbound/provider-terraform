@@ -446,6 +446,11 @@ func (in *WorkspaceParameters) DeepCopyInto(out *WorkspaceParameters) {
 		*out = make([]Var, len(*in))
 		copy(*out, *in)
 	}
+	if in.Env != nil {
+		in, out := &in.Env, &out.Env
+		*out = make([]Var, len(*in))
+		copy(*out, *in)
+	}
 	if in.VarFiles != nil {
 		in, out := &in.VarFiles, &out.VarFiles
 		*out = make([]VarFile, len(*in))
