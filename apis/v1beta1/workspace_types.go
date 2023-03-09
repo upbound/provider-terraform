@@ -129,7 +129,8 @@ type WorkspaceParameters struct {
 
 // WorkspaceObservation are the observable fields of a Workspace.
 type WorkspaceObservation struct {
-	Outputs map[string]string `json:"outputs,omitempty"`
+	Checksum string            `json:"checksum,omitempty"`
+	Outputs  map[string]string `json:"outputs,omitempty"`
 }
 
 // A WorkspaceSpec defines the desired state of a Workspace.

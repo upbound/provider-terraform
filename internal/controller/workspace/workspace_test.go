@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
@@ -37,6 +38,10 @@ import (
 
 	"github.com/upbound/provider-terraform/apis/v1beta1"
 	"github.com/upbound/provider-terraform/internal/terraform"
+)
+
+const (
+	tfChecksum = "checksum"
 )
 
 type ErrFs struct {
@@ -69,10 +74,15 @@ type MockTf struct {
 	MockApply                  func(ctx context.Context, o ...terraform.Option) error
 	MockDestroy                func(ctx context.Context, o ...terraform.Option) error
 	MockDeleteCurrentWorkspace func(ctx context.Context) error
+	MockGenerateChecksum       func(ctx context.Context) (string, error)
 }
 
 func (tf *MockTf) Init(ctx context.Context, cache bool, o ...terraform.InitOption) error {
 	return tf.MockInit(ctx, cache, o...)
+}
+
+func (tf *MockTf) GenerateChecksum(ctx context.Context) (string, error) {
+	return tf.MockGenerateChecksum(ctx)
 }
 
 func (tf *MockTf) Workspace(ctx context.Context, name string) error {
@@ -560,6 +570,75 @@ func TestConnect(t *testing.T) {
 			},
 			want: errors.Wrap(errBoom, errWorkspace),
 		},
+		"GenerateChecksumError": {
+			reason: "We should return any error when generating the workspace checksum",
+			fields: fields{kube: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil),
+			},
+				usage: resource.TrackerFn(func(_ context.Context, _ resource.Managed) error { return nil }),
+				fs:    afero.Afero{Fs: afero.NewMemMapFs()},
+				terraform: func(_ string) tfclient {
+					return &MockTf{
+						MockGenerateChecksum: func(ctx context.Context) (string, error) { return "", errBoom },
+					}
+				},
+			},
+			args: args{
+				mg: &v1beta1.Workspace{
+					ObjectMeta: metav1.ObjectMeta{UID: uid},
+					Spec: v1beta1.WorkspaceSpec{
+						ResourceSpec: xpv1.ResourceSpec{
+							ProviderConfigReference: &xpv1.Reference{},
+						},
+						ForProvider: v1beta1.WorkspaceParameters{
+							Module: "I'm HCL!",
+							Source: v1beta1.ModuleSourceInline,
+						},
+					},
+					Status: v1beta1.WorkspaceStatus{
+						AtProvider: v1beta1.WorkspaceObservation{
+							Checksum: tfChecksum,
+						},
+					},
+				},
+			},
+			want: errors.Wrap(errBoom, errChecksum),
+		},
+		"ChecksumMatches": {
+			reason: "We should return any error when generating the workspace checksum",
+			fields: fields{kube: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil),
+			},
+				usage: resource.TrackerFn(func(_ context.Context, _ resource.Managed) error { return nil }),
+				fs:    afero.Afero{Fs: afero.NewMemMapFs()},
+				terraform: func(_ string) tfclient {
+					return &MockTf{
+						MockGenerateChecksum: func(ctx context.Context) (string, error) { return tfChecksum, nil },
+						MockWorkspace:        func(_ context.Context, _ string) error { return nil },
+					}
+				},
+			},
+			args: args{
+				mg: &v1beta1.Workspace{
+					ObjectMeta: metav1.ObjectMeta{UID: uid},
+					Spec: v1beta1.WorkspaceSpec{
+						ResourceSpec: xpv1.ResourceSpec{
+							ProviderConfigReference: &xpv1.Reference{},
+						},
+						ForProvider: v1beta1.WorkspaceParameters{
+							Module: "I'm HCL!",
+							Source: v1beta1.ModuleSourceInline,
+						},
+					},
+					Status: v1beta1.WorkspaceStatus{
+						AtProvider: v1beta1.WorkspaceObservation{
+							Checksum: tfChecksum,
+						},
+					},
+				},
+			},
+			want: nil,
+		},
 		"Success": {
 			reason: "We should not return an error when we successfully 'connect' to Terraform",
 			fields: fields{
@@ -570,8 +649,9 @@ func TestConnect(t *testing.T) {
 				fs:    afero.Afero{Fs: afero.NewMemMapFs()},
 				terraform: func(_ string) tfclient {
 					return &MockTf{
-						MockInit:      func(ctx context.Context, cache bool, o ...terraform.InitOption) error { return nil },
-						MockWorkspace: func(_ context.Context, _ string) error { return nil },
+						MockInit:             func(ctx context.Context, cache bool, o ...terraform.InitOption) error { return nil },
+						MockGenerateChecksum: func(ctx context.Context) (string, error) { return tfChecksum, nil },
+						MockWorkspace:        func(_ context.Context, _ string) error { return nil },
 					}
 				},
 			},
@@ -599,6 +679,7 @@ func TestConnect(t *testing.T) {
 				usage:     tc.fields.usage,
 				fs:        tc.fields.fs,
 				terraform: tc.fields.terraform,
+				logger:    logging.NewNopLogger(),
 			}
 			_, err := c.Connect(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
@@ -720,8 +801,9 @@ func TestObserve(t *testing.T) {
 			reason: "We should return ResourceUpToDate true when resource is deleted and there are existing resources but terraform plan fails",
 			fields: fields{
 				tf: &MockTf{
-					MockDiff:    func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
-					MockOutputs: func(ctx context.Context) ([]terraform.Output, error) { return nil, nil },
+					MockDiff:             func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
+					MockGenerateChecksum: func(ctx context.Context) (string, error) { return tfChecksum, nil },
+					MockOutputs:          func(ctx context.Context) ([]terraform.Output, error) { return nil, nil },
 					MockResources: func(ctx context.Context) ([]string, error) {
 						return []string{"cool_resource.very"}, nil
 					},
@@ -741,7 +823,8 @@ func TestObserve(t *testing.T) {
 					ConnectionDetails: managed.ConnectionDetails{},
 				},
 				wo: v1beta1.WorkspaceObservation{
-					Outputs: map[string]string{},
+					Checksum: tfChecksum,
+					Outputs:  map[string]string{},
 				},
 			},
 		},
@@ -750,6 +833,7 @@ func TestObserve(t *testing.T) {
 			fields: fields{
 				tf: &MockTf{
 					MockDiff:                   func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
+					MockGenerateChecksum:       func(ctx context.Context) (string, error) { return tfChecksum, nil },
 					MockOutputs:                func(ctx context.Context) ([]terraform.Output, error) { return nil, nil },
 					MockResources:              func(ctx context.Context) ([]string, error) { return nil, nil },
 					MockDeleteCurrentWorkspace: func(ctx context.Context) error { return nil },
@@ -769,7 +853,8 @@ func TestObserve(t *testing.T) {
 					ConnectionDetails: managed.ConnectionDetails{},
 				},
 				wo: v1beta1.WorkspaceObservation{
-					Outputs: map[string]string{},
+					Checksum: tfChecksum,
+					Outputs:  map[string]string{},
 				},
 			},
 		},
@@ -828,9 +913,10 @@ func TestObserve(t *testing.T) {
 			reason: "A workspace with zero resources should be considered to be non-existent",
 			fields: fields{
 				tf: &MockTf{
-					MockDiff:      func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, nil },
-					MockResources: func(ctx context.Context) ([]string, error) { return []string{}, nil },
-					MockOutputs:   func(ctx context.Context) ([]terraform.Output, error) { return nil, nil },
+					MockDiff:             func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, nil },
+					MockGenerateChecksum: func(ctx context.Context) (string, error) { return tfChecksum, nil },
+					MockResources:        func(ctx context.Context) ([]string, error) { return []string{}, nil },
+					MockOutputs:          func(ctx context.Context) ([]terraform.Output, error) { return nil, nil },
 				},
 			},
 			args: args{
@@ -843,7 +929,8 @@ func TestObserve(t *testing.T) {
 					ConnectionDetails: managed.ConnectionDetails{},
 				},
 				wo: v1beta1.WorkspaceObservation{
-					Outputs: map[string]string{},
+					Checksum: tfChecksum,
+					Outputs:  map[string]string{},
 				},
 			},
 		},
@@ -851,7 +938,8 @@ func TestObserve(t *testing.T) {
 			reason: "A workspace with resources should return its outputs as connection details",
 			fields: fields{
 				tf: &MockTf{
-					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, nil },
+					MockDiff:             func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, nil },
+					MockGenerateChecksum: func(ctx context.Context) (string, error) { return tfChecksum, nil },
 					MockResources: func(ctx context.Context) ([]string, error) {
 						return []string{"cool_resource.very"}, nil
 					},
@@ -882,6 +970,7 @@ func TestObserve(t *testing.T) {
 					},
 				},
 				wo: v1beta1.WorkspaceObservation{
+					Checksum: tfChecksum,
 					Outputs: map[string]string{
 						"string": "",
 					},
@@ -892,7 +981,8 @@ func TestObserve(t *testing.T) {
 			reason: "A workspace with only outputs and no resources should set ResourceExists to true",
 			fields: fields{
 				tf: &MockTf{
-					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, nil },
+					MockDiff:             func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, nil },
+					MockGenerateChecksum: func(ctx context.Context) (string, error) { return tfChecksum, nil },
 					MockResources: func(ctx context.Context) ([]string, error) {
 						return nil, nil
 					},
@@ -923,6 +1013,7 @@ func TestObserve(t *testing.T) {
 					},
 				},
 				wo: v1beta1.WorkspaceObservation{
+					Checksum: tfChecksum,
 					Outputs: map[string]string{
 						"string": "",
 					},
@@ -933,7 +1024,7 @@ func TestObserve(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := external{tf: tc.fields.tf, kube: tc.fields.kube}
+			e := external{tf: tc.fields.tf, kube: tc.fields.kube, logger: logging.NewNopLogger()}
 			got, err := e.Observe(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.Observe(...): -want error, +got error:\n%s\n", tc.reason, diff)
@@ -1077,7 +1168,8 @@ func TestCreate(t *testing.T) {
 			reason: "We should refresh our connection details with any updated outputs after successfully applying the Terraform configuration",
 			fields: fields{
 				tf: &MockTf{
-					MockApply: func(_ context.Context, _ ...terraform.Option) error { return nil },
+					MockApply:            func(_ context.Context, _ ...terraform.Option) error { return nil },
+					MockGenerateChecksum: func(ctx context.Context) (string, error) { return tfChecksum, nil },
 					MockOutputs: func(ctx context.Context) ([]terraform.Output, error) {
 						return []terraform.Output{
 							{Name: "string", Type: terraform.OutputTypeString, Sensitive: true},
@@ -1128,7 +1220,7 @@ func TestCreate(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := external{tf: tc.fields.tf, kube: tc.fields.kube}
+			e := external{tf: tc.fields.tf, kube: tc.fields.kube, logger: logging.NewNopLogger()}
 			got, err := e.Create(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.Create(...): -want error, +got error:\n%s\n", tc.reason, diff)
@@ -1276,7 +1368,7 @@ func TestDelete(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := external{tf: tc.fields.tf, kube: tc.fields.kube}
+			e := external{tf: tc.fields.tf, kube: tc.fields.kube, logger: logging.NewNopLogger()}
 			err := e.Delete(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.Delete(...): -want error, +got error:\n%s\n", tc.reason, diff)

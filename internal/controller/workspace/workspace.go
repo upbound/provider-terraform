@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
@@ -70,6 +71,7 @@ const (
 	errDestroy         = "cannot destroy Terraform configuration"
 	errVarFile         = "cannot get tfvars"
 	errDeleteWorkspace = "cannot delete Terraform workspace"
+	errChecksum        = "cannot calculate workspace checksum"
 
 	gitCredentialsFilename = ".git-credentials"
 )
@@ -99,6 +101,7 @@ type tfclient interface {
 	Apply(ctx context.Context, o ...terraform.Option) error
 	Destroy(ctx context.Context, o ...terraform.Option) error
 	DeleteCurrentWorkspace(ctx context.Context) error
+	GenerateChecksum(ctx context.Context) (string, error)
 }
 
 // Setup adds a controller that reconciles Workspace managed resources.
@@ -119,6 +122,7 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout time.Duration) error 
 	c := &connector{
 		kube:      mgr.GetClient(),
 		usage:     resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1beta1.ProviderConfigUsage{}),
+		logger:    o.Logger,
 		fs:        fs,
 		terraform: func(dir string) tfclient { return terraform.Harness{Path: tfPath, Dir: dir} },
 	}
@@ -140,9 +144,9 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout time.Duration) error 
 }
 
 type connector struct {
-	kube  client.Client
-	usage resource.Tracker
-
+	kube      client.Client
+	usage     resource.Tracker
+	logger    logging.Logger
 	fs        afero.Afero
 	terraform func(dir string) tfclient
 }
@@ -156,7 +160,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	if !ok {
 		return nil, errors.New(errNotWorkspace)
 	}
-
+	l := c.logger.WithValues("request", cr.Name)
 	// NOTE(negz): This directory will be garbage collected by the workdir
 	// garbage collector that is started in Setup.
 	dir := filepath.Join(tfDir, string(cr.GetUID()))
@@ -210,14 +214,14 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 			return nil, errors.Wrap(err, errRemoteModule)
 		}
 
-		client := getter.Client{
+		gc := getter.Client{
 			Src: cr.Spec.ForProvider.Module,
 			Dst: dir,
 			Pwd: dir,
 
 			Mode: getter.ClientModeDir,
 		}
-		err := client.Get()
+		err := gc.Get()
 		if err != nil {
 			return nil, errors.Wrap(err, errRemoteModule)
 		}
@@ -250,26 +254,37 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		}
 	}
 
-	tf := c.terraform(dir)
-	o := make([]terraform.InitOption, 0, len(cr.Spec.ForProvider.InitArgs))
-	o = append(o, terraform.WithInitArgs(cr.Spec.ForProvider.InitArgs))
 	// NOTE(ytsarev): user tf provider cache mechanism to speed up
 	// reconciliation, see https://developer.hashicorp.com/terraform/cli/config/config-file#provider-plugin-cache
 	if pc.Spec.PluginCache == nil {
 		pc.Spec.PluginCache = new(bool)
 		*pc.Spec.PluginCache = true
 	}
+	tf := c.terraform(dir)
+	if cr.Status.AtProvider.Checksum != "" {
+		checksum, err := tf.GenerateChecksum(ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, errChecksum)
+		}
+		if cr.Status.AtProvider.Checksum == checksum {
+			l.Debug("Checksums match - skip running terraform init")
+			return &external{tf: tf, kube: c.kube, logger: c.logger}, errors.Wrap(tf.Workspace(ctx, meta.GetExternalName(cr)), errWorkspace)
+		}
+		l.Debug("Checksums don't match so run terraform init:", "old", cr.Status.AtProvider.Checksum, "new", checksum)
+	}
 
+	o := make([]terraform.InitOption, 0, len(cr.Spec.ForProvider.InitArgs))
+	o = append(o, terraform.WithInitArgs(cr.Spec.ForProvider.InitArgs))
 	if err := tf.Init(ctx, *pc.Spec.PluginCache, o...); err != nil {
 		return nil, errors.Wrap(err, errInit)
 	}
-
 	return &external{tf: tf, kube: c.kube}, errors.Wrap(tf.Workspace(ctx, meta.GetExternalName(cr)), errWorkspace)
 }
 
 type external struct {
-	tf   tfclient
-	kube client.Client
+	tf     tfclient
+	kube   client.Client
+	logger logging.Logger
 }
 
 func (c *external) checkDiff(ctx context.Context, cr *v1beta1.Workspace) (bool, error) {
@@ -318,6 +333,12 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.Wrap(err, errOutputs)
 	}
 	cr.Status.AtProvider = generateWorkspaceObservation(op)
+
+	checksum, err := c.tf.GenerateChecksum(ctx)
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(err, errChecksum)
+	}
+	cr.Status.AtProvider.Checksum = checksum
 
 	if !differs {
 		// TODO(negz): Allow Workspaces to optionally derive their readiness from an
