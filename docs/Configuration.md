@@ -17,6 +17,61 @@ For more information, check out the example
 would use for the
 [provider-aws](https://github.com/upbound/provider-aws/blob/master/AUTHENTICATION.md#using-iam-roles-for-serviceaccounts).
 
+## Provider Performance and Throughput
+
+The performance and throughput of the provider can be tuned using the `--poll`
+and `--max-reconcile-rate` arguments in a `ControllerConfig`.
+
+The `poll` option determines how often the provider will compare the desired
+`Workspace` configuration with the actual deployed resources (`terraform plan`)
+and reconcile any differences (`terraform apply`).  The default value is 10m.
+Shorter `poll` intervals increase the load on the provider by reconciling
+existing `Workspaces` more often to allow for faster reconciliation of
+differences, but this can cause the provider to take longer to process new
+`Workspace` objects that are created.  Longer poll intervals will reduce the
+load on the provider by reconciling existing `Workspaces` less often, taking a
+longer time to identify and reconcile differences, but also shortening the
+amount of time required for the provider to respond to new `Workspaces`.
+
+The `max-reconcile-rate` option determines how many `Workspace` objects can be
+reconciled in parallel concurrently.  The default value is 1.  Increasing this
+value will allow the provider to process more `Workspaces` but will consume
+more CPU, as the provider must run `terraform plan` for each `Workspace`.  The
+provider could potentially use the same number of CPUs as the value set for
+`max-reconcile-rate`, so plan accordingly or use `resources.requests` and
+`resources.limits` to control the number of CPUs available to the provider.
+
+For example, to set a polling interval of 5m and process 10 `Workspaces`
+concurrently:
+
+```yaml
+apiVersion: pkg.crossplane.io/v1alpha1
+kind: ControllerConfig
+metadata:
+  name: terraform
+  labels:
+    app: crossplane-provider-terraform
+spec:
+  args:
+    - -d
+    - --poll=5m
+    - --max-reconcile-rate=10
+```
+
+and set the `spec.controllerConfigRef.name` in the Provider to `terraform`.
+
+```yaml
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-terraform
+spec:
+  package: xpkg.upbound.io/upbound/provider-terraform:<version>
+  controllerConfigRef:
+    name: terraform
+```
+
+
 ## Private Git repository support
 
 To securely propagate git credentials create a `git-credentials` secret in [git

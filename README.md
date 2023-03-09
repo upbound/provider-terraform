@@ -88,6 +88,18 @@ You can find a detailed API reference with all CRDs and examples [here](https://
 
 You can find more information about configuring the provider further [here](https://marketplace.upbound.io/providers/upbound/provider-terraform/latest/docs/configuration).
 
+### Polling Interval
+The default polling interval has been updated to 10 minutes from 1 minute.
+This affects how often the provider will run `terraform plan` on existing
+`Workspaces` to determine if there are any resources out of sync and whether
+`terraform apply` needs to be re-executed to recover the desired state.
+A 1 minute polling interval is often too short when the time required for
+running `terrform init`, `terraform plan` and `terraform apply` is taken
+into account.  Workspaces with large numbers of resources can take longer
+than 1 minute to run `terraform plan`.  Changes to the `Workspace` object
+`spec` will still be reconciled immediately.  The poll interval is
+configurable using `ControllerConfig`.
+
 ## Known limitations:
 
 * You must either use remote state or ensure the provider container's `/tf`
