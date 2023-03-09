@@ -18,6 +18,7 @@ package workspace
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -69,6 +70,7 @@ const (
 	errApply           = "cannot apply Terraform configuration"
 	errDestroy         = "cannot destroy Terraform configuration"
 	errVarFile         = "cannot get tfvars"
+	errVarMap          = "cannot get tfvars from var map"
 	errDeleteWorkspace = "cannot delete Terraform workspace"
 
 	gitCredentialsFilename = ".git-credentials"
@@ -418,6 +420,14 @@ func (c *external) options(ctx context.Context, p v1beta1.WorkspaceParameters) (
 			}
 			o = append(o, terraform.WithVarFile(s.Data[r.Key], fmt))
 		}
+	}
+
+	if p.VarMap != nil {
+		jsonBytes, err := json.Marshal(p.VarMap)
+		if err != nil {
+			return nil, errors.Wrap(err, errVarMap)
+		}
+		o = append(o, terraform.WithVarFile(jsonBytes, terraform.JSON))
 	}
 
 	return o, nil
