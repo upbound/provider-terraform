@@ -6,7 +6,7 @@
 
 </div>
 
-Provider Terraform is a [Crossplane](https://crossplane.io/) provider that 
+Provider Terraform is a [Crossplane](https://crossplane.io/) provider that
 can run Terraform code and enables defining new Crossplane Composite Resources (XRs)
 that are composed of a mix of 'native' Crossplane managed resources and your
 existing Terraform modules.
@@ -62,10 +62,16 @@ spec:
     # Use any module source supported by terraform init -from-module.
     source: Remote
     module: https://github.com/crossplane/tf
-    # Variables can be specified inline, or loaded from a ConfigMap or Secret.
+    # Variables can be specified inline as a list of key-value pairs or as an json object, or loaded from a ConfigMap or Secret.
     vars:
     - key: region
       value: us-west-1
+    varmap:
+      account:
+        region: us-west-1
+        owners:
+        - example-owner-1
+        - example-owner-2
     varFiles:
     - source: SecretKey
       secretKeyRef:
