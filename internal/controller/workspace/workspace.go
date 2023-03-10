@@ -388,6 +388,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 	return errors.Wrap(c.tf.Destroy(ctx, o...), errDestroy)
 }
 
+//nolint:gocyclo
 func (c *external) options(ctx context.Context, p v1beta1.WorkspaceParameters) ([]terraform.Option, error) {
 	o := make([]terraform.Option, 0, len(p.Vars)+len(p.VarFiles)+len(p.DestroyArgs)+len(p.ApplyArgs)+len(p.PlanArgs))
 
