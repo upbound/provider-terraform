@@ -25,6 +25,7 @@ import (
 // A ProviderConfigSpec defines the desired state of a ProviderConfig.
 type ProviderConfigSpec struct {
 	// Credentials required to authenticate to this provider.
+	// +optional
 	Credentials []ProviderCredentials `json:"credentials"`
 
 	// Configuration that should be injected into all workspaces that use

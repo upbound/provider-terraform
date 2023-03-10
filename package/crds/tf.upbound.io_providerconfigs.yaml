@@ -119,8 +119,6 @@ spec:
                 description: PluginCache enables terraform provider plugin caching
                   mechanism https://developer.hashicorp.com/terraform/cli/config/config-file#provider-plugin-cache
                 type: boolean
-            required:
-            - credentials
             type: object
           status:
             description: A ProviderConfigStatus reflects the observed state of a ProviderConfig.
