@@ -27,6 +27,7 @@ import (
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -702,6 +703,33 @@ func TestObserve(t *testing.T) {
 				err: errors.Wrap(errors.Wrap(errBoom, errVarFile), errOptions),
 			},
 		},
+		"GetVarMapError": {
+			reason: "We should return any error we encounter getting tfvars from varmap",
+			fields: fields{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if _, ok := obj.(*corev1.Secret); ok {
+							return errBoom
+						}
+						return nil
+					}),
+				},
+			},
+			args: args{
+				mg: &v1beta1.Workspace{
+					Spec: v1beta1.WorkspaceSpec{
+						ForProvider: v1beta1.WorkspaceParameters{
+							VarMap: &runtime.RawExtension{
+								Raw: []byte("I'm not JSON"),
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.Wrap(errors.New("json: error calling MarshalJSON for type *runtime.RawExtension: invalid character 'I' looking for beginning of value"), errVarMap), errOptions),
+			},
+		},
 		"DiffError": {
 			reason: "We should return any error encountered while diffing the Terraform configuration",
 			fields: fields{
@@ -1044,6 +1072,33 @@ func TestCreate(t *testing.T) {
 				err: errors.Wrap(errors.Wrap(errBoom, errVarFile), errOptions),
 			},
 		},
+		"GetVarMapError": {
+			reason: "We should return any error we encounter getting tfvars from varmap",
+			fields: fields{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if _, ok := obj.(*corev1.Secret); ok {
+							return errBoom
+						}
+						return nil
+					}),
+				},
+			},
+			args: args{
+				mg: &v1beta1.Workspace{
+					Spec: v1beta1.WorkspaceSpec{
+						ForProvider: v1beta1.WorkspaceParameters{
+							VarMap: &runtime.RawExtension{
+								Raw: []byte("I'm not JSON"),
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.Wrap(errors.New("json: error calling MarshalJSON for type *runtime.RawExtension: invalid character 'I' looking for beginning of value"), errVarMap), errOptions),
+			},
+		},
 		"ApplyError": {
 			reason: "We should return any error we encounter applying our Terraform configuration",
 			fields: fields{
@@ -1226,6 +1281,31 @@ func TestDelete(t *testing.T) {
 				},
 			},
 			want: errors.Wrap(errors.Wrap(errBoom, errVarFile), errOptions),
+		},
+		"GetVarMapError": {
+			reason: "We should return any error we encounter getting tfvars from varmap",
+			fields: fields{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if _, ok := obj.(*corev1.Secret); ok {
+							return errBoom
+						}
+						return nil
+					}),
+				},
+			},
+			args: args{
+				mg: &v1beta1.Workspace{
+					Spec: v1beta1.WorkspaceSpec{
+						ForProvider: v1beta1.WorkspaceParameters{
+							VarMap: &runtime.RawExtension{
+								Raw: []byte("I'm not JSON"),
+							},
+						},
+					},
+				},
+			},
+			want: errors.Wrap(errors.Wrap(errors.New("json: error calling MarshalJSON for type *runtime.RawExtension: invalid character 'I' looking for beginning of value"), errVarMap), errOptions),
 		},
 		"DestroyError": {
 			reason: "We should return any error we encounter destroying our Terraform configuration",

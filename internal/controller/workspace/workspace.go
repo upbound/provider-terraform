@@ -18,6 +18,7 @@ package workspace
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -69,6 +70,7 @@ const (
 	errApply           = "cannot apply Terraform configuration"
 	errDestroy         = "cannot destroy Terraform configuration"
 	errVarFile         = "cannot get tfvars"
+	errVarMap          = "cannot get tfvars from var map"
 	errDeleteWorkspace = "cannot delete Terraform workspace"
 
 	gitCredentialsFilename = ".git-credentials"
@@ -386,6 +388,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 	return errors.Wrap(c.tf.Destroy(ctx, o...), errDestroy)
 }
 
+//nolint:gocyclo
 func (c *external) options(ctx context.Context, p v1beta1.WorkspaceParameters) ([]terraform.Option, error) {
 	o := make([]terraform.Option, 0, len(p.Vars)+len(p.VarFiles)+len(p.DestroyArgs)+len(p.ApplyArgs)+len(p.PlanArgs))
 
@@ -418,6 +421,14 @@ func (c *external) options(ctx context.Context, p v1beta1.WorkspaceParameters) (
 			}
 			o = append(o, terraform.WithVarFile(s.Data[r.Key], fmt))
 		}
+	}
+
+	if p.VarMap != nil {
+		jsonBytes, err := json.Marshal(p.VarMap)
+		if err != nil {
+			return nil, errors.Wrap(err, errVarMap)
+		}
+		o = append(o, terraform.WithVarFile(jsonBytes, terraform.JSON))
 	}
 
 	return o, nil
