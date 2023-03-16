@@ -20,8 +20,11 @@ package terraform
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -58,22 +61,49 @@ func Classify(err error) error {
 		return err
 	}
 
-	lines := bytes.Split(ee.Stderr, []byte("\n"))
-
-	// If stderr contains multiple lines we try return the first thing that
-	// looks like a summary of the error.
-	if m := tfError.FindSubmatch(ee.Stderr); len(lines) > 0 && len(m) > 1 {
-		return errors.New(string(bytes.ToLower(m[1])))
+	summary, base64FullErr, err := formatTerraformErrorOutput(string(ee.Stderr))
+	if err != nil {
+		return err
 	}
 
-	// Failing that, try to return the first non-empty line.
-	for _, line := range lines {
-		if len(line) > 0 {
-			return errors.New(string(bytes.ToLower(line)))
-		}
+	formatString := "Terraform encountered an error. Summary: %s. To see the full error run: echo \"%s\" | base64 -d | gunzip"
+
+	return errors.New(fmt.Sprintf(formatString, summary, base64FullErr))
+}
+
+// Format Terraform error output as gzipped and base64 encoded string
+func formatTerraformErrorOutput(errorOutput string) (string, string, error) {
+	// Gzip compress the output and base64 encode it.
+	var buffer bytes.Buffer
+	gz := gzip.NewWriter(&buffer)
+
+	if _, err := gz.Write([]byte(errorOutput)); err != nil {
+		return "", "", err
 	}
 
-	return err
+	if err := gz.Flush(); err != nil {
+		return "", "", err
+	}
+
+	if err := gz.Close(); err != nil {
+		return "", "", err
+	}
+
+	if err := gz.Flush(); err != nil {
+		return "", "", err
+	}
+
+	// Return the first line of the error output as the summary
+	var summary string
+	lines := strings.Split(errorOutput, "\n")
+	if m := tfError.FindSubmatch([]byte(errorOutput)); len(lines) > 0 && len(m) > 1 {
+		summary = string(m[1])
+	}
+
+	// base64FullErr := base64.StdEncoding.EncodeToString([]byte(errorOutput))
+	base64FullErr := base64.StdEncoding.EncodeToString(buffer.Bytes())
+
+	return summary, base64FullErr, nil
 }
 
 // NOTE(negz): The gosec linter returns a G204 warning anytime a command is
@@ -182,7 +212,6 @@ func (h Harness) Validate(ctx context.Context) error {
 	}
 
 	return errors.Errorf(errFmtInvalidConfig, r.ErrorCount)
-
 }
 
 // Workspace selects the named Terraform workspace. The workspace will be
@@ -357,7 +386,8 @@ func (h Harness) Outputs(ctx context.Context) ([]Output, error) {
 			Name:      name,
 			Sensitive: output.Sensitive,
 			Type:      outputType(t),
-			value:     output.Value})
+			value:     output.Value,
+		})
 	}
 
 	sort.Slice(o, func(i, j int) bool { return o[i].Name < o[j].Name })
