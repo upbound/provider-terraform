@@ -236,6 +236,17 @@ func (h Harness) DeleteCurrentWorkspace(ctx context.Context) error {
 	return Classify(err)
 }
 
+// GenerateChecksum calculates the md5sum of the workspace to see if terraform init needs to run
+func (h Harness) GenerateChecksum(ctx context.Context) (string, error) {
+	command := "/usr/bin/find . -type f -exec /usr/bin/md5sum {} + | LC_ALL=C /usr/bin/sort | /usr/bin/md5sum | /usr/bin/awk '{print $1}'"
+	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", command) //nolint:gosec
+	cmd.Dir = h.Dir
+
+	checksum, err := cmd.Output()
+	result := strings.ReplaceAll(string(checksum), "\n", "")
+	return result, Classify(err)
+}
+
 // An OutputType of Terraform.
 type OutputType int
 

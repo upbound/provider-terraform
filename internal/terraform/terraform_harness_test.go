@@ -160,7 +160,7 @@ func TestDeleteWorkspace(t *testing.T) {
 			defer os.RemoveAll(dir)
 
 			tf := Harness{Path: tfBinaryPath, Dir: dir}
-			ws := tf.Workspace(tc.args.ctx, tc.args.name)
+			_ = tf.Workspace(tc.args.ctx, tc.args.name)
 			got := tf.DeleteCurrentWorkspace(tc.args.ctx)
 
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
@@ -441,7 +441,7 @@ func TestInitDiffApplyDestroy(t *testing.T) {
 
 			tf := Harness{Path: tfBinaryPath, Dir: dir}
 
-			err = tf.Init(tc.initArgs.ctx, tc.initArgs.o...)
+			err = tf.Init(tc.initArgs.ctx, false, tc.initArgs.o...)
 			if diff := cmp.Diff(tc.want.init, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ntf.Init(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -471,6 +471,44 @@ func TestInitDiffApplyDestroy(t *testing.T) {
 			err = tf.Destroy(tc.destroyArgs.ctx, tc.destroyArgs.o...)
 			if diff := cmp.Diff(tc.want.destroy, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ntf.Destroy(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestGenerateChecksum(t *testing.T) {
+	type want struct {
+		output string
+		err    error
+	}
+	cases := map[string]struct {
+		reason string
+		module string
+		ctx    context.Context
+		want   want
+	}{
+		"Checksum": {
+			reason: "We should return the checksum for a directory",
+			module: "testdata/outputmodule",
+			ctx:    context.Background(),
+			want: want{
+				output: "d41d8cd98f00b204e9800998ecf8427e",
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			// Reading output is a read-only operation, so we operate directly
+			// on our test data instead of creating a temporary directory.
+			tf := Harness{Path: tfBinaryPath, Dir: tc.module}
+			got, err := tf.GenerateChecksum(tc.ctx)
+
+			if diff := cmp.Diff(tc.want.output, got, cmp.AllowUnexported(Output{})); diff != "" {
+				t.Errorf("\n%s\ntf.GenerateChecksum(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ntf.Outputs(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}

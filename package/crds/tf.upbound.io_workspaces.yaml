@@ -361,6 +361,8 @@ spec:
               atProvider:
                 description: WorkspaceObservation are the observable fields of a Workspace.
                 properties:
+                  checksum:
+                    type: string
                   outputs:
                     additionalProperties:
                       type: string
