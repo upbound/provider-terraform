@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/MakeNowJust/heredoc v1.0.0
-	github.com/crossplane/crossplane-runtime v0.19.2
+	github.com/crossplane/crossplane-runtime v0.20.0-rc.0.0.20230320143010-c424c4aca5b0
 	github.com/crossplane/crossplane-tools v0.0.0-20220310165030-1f43fc12793e
 	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
