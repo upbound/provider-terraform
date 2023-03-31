@@ -1,7 +1,7 @@
 ---
 name: Feature Request
 about: Help us make Official Terraform Provider more useful
-labels: enhancement
+labels: enhancement,needs:triage
 title: "A new auth option"
 ---
 <!--
