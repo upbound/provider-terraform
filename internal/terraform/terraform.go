@@ -171,6 +171,7 @@ func (h Harness) Init(ctx context.Context, cache bool, o ...InitOption) error {
 			cmd.Env = append(cmd.Env, e)
 		}
 	}
+	cmd.Env = append(cmd.Env, "TF_CLI_CONFIG_FILE=./.terraformrc")
 	err := sem.Acquire(ctx, 1)
 	if err != nil {
 		return errors.Wrap(err, errSemAcquire)

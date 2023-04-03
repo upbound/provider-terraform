@@ -1,0 +1,31 @@
+apiVersion: tf.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+  - filename: aws-creds.ini
+    source: Secret
+    secretRef:
+      namespace: upbound-system
+      name: aws-creds
+      key: credentials
+# kubectl -n upbound-system create secret generic terraformrc --from-file=examples/.terraformrc
+  - filename: .terraformrc
+    source: Secret
+    secretRef:
+      namespace: upbound-system
+      name: terraformrc
+      key: .terraformrc
+  configuration: |
+      terraform {
+        backend "kubernetes" {
+          secret_suffix     = "providerconfig-aws-eu-west-1"
+          namespace         = "upbound-system"
+          in_cluster_config = true
+        }
+      }
+      provider "aws" {
+        shared_credentials_file = "${path.module}/aws-creds.ini"
+        region = "eu-west-1"
+      }
