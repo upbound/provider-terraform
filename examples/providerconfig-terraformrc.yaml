@@ -10,6 +10,7 @@ spec:
       namespace: upbound-system
       name: aws-creds
       key: credentials
+# kubectl -n upbound-system create secret generic terraformrc --from-file=examples/.terraformrc
   - filename: .terraformrc
     source: Secret
     secretRef:
