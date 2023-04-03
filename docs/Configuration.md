@@ -105,6 +105,22 @@ spec:
 Standard `.git-credentials` filename is important to keep so provider-terraform
 controller will be able to automatically pick it up.
 
+## `.terraformc` repository support
+
+```yaml
+spec:
+  credentials:
+  - filename: .terraformrc # use exactly this filename by convention
+    source: Secret
+    secretRef:
+      namespace: upbound-system
+      name: terraformrc
+      key: .terraformrc
+```
+
+will enable [Terraform CLI Configuration File](https://developer.hashicorp.com/terraform/cli/config/config-file)
+installed from Kubernetes secret
+
 ## Terraform Output support
 
 Non-sensitive outputs are mapped to the status.atProvider.outputs section as
