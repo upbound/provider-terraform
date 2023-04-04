@@ -163,13 +163,13 @@ func (h Harness) Init(ctx context.Context, cache bool, o ...InitOption) error {
 	args := append([]string{"init", "-input=false", "-no-color"}, io.args...)
 	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
-	if !cache {
-		for _, e := range os.Environ() {
-			if strings.Contains(e, "TF_PLUGIN_CACHE_DIR") {
+	for _, e := range os.Environ() {
+		if strings.Contains(e, "TF_PLUGIN_CACHE_DIR") {
+			if !cache {
 				continue
 			}
-			cmd.Env = append(cmd.Env, e)
 		}
+		cmd.Env = append(cmd.Env, e)
 	}
 	cmd.Env = append(cmd.Env, "TF_CLI_CONFIG_FILE=./.terraformrc")
 	err := sem.Acquire(ctx, 1)
