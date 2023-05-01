@@ -78,6 +78,34 @@ the time to ensure your contributions are high quality and easy for our
 community to review and accept. Please don't hesitate to [reach out to
 us][Slack] if you have any questions about contributing!
 
+## Establishing a Development Environment
+
+The `provider-terraform` project uses the Upbound [build submodule]; a library of
+common Makefiles. Establishing a development environment typically requires:
+
+1. Forking and cloning the repository you wish to work on.
+1. Installing development dependencies.
+1. Running `make` to establish the build submodule.
+
+Run `make help` for information on the available Make targets. Useful targets
+include:
+
+* `make` - Synchronize the build submodule and build provider-terraform.
+* `make reviewable` - Run code generation, linters, and unit tests.
+* `make e2e` - Run end-to-end tests.
+
+Once you've built provider-terraform you can deploy it to a Kubernetes cluster of your
+choice. [`kind`] (Kubernetes in Docker) is a good choice for development.
+
+When iterating rapidly on a change it can be faster to run provider-terraform as a local
+process.  For example:
+
+```bash
+# Run provider-terraform locally; it should connect to your kind cluster if said cluster
+# is your active kubectl context. You can also go run cmd/provider-terraform/main.go.
+make run
+```
+
 ## Code Review Process
 
 All Pull Requests (PR), whether written by a maintainer or a
@@ -99,5 +127,6 @@ review.
 [Developer Certificate of Origin]: https://github.com/apps/dco
 [test review comments]: https://github.com/golang/go/wiki/TestComments
 [docs]: docs/
+[build submodule]: https://github.com/upbound/build/
 [Coding Style]: https://github.com/crossplane/crossplane/blob/master/CONTRIBUTING.md#coding-style
 
