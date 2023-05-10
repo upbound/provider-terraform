@@ -125,6 +125,9 @@ type Harness struct {
 	// Whether to use the terraform plugin cache
 	UsePluginCache bool
 
+	// Environment Variables
+	Envs []string
+
 	// TODO(negz): Harness is a subset of exec.Cmd. If callers need more insight
 	// into what the underlying Terraform binary is doing (e.g. for debugging)
 	// we could consider allowing them to attach io.Writers to Stdout and Stdin
@@ -185,6 +188,7 @@ func (h Harness) Init(ctx context.Context, o ...InitOption) error {
 		cmd.Env = append(cmd.Env, e)
 	}
 	cmd.Env = append(cmd.Env, "TF_CLI_CONFIG_FILE=./.terraformrc")
+	cmd.Env = append(cmd.Env, h.Envs...)
 
 	if h.UsePluginCache {
 		rwmutex.Lock()
@@ -202,6 +206,9 @@ func (h Harness) Init(ctx context.Context, o ...InitOption) error {
 func (h Harness) Validate(ctx context.Context) error {
 	cmd := exec.Command(h.Path, "validate", "-json") //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	type result struct {
 		Valid      bool `json:"valid"`
@@ -234,6 +241,9 @@ func (h Harness) Validate(ctx context.Context) error {
 func (h Harness) Workspace(ctx context.Context, name string) error {
 	cmd := exec.Command(h.Path, "workspace", "select", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	if _, err := runCommand(ctx, cmd); err == nil {
 		// We successfully selected the workspace; we're done.
@@ -259,6 +269,9 @@ func (h Harness) Workspace(ctx context.Context, name string) error {
 func (h Harness) DeleteCurrentWorkspace(ctx context.Context) error {
 	cmd := exec.Command(h.Path, "workspace", "show", "-no-color") //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	n, err := runCommand(ctx, cmd)
 	if err != nil {
@@ -276,6 +289,9 @@ func (h Harness) DeleteCurrentWorkspace(ctx context.Context) error {
 	}
 	cmd = exec.Command(h.Path, "workspace", "delete", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	if h.UsePluginCache {
 		rwmutex.RLock()
@@ -383,6 +399,9 @@ func (o Output) JSONValue() ([]byte, error) {
 func (h Harness) Outputs(ctx context.Context) ([]Output, error) {
 	cmd := exec.Command(h.Path, "output", "-json") //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	type output struct {
 		Sensitive bool `json:"sensitive"`
@@ -440,6 +459,9 @@ func (h Harness) Outputs(ctx context.Context) ([]Output, error) {
 func (h Harness) Resources(ctx context.Context) ([]string, error) {
 	cmd := exec.Command(h.Path, "state", "list") //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	if h.UsePluginCache {
 		rwmutex.RLock()
@@ -523,6 +545,9 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	args := append([]string{"plan", "-no-color", "-input=false", "-detailed-exitcode", "-lock=false"}, ao.args...)
 	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	// Note: the terraform lock is not used (see the -lock=false flag above) and the rwmutex is
 	// intentionally not locked here to avoid excessive blocking. See
@@ -555,6 +580,9 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 	args := append([]string{"apply", "-no-color", "-auto-approve", "-input=false"}, ao.args...)
 	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	if h.UsePluginCache {
 		rwmutex.RLock()
@@ -581,6 +609,9 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	args := append([]string{"destroy", "-no-color", "-auto-approve", "-input=false"}, do.args...)
 	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	if h.UsePluginCache {
 		rwmutex.RLock()

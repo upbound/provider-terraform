@@ -19,6 +19,7 @@ package workspace
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,6 +75,7 @@ const (
 	errDestroy         = "cannot destroy Terraform configuration"
 	errVarFile         = "cannot get tfvars"
 	errVarMap          = "cannot get tfvars from var map"
+	errVarResolution   = "cannot resolve variables"
 	errDeleteWorkspace = "cannot delete Terraform workspace"
 	errChecksum        = "cannot calculate workspace checksum"
 
@@ -130,8 +132,8 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Dura
 		usage:  resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1beta1.ProviderConfigUsage{}),
 		logger: o.Logger,
 		fs:     fs,
-		terraform: func(dir string, usePluginCache bool) tfclient {
-			return terraform.Harness{Path: tfPath, Dir: dir, UsePluginCache: usePluginCache}
+		terraform: func(dir string, usePluginCache bool, envs ...string) tfclient {
+			return terraform.Harness{Path: tfPath, Dir: dir, UsePluginCache: usePluginCache, Envs: envs}
 		},
 	}
 
@@ -166,7 +168,7 @@ type connector struct {
 	usage     resource.Tracker
 	logger    logging.Logger
 	fs        afero.Afero
-	terraform func(dir string, usePluginCache bool) tfclient
+	terraform func(dir string, usePluginCache bool, envs ...string) tfclient
 }
 
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) { //nolint:gocyclo
@@ -284,7 +286,41 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		pc.Spec.PluginCache = new(bool)
 		*pc.Spec.PluginCache = true
 	}
-	tf := c.terraform(dir, *pc.Spec.PluginCache)
+
+	var envs []string
+	for _, env := range cr.Spec.ForProvider.Env {
+		runtimeVal := env.Value
+		if runtimeVal == "" {
+			switch {
+			case env.ConfigMapKeyReference != nil:
+				cm := &corev1.ConfigMap{}
+				r := env.ConfigMapKeyReference
+				nn := types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
+				if err := c.kube.Get(ctx, nn, cm); err != nil {
+					return nil, errors.Wrap(err, errVarResolution)
+				}
+				runtimeVal, ok = cm.Data[r.Key]
+				if !ok {
+					return nil, errors.Wrap(fmt.Errorf("couldn't find key %v in ConfigMap %v/%v", r.Key, r.Namespace, r.Name), errVarResolution)
+				}
+			case env.SecretKeyReference != nil:
+				s := &corev1.Secret{}
+				r := env.SecretKeyReference
+				nn := types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
+				if err := c.kube.Get(ctx, nn, s); err != nil {
+					return nil, errors.Wrap(err, errVarResolution)
+				}
+				secretBytes, ok := s.Data[r.Key]
+				if !ok {
+					return nil, errors.Wrap(fmt.Errorf("couldn't find key %v in Secret %v/%v", r.Key, r.Namespace, r.Name), errVarResolution)
+				}
+				runtimeVal = string(secretBytes)
+			}
+		}
+		envs = append(envs, strings.Join([]string{env.Name, runtimeVal}, "="))
+	}
+
+	tf := c.terraform(dir, *pc.Spec.PluginCache, envs...)
 	if cr.Status.AtProvider.Checksum != "" {
 		checksum, err := tf.GenerateChecksum(ctx)
 		if err != nil {
