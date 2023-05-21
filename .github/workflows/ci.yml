@@ -77,6 +77,8 @@ jobs:
         with:
           version: ${{ env.GOLANGCI_VERSION }}
           args: --timeout 3m --verbose
+          skip-cache: true # We do our own caching
+
   check-diff:
     runs-on: ubuntu-22.04
     needs: detect-noop
