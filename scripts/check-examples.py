@@ -25,7 +25,8 @@ def load_crd_type(t):
 
 
 exception_set = {
-    'ProviderConfigUsage.tf.upbound.io/v1beta1'
+    'ProviderConfigUsage.tf.upbound.io/v1beta1',
+    'StoreConfig.tf.upbound.io/v1beta1'
 }
 
 
