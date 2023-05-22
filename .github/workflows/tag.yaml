@@ -1,7 +1,7 @@
 name: Tag
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: 
     inputs:
       version:
         description: 'Release version (e.g. v0.1.0)'
@@ -11,16 +11,8 @@ on:
         required: true
 
 jobs:
-  create-tag:
-    runs-on: ubuntu-22.04
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3
-
-      - name: Create Tag
-        uses: negz/create-tag@39bae1e0932567a58c20dea5a1a0d18358503320 # v1
-        with:
-          version: ${{ github.event.inputs.version }}
-          message: ${{ github.event.inputs.message }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+  tag:
+    uses: upbound/uptest/.github/workflows/provider-tag.yml@main
+    with:
+      version: ${{ github.event.inputs.version }}
+      message: ${{ github.event.inputs.message }}
