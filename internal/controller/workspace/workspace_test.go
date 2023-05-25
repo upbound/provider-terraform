@@ -688,7 +688,7 @@ func TestConnect(t *testing.T) {
 				},
 				usage: resource.TrackerFn(func(_ context.Context, _ resource.Managed) error { return nil }),
 				fs:    afero.Afero{Fs: afero.NewMemMapFs()},
-				terraform: func(_ string, _ bool) tfclient {
+				terraform: func(_ string, _ bool, _ ...string) tfclient {
 					return &MockTf{
 						MockInit: func(ctx context.Context, o ...terraform.InitOption) error {
 							args := terraform.InitArgsToString(o)

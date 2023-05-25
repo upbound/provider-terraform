@@ -287,8 +287,8 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		*pc.Spec.PluginCache = true
 	}
 
-	var envs []string
-	for _, env := range cr.Spec.ForProvider.Env {
+	envs := make([]string, len(cr.Spec.ForProvider.Env))
+	for idx, env := range cr.Spec.ForProvider.Env {
 		runtimeVal := env.Value
 		if runtimeVal == "" {
 			switch {
@@ -317,7 +317,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 				runtimeVal = string(secretBytes)
 			}
 		}
-		envs = append(envs, strings.Join([]string{env.Name, runtimeVal}, "="))
+		envs[idx] = strings.Join([]string{env.Name, runtimeVal}, "=")
 	}
 
 	tf := c.terraform(dir, *pc.Spec.PluginCache, envs...)
