@@ -129,14 +129,20 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout time.Duration) error 
 		terraform: func(dir string) tfclient { return terraform.Harness{Path: tfPath, Dir: dir} },
 	}
 
-	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(v1beta1.WorkspaceGroupVersionKind),
+	opts := []managed.ReconcilerOption{
 		managed.WithPollInterval(o.PollInterval),
 		managed.WithExternalConnecter(c),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		managed.WithTimeout(timeout),
-		managed.WithConnectionPublishers(cps...))
+		managed.WithConnectionPublishers(cps...),
+	}
+	if o.Features.Enabled(features.EnableAlphaManagementPolicies) {
+		opts = append(opts, managed.WithManagementPolicies())
+	}
+	r := managed.NewReconciler(mgr,
+		resource.ManagedKind(v1beta1.WorkspaceGroupVersionKind),
+		opts...)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
