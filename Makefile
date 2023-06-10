@@ -11,7 +11,7 @@ PLATFORMS ?= linux_amd64 linux_arm64
 
 # Setup Go
 NPROCS ?= 1
-GOLANGCILINT_VERSION ?= 1.50.0
+GOLANGCILINT_VERSION ?= 1.53.2
 GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/provider
 GO_LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
