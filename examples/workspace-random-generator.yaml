@@ -5,7 +5,7 @@ metadata:
   annotations:
     meta.upbound.io/example-id: tf/v1beta1/workspace
     # The terraform workspace will be named 'random'. If you omit this
-    # annotation it would be derived from metadata.name - e.g. 'example-inline'.
+    # annotation it would be derived from metadata.name - e.g. 'example-random-generator.
     crossplane.io/external-name: random
 spec:
   forProvider:
