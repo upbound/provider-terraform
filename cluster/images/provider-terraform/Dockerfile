@@ -3,7 +3,7 @@ RUN apk --no-cache add ca-certificates bash git curl
 ARG TARGETOS
 ARG TARGETARCH
 
-ENV TERRAFORM_VERSION=1.3.7
+ENV TERRAFORM_VERSION=1.5.2
 ENV TF_IN_AUTOMATION=1
 ENV TF_PLUGIN_CACHE_DIR=/tf/plugin-cache
 
