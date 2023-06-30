@@ -13,6 +13,12 @@ spec:
       key: credentials
   configuration: |
       terraform {
+        required_providers {
+          aws = {
+            source = "hashicorp/aws"
+            version = "5.6.1"
+          }
+        }
         backend "kubernetes" {
           secret_suffix     = "providerconfig-aws-eu-west-1"
           namespace         = "upbound-system"
@@ -20,6 +26,6 @@ spec:
         }
       }
       provider "aws" {
-        shared_credentials_file = "${path.module}/aws-creds.ini"
+        shared_credentials_files = ["${path.module}/aws-creds.ini"]
         region = "eu-west-1"
       }

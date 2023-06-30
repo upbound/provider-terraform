@@ -3,15 +3,16 @@ RUN apk --no-cache add ca-certificates bash git curl
 ARG TARGETOS
 ARG TARGETARCH
 
-ENV TERRAFORM_VERSION=1.3.7
+ENV TERRAFORM_VERSION=1.5.2
 ENV TF_IN_AUTOMATION=1
 ENV TF_PLUGIN_CACHE_DIR=/tf/plugin-cache
 
 ADD "bin/${TARGETOS}_${TARGETARCH}/provider" /usr/local/bin/crossplane-terraform-provider
 ADD .gitconfig .gitconfig
 
-RUN curl -s -L https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_${TARGETOS}_${TARGETARCH}.zip | \
-  unzip -d /usr/local/bin - \
+RUN curl -s -L https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_${TARGETOS}_${TARGETARCH}.zip -o terraform.zip \
+  && unzip -d /usr/local/bin terraform.zip \
+  && rm terraform.zip \
   && chmod +x /usr/local/bin/terraform \
   && mkdir -p ${TF_PLUGIN_CACHE_DIR} \
   && chown -R 2000 /tf
