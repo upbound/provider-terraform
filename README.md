@@ -88,7 +88,7 @@ spec:
 
 Follow the quick start guide [here](https://marketplace.upbound.io/providers/upbound/provider-terraform/latest/docs/quickstart).
 
-You can find a detailed API reference with all CRDs and examples [here](https://marketplace.upbound.io/providers/upbound/provider-terraform/latest/crds).
+You can find a detailed API reference for all the managed resources with examples in the [Upbound Marketplace](https://marketplace.upbound.io/providers/upbound/provider-terraform/latest/managed-resources).
 
 ## Further Configuration
 
