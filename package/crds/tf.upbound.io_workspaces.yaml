@@ -365,7 +365,7 @@ spec:
                     type: string
                   outputs:
                     additionalProperties:
-                      type: string
+                      x-kubernetes-preserve-unknown-fields: true
                     type: object
                 type: object
               conditions:

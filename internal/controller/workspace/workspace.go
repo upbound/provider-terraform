@@ -28,6 +28,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
+	extensionsV1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -474,14 +475,12 @@ func op2cd(o []terraform.Output) managed.ConnectionDetails {
 // workspace_type.Workspace.
 func generateWorkspaceObservation(op []terraform.Output) v1beta1.WorkspaceObservation {
 	wo := v1beta1.WorkspaceObservation{
-		Outputs: make(map[string]string, len(op)),
+		Outputs: make(map[string]extensionsV1.JSON, len(op)),
 	}
 	for _, o := range op {
 		if !o.Sensitive {
-			if o.Type == terraform.OutputTypeString {
-				wo.Outputs[o.Name] = o.StringValue()
-			} else if j, err := o.JSONValue(); err == nil {
-				wo.Outputs[o.Name] = string(j)
+			if j, err := o.JSONValue(); err == nil {
+				wo.Outputs[o.Name] = extensionsV1.JSON{Raw: j}
 			}
 		}
 	}
