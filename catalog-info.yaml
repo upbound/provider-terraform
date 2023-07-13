@@ -1,0 +1,14 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: provider-terraform
+  description: "Official Terraform Provider for Crossplane by Upbound"
+  links:
+    - url: https://marketplace.upbound.io/providers/upbound/provider-terraform/latest/docs/quickstart
+      title: Provider terraform Quickstart
+  annotations:
+    github.com/project-slug: upbound/provider-terraform
+spec:
+  type: service
+  lifecycle: production
+  owner: team:extensions
