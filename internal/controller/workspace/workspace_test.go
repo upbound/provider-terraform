@@ -27,6 +27,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
+	extensionsV1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -852,7 +853,7 @@ func TestObserve(t *testing.T) {
 				},
 				wo: v1beta1.WorkspaceObservation{
 					Checksum: tfChecksum,
-					Outputs:  map[string]string{},
+					Outputs:  map[string]extensionsV1.JSON{},
 				},
 			},
 		},
@@ -882,7 +883,7 @@ func TestObserve(t *testing.T) {
 				},
 				wo: v1beta1.WorkspaceObservation{
 					Checksum: tfChecksum,
-					Outputs:  map[string]string{},
+					Outputs:  map[string]extensionsV1.JSON{},
 				},
 			},
 		},
@@ -958,7 +959,7 @@ func TestObserve(t *testing.T) {
 				},
 				wo: v1beta1.WorkspaceObservation{
 					Checksum: tfChecksum,
-					Outputs:  map[string]string{},
+					Outputs:  map[string]extensionsV1.JSON{},
 				},
 			},
 		},
@@ -999,8 +1000,8 @@ func TestObserve(t *testing.T) {
 				},
 				wo: v1beta1.WorkspaceObservation{
 					Checksum: tfChecksum,
-					Outputs: map[string]string{
-						"string": "",
+					Outputs: map[string]extensionsV1.JSON{
+						"string": {Raw: []byte("null")},
 					},
 				},
 			},
@@ -1042,8 +1043,8 @@ func TestObserve(t *testing.T) {
 				},
 				wo: v1beta1.WorkspaceObservation{
 					Checksum: tfChecksum,
-					Outputs: map[string]string{
-						"string": "",
+					Outputs: map[string]extensionsV1.JSON{
+						"string": {Raw: []byte("null")},
 					},
 				},
 			},
@@ -1265,8 +1266,8 @@ func TestCreate(t *testing.T) {
 					},
 				},
 				wo: v1beta1.WorkspaceObservation{
-					Outputs: map[string]string{
-						"object": "null",
+					Outputs: map[string]extensionsV1.JSON{
+						"object": {Raw: []byte("null")},
 					},
 				},
 			},

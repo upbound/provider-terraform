@@ -31,7 +31,7 @@ spec:
     source: Inline
     module: |
       // All outputs are written to the connection secret.  Non-sensitive outputs
-      // are stored as string values in the status.atProvider.outputs object.
+      // are stored in the status.atProvider.outputs object.
       output "url" {
         value       = google_storage_bucket.example.self_link
       }
