@@ -11,4 +11,4 @@ metadata:
 spec:
   type: service
   lifecycle: production
-  owner: team:extensions
+  owner: team-extensions
