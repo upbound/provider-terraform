@@ -1,0 +1,84 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xsubnets.aws.platformref.upbound.io
+  labels:
+    provider: aws
+spec:
+  compositeTypeRef:
+    apiVersion: aws.platformref.upbound.io/v1alpha1
+    kind: XSubnet
+  resources:
+    - name: vpc-data-source
+      base:
+        apiVersion: tf.upbound.io/v1beta1
+        kind: Workspace
+        spec:
+          forProvider:
+            source: Inline
+            module: |
+              data "aws_vpc" "import" {
+                tags = {
+                  Name = var.vpcName
+                }
+              }
+              output "vpc_data" {
+                description = "Imported VPC data"
+                value       = {
+                  "id" = try(data.aws_vpc.import.id, "")
+                  "cidrBlock" = try(data.aws_vpc.import.cidr_block, "")
+                  "enableDnsSupport" = try(data.aws_vpc.import.enable_dns_support, "")
+                  "enableDnsHostnames" = try(data.aws_vpc.import.enable_dns_hostnames, "")
+                }
+              }
+              variable "vpcName" {
+                description = "VPC name"
+                type        = string
+              }
+            vars:
+              - key: vpcName
+      patches:
+        - fromFieldPath: spec.vpcName
+          toFieldPath: spec.forProvider.vars[0].value
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.outputs.vpc_data
+          toFieldPath: status.share.vpcData
+          policy:
+            fromFieldPath: Optional
+    - name: vpc-imported
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: VPC
+        spec:
+          deletionPolicy: Orphan
+          forProvider:
+            region: eu-central-1
+      patches:
+        - fromFieldPath: spec.vpcName
+          toFieldPath: spec.forProvider.tags.Name
+        - fromFieldPath: status.share.vpcData.id
+          toFieldPath: metadata.annotations[crossplane.io/external-name]
+          policy:
+            fromFieldPath: Required
+        - fromFieldPath: status.share.vpcData.cidrBlock
+          toFieldPath: spec.forProvider.cidrBlock
+          policy:
+            fromFieldPath: Required
+        - fromFieldPath: status.share.vpcData.enableDnsSupport
+          toFieldPath: spec.forProvider.enableDnsSupport
+          policy:
+            fromFieldPath: Required
+        - fromFieldPath: status.share.vpcData.enableDnsHostnames
+          toFieldPath: spec.forProvider.enableDnsHostnames
+          policy:
+            fromFieldPath: Required
+    - name: subnet
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Subnet
+        spec:
+          forProvider:
+            region: eu-central-1
+            cidrBlock: 10.0.0.0/25
+            vpcIdSelector:
+              matchControllerRef: true
