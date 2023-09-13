@@ -1,0 +1,73 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xsubnets.aws.platformref.upbound.io
+  labels:
+    provider: aws
+spec:
+  compositeTypeRef:
+    apiVersion: aws.platformref.upbound.io/v1alpha1
+    kind: XSubnet
+  resources:
+    - name: vpc-data-source
+      base:
+        apiVersion: tf.upbound.io/v1beta1
+        kind: Workspace
+        spec:
+          forProvider:
+            source: Inline
+            module: |
+              data "aws_vpcs" "exists" {
+                tags = {
+                  Name = var.vpcName
+                }
+              }
+              output "vpc_exists" {
+                description = "VPC name"
+                value       = length(data.aws_vpcs.exists.ids) > 0 ? "-block.me" : "blockmenot"
+              }
+
+              variable "vpcName" {
+                description = "VPC name"
+                type        = string
+              }
+            vars:
+              - key: vpcName
+      patches:
+        - fromFieldPath: spec.vpcName
+          toFieldPath: spec.forProvider.vars[0].value
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.outputs.vpc_exists
+          toFieldPath: status.block
+          policy:
+            fromFieldPath: Optional
+    - name: vpc-blocked
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: VPC
+        spec:
+          forProvider:
+            region: eu-central-1
+            cidrBlock: 10.0.0.0/24
+      patches:
+        - type: CombineFromComposite
+          combine:
+            variables:
+              - fromFieldPath: status.block
+              - fromFieldPath: spec.vpcName
+            strategy: string
+            string:
+              fmt: "%s%s"
+          toFieldPath: metadata.name
+          policy:
+            fromFieldPath: Required
+    - name: subnet
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Subnet
+        spec:
+          forProvider:
+            region: eu-central-1
+            cidrBlock: 10.0.0.0/25
+            vpcIdSelector:
+              matchControllerRef: true

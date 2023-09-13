@@ -1,0 +1,6 @@
+apiVersion: aws.platformref.upbound.io/v1alpha1
+kind: XSubnet
+metadata:
+  name: subnet-with-non-blocking-vpc
+spec:
+  vpcName: nonblockingvpc
