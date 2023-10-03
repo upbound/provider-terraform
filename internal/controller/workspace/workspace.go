@@ -108,7 +108,7 @@ type tfclient interface {
 }
 
 // Setup adds a controller that reconciles Workspace managed resources.
-func Setup(mgr ctrl.Manager, o controller.Options, timeout time.Duration) error {
+func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Duration) error {
 	name := managed.ControllerName(v1beta1.WorkspaceGroupKind)
 
 	fs := afero.Afero{Fs: afero.NewOsFs()}
@@ -133,6 +133,7 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout time.Duration) error 
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1beta1.WorkspaceGroupVersionKind),
 		managed.WithPollInterval(o.PollInterval),
+		managed.WithPollJitterHook(pollJitter),
 		managed.WithExternalConnecter(c),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -362,7 +363,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
 	// Terraform does not have distinct 'create' and 'update' operations.
 	u, err := c.Update(ctx, mg)
-	return managed.ExternalCreation{ConnectionDetails: u.ConnectionDetails}, err
+	return managed.ExternalCreation(u), err
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
