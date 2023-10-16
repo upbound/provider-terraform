@@ -29,12 +29,14 @@ import (
 
 // Setup creates all terraform controllers with the supplied options and adds
 // them to the supplied manager.
-func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Duration) error {
-	if err := config.Setup(mgr, o, timeout); err != nil {
-		return err
-	}
-	if err := workspace.Setup(mgr, o, timeout, pollJitter); err != nil {
-		return err
+func Setup(mgr ctrl.Manager, o controller.Options, timeout time.Duration) error {
+	for _, setup := range []func(ctrl.Manager, controller.Options, time.Duration) error{
+		config.Setup,
+		workspace.Setup,
+	} {
+		if err := setup(mgr, o, timeout); err != nil {
+			return err
+		}
 	}
 	return nil
 }

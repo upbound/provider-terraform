@@ -52,7 +52,6 @@ func main() {
 		debug                      = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
 		syncInterval               = app.Flag("sync", "Sync interval controls how often all resources will be double checked for drift.").Short('s').Default("1h").Duration()
 		pollInterval               = app.Flag("poll", "Poll interval controls how often an individual resource should be checked for drift.").Default("10m").Duration()
-		pollJitter                 = app.Flag("poll-jitter", "If non-zero, varies the poll interval by a random amount up to plus-or-minus this value.").Default("1m").Duration()
 		timeout                    = app.Flag("timeout", "Controls how long Terraform processes may run before they are killed.").Default("20m").Duration()
 		leaderElection             = app.Flag("leader-election", "Use leader election for the controller manager.").Short('l').Default("false").Envar("LEADER_ELECTION").Bool()
 		maxReconcileRate           = app.Flag("max-reconcile-rate", "The maximum number of concurrent reconciliation operations.").Default("1").Int()
@@ -70,11 +69,7 @@ func main() {
 		ctrl.SetLogger(zl)
 	}
 
-	log.Debug("Starting",
-		"sync-period", syncInterval.String(),
-		"poll-interval", pollInterval.String(),
-		"poll-jitter", pollJitter.String(),
-		"max-reconcile-rate", *maxReconcileRate)
+	log.Debug("Starting", "sync-period", syncInterval.String())
 
 	cfg, err := ctrl.GetConfig()
 	kingpin.FatalIfError(err, "Cannot get API server rest config")
@@ -128,7 +123,7 @@ func main() {
 		})), "cannot create default store config")
 	}
 
-	kingpin.FatalIfError(workspace.Setup(mgr, o, *timeout, *pollJitter), "Cannot setup Workspace controllers")
+	kingpin.FatalIfError(workspace.Setup(mgr, o, *timeout), "Cannot setup Workspace controllers")
 	kingpin.FatalIfError(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
 }
 

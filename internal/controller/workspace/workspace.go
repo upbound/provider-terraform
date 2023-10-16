@@ -108,7 +108,7 @@ type tfclient interface {
 }
 
 // Setup adds a controller that reconciles Workspace managed resources.
-func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Duration) error {
+func Setup(mgr ctrl.Manager, o controller.Options, timeout time.Duration) error {
 	name := managed.ControllerName(v1beta1.WorkspaceGroupKind)
 
 	fs := afero.Afero{Fs: afero.NewOsFs()}
@@ -133,7 +133,6 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Dura
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1beta1.WorkspaceGroupVersionKind),
 		managed.WithPollInterval(o.PollInterval),
-		managed.WithPollJitterHook(pollJitter),
 		managed.WithExternalConnecter(c),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
