@@ -362,7 +362,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
 	// Terraform does not have distinct 'create' and 'update' operations.
 	u, err := c.Update(ctx, mg)
-	return managed.ExternalCreation{ConnectionDetails: u.ConnectionDetails}, err
+	return managed.ExternalCreation(u), err
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
