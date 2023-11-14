@@ -1,0 +1,69 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: azure-creds
+type: Opaque
+stringData:
+  "credentials": |-
+    {
+      "clientId": "wwwww~wwwwwwwww",
+      "clientSecret": "xxxx-xxxx-xxxx-xxxx-xxxx",
+      "tenantId": "yyyy-yyyy-yyyy-yyyy-yyyy",
+      "subscriptionId": "zzzz-zzzz-zzzz-zzzz-zzzz" 
+    }
+---
+apiVersion: tf.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: azure-westeurope
+spec:
+  credentials:
+    # Filename has to comply with below naming convention:
+    # - Files named exactly terraform.tfvars or terraform.tfvars.json.
+    # - Any files with names ending in .auto.tfvars or .auto.tfvars.json.
+    - filename: terraform.tfvars.json
+      source: Secret
+      secretRef:
+        namespace: upbound-system
+        name: azure-creds
+        key: credentials
+  configuration: |
+      terraform {
+        required_providers {
+          azurerm = {
+            source = "hashicorp/azurerm"
+            version = "3.78.0"
+          }
+        }
+        
+        backend "kubernetes" {
+          secret_suffix     = "providerconfig-azure-westeurope"
+          namespace         = "upbound-system"
+          in_cluster_config = true
+        }
+      }
+    
+      variable "subscriptionId" {
+        type = string
+      }
+    
+      variable "tenantId" {
+        type = string
+      }
+    
+      variable "clientId" {
+        type = string
+      }
+    
+      variable "clientSecret" {
+        type = string
+      }
+    
+      provider "azurerm" {
+        subscription_id = var.subscriptionId
+        tenant_id = var.tenantId
+        client_id = var.clientId
+        client_secret = var.clientSecret
+        features {}
+      }
