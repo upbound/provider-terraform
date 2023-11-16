@@ -114,6 +114,11 @@ func (in *ProviderConfigSpec) DeepCopyInto(out *ProviderConfigSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.BackendFile != nil {
+		in, out := &in.BackendFile, &out.BackendFile
+		*out = new(string)
+		**out = **in
+	}
 	if in.PluginCache != nil {
 		in, out := &in.PluginCache, &out.PluginCache
 		*out = new(bool)

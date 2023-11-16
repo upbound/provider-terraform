@@ -1,0 +1,36 @@
+apiVersion: tf.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+spec:
+  # Note that unlike most provider configs this one supports an array of
+  # credentials. This is because each Terraform workspace uses a single
+  # Crossplane provider config, but could use multiple Terraform providers each
+  # with their own credentials.
+  credentials:
+  - filename: gcp-credentials.json
+    source: Secret
+    secretRef:
+      namespace: upbound-system
+      name: gcp-creds
+      key: credentials
+  # This optional configuration block can be used to inject HCL into any
+  # workspace that uses this provider config, for example to setup Terraform
+  # providers.
+  configuration: |
+      provider "google" {
+        credentials = "gcp-credentials.json"
+        project     = "official-provider-testing"
+      }
+
+      // Defining partial backend configuration as documented at 
+      // https://developer.hashicorp.com/terraform/language/settings/backends/configuration#partial-configuration
+      terraform {
+        backend "kubernetes" {}
+      }
+  # Using backend configuration file as documented at
+  # https://developer.hashicorp.com/terraform/language/settings/backends/configuration#file
+  backendFile: |
+    secret_suffix     = "providerconfig-default"
+    namespace         = "upbound-system"
+    in_cluster_config = true
