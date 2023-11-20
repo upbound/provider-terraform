@@ -151,7 +151,7 @@ func WithInitArgs(v []string) InitOption {
 // RWMutex protects the terraform shared cache from corruption. If an init is
 // performed, it requires a write lock. Only one write lock at a time. If another
 // action is performed, a read lock is acquired. More than one read locks can be acquired.
-// This prevents an init from inadvertantly changing a plugin while it's in use.
+// This prevents an init from inadvertently changing a plugin while it's in use.
 // Prevents issues with `text file busy` errors.
 var rwmutex = &sync.RWMutex{}
 
