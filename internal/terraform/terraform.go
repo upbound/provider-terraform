@@ -33,16 +33,15 @@ import (
 	"strconv"
 	"strings"
 
+	"sync"
+
 	"github.com/pkg/errors"
-	"golang.org/x/sync/semaphore"
 )
 
 // Error strings.
 const (
-	errParse        = "cannot parse Terraform output"
-	errWriteVarFile = "cannot write tfvars file"
-	errSemAcquire   = "cannot acquire semaphore for tfinit"
-
+	errParse            = "cannot parse Terraform output"
+	errWriteVarFile     = "cannot write tfvars file"
 	errFmtInvalidConfig = "invalid Terraform configuration: found %d errors"
 
 	tfDefault = "default"
@@ -149,9 +148,12 @@ func WithInitArgs(v []string) InitOption {
 	}
 }
 
-// Semaphore to limit the number of concurrent terraform init commands to 1.
-// This is needed to support a shared provider cache with concurrent reconciliations.
-var sem = semaphore.NewWeighted(int64(1))
+// RWMutex protects the terraform shared cache from corruption. If an init is
+// performed, it requires a write lock. Only one write lock at a time. If another
+// action is performed, a read lock is acquired. More than one read locks can be acquired.
+// This prevents an init from inadvertently changing a plugin while it's in use.
+// Prevents issues with `text file busy` errors.
+var rwmutex = &sync.RWMutex{}
 
 // Init initializes a Terraform configuration.
 func (h Harness) Init(ctx context.Context, cache bool, o ...InitOption) error {
@@ -172,12 +174,9 @@ func (h Harness) Init(ctx context.Context, cache bool, o ...InitOption) error {
 		cmd.Env = append(cmd.Env, e)
 	}
 	cmd.Env = append(cmd.Env, "TF_CLI_CONFIG_FILE=./.terraformrc")
-	err := sem.Acquire(ctx, 1)
-	if err != nil {
-		return errors.Wrap(err, errSemAcquire)
-	}
-	defer sem.Release(1)
-	_, err = cmd.Output()
+	rwmutex.Lock()
+	defer rwmutex.Unlock()
+	_, err := cmd.Output()
 	return Classify(err)
 }
 
@@ -231,6 +230,8 @@ func (h Harness) Workspace(ctx context.Context, name string) error {
 	// is somewhat optimistic, but it shouldn't hurt to try.
 	cmd = exec.CommandContext(ctx, h.Path, "workspace", "new", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
+	rwmutex.RLock()
+	defer rwmutex.RUnlock()
 	_, err := cmd.Output()
 	return Classify(err)
 }
@@ -257,6 +258,8 @@ func (h Harness) DeleteCurrentWorkspace(ctx context.Context) error {
 	cmd = exec.CommandContext(ctx, h.Path, "workspace", "delete", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
 
+	rwmutex.RLock()
+	defer rwmutex.RUnlock()
 	_, err = cmd.Output()
 	if err == nil {
 		// We successfully deleted the workspace; we're done.
@@ -367,6 +370,8 @@ func (h Harness) Outputs(ctx context.Context) ([]Output, error) {
 
 	outputs := map[string]output{}
 
+	rwmutex.RLock()
+	defer rwmutex.RUnlock()
 	out, err := cmd.Output()
 	if jerr := json.Unmarshal(out, &outputs); jerr != nil {
 		// If stdout doesn't appear to be the JSON we expected we try to extract
@@ -411,6 +416,8 @@ func (h Harness) Resources(ctx context.Context) ([]string, error) {
 	cmd := exec.CommandContext(ctx, h.Path, "state", "list") //nolint:gosec
 	cmd.Dir = h.Dir
 
+	rwmutex.RLock()
+	defer rwmutex.RUnlock()
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, Classify(err)
@@ -489,6 +496,9 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 
+	rwmutex.RLock()
+	defer rwmutex.RUnlock()
+
 	// The -detailed-exitcode flag will make terraform plan return:
 	// 0 - Succeeded, diff is empty (no changes)
 	// 1 - Errored
@@ -517,6 +527,8 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 
+	rwmutex.RLock()
+	defer rwmutex.RUnlock()
 	_, err := cmd.Output()
 	return Classify(err)
 }
@@ -538,6 +550,8 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 
+	rwmutex.RLock()
+	defer rwmutex.RUnlock()
 	_, err := cmd.Output()
 	return Classify(err)
 }
