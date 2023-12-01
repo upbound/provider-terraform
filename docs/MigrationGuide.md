@@ -86,7 +86,7 @@ kubectl apply -f op-providerconfig.yaml
 providerconfig.tf.upbound.io/default created
 ```
 
-#### 5. Pause community provider following https://crossplane.io/docs/v1.10/reference/troubleshoot.html#pausing-providers
+#### 5. Pause community provider by following instructions at https://docs.crossplane.io/knowledge-base/guides/troubleshoot/#pausing-providers
 
 ```bash
 kubectl get providers crossplane-provider-terraform -o yaml > community-provider-terraform.yaml
@@ -100,10 +100,9 @@ kubectl -n upbound-system get deploy|grep crossplane-provider-terraform
 crossplane-provider-terraform-e56e83bb443a      0/0     0            0           24m
 ```
 
-#### 6. If the Workspace resources are instantiated as a part of Composition, pause
-the associated Claim or XR using the
-https://crossplane.io/docs/v1.10/reference/composition.html#pause-annotation,
-e.g.
+#### 6. If the Workspace resources are instantiated as a part of Composition:
+
+[Pause the associated Claim or XR](https://docs.crossplane.io/latest/concepts/composite-resources/#pausing-composite-resources) by running:
 
 ```bash
 kubectl annotate terraformclaim.example.upbound.io/iam-role-demo-001 crossplane.io/paused=true

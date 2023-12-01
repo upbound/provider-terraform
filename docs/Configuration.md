@@ -15,7 +15,7 @@ You can setup the Terraform Provider using AWS [IAM Roles for Service Accounts
 For more information, check out the example
 [setup](../examples/aws-eks-irsa-setup.yaml), the process is similar to what you
 would use for the
-[provider-aws](https://github.com/upbound/provider-aws/blob/master/AUTHENTICATION.md#using-iam-roles-for-serviceaccounts).
+[provider-aws](https://github.com/upbound/provider-aws/blob/main/AUTHENTICATION.md#authentication-using-irsa).
 
 ## Provider Performance and Throughput
 
@@ -353,5 +353,5 @@ spec:
 ```
 
 At Vault side configuration is also needed to allow the write operation, see
-[example](https://crossplane.io/docs/v1.9/guides/vault-as-secret-store.html#prepare-vault)
+[example](https://docs.crossplane.io/knowledge-base/integrations/vault-as-secret-store/)
 here for inspiration.
