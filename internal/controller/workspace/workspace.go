@@ -100,7 +100,7 @@ type tfclient interface {
 	Workspace(ctx context.Context, name string) error
 	Outputs(ctx context.Context) ([]terraform.Output, error)
 	Resources(ctx context.Context) ([]string, error)
-	Diff(ctx context.Context, o ...terraform.Option) (bool, error)
+	Diff(ctx context.Context, o ...terraform.Option) (bool, string, error)
 	Apply(ctx context.Context, o ...terraform.Option) error
 	Destroy(ctx context.Context, o ...terraform.Option) error
 	DeleteCurrentWorkspace(ctx context.Context) error
@@ -301,23 +301,19 @@ type external struct {
 	logger logging.Logger
 }
 
-func (c *external) checkDiff(ctx context.Context, cr *v1beta1.Workspace) (bool, error) {
-	o, err := c.options(ctx, cr.Spec.ForProvider)
-	if err != nil {
-		return false, errors.Wrap(err, errOptions)
-	}
-
+func (c *external) checkDiff(ctx context.Context, cr *v1beta1.Workspace, o []terraform.Option) (bool, string, error) {
 	o = append(o, terraform.WithArgs(cr.Spec.ForProvider.PlanArgs))
-	differs, err := c.tf.Diff(ctx, o...)
+	differs, planOutput, err := c.tf.Diff(ctx, o...)
+
 	if err != nil {
 		if !meta.WasDeleted(cr) {
-			return false, errors.Wrap(err, errDiff)
+			return false, planOutput, errors.Wrap(err, errDiff)
 		}
 		// terraform plan can fail on deleted resources, so let the reconciliation loop
 		// call Delete() if there are still resources in the tfstate file
 		differs = false
 	}
-	return differs, nil
+	return differs, planOutput, nil
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
@@ -326,7 +322,12 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.New(errNotWorkspace)
 	}
 
-	differs, err := c.checkDiff(ctx, cr)
+	o, err := c.options(ctx, cr.Spec.ForProvider)
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(err, errOptions)
+	}
+
+	differs, planOutput, err := c.checkDiff(ctx, cr, o)
 	if err != nil {
 		return managed.ExternalObservation{}, err
 	}
@@ -353,6 +354,8 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.Wrap(err, errChecksum)
 	}
 	cr.Status.AtProvider.Checksum = checksum
+
+	cr.Status.AtProvider.TFPlan = planOutput
 
 	if !differs {
 		// TODO(negz): Allow Workspaces to optionally derive their readiness from an

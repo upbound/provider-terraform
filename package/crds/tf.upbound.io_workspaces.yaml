@@ -360,6 +360,8 @@ spec:
                     additionalProperties:
                       x-kubernetes-preserve-unknown-fields: true
                     type: object
+                  tfPlan:
+                    type: string
                 type: object
               conditions:
                 description: Conditions of the resource.

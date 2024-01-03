@@ -49,6 +49,11 @@ const (
 
 const varFilePrefix = "crossplane-provider-terraform-"
 
+// Info message to show plan change
+const (
+	noDiffInPlan = "No Change in terraform plan"
+)
+
 // Terraform often returns a summary of the error it encountered on a single
 // line, prefixed with 'Error: '.
 var tfError = regexp.MustCompile(`Error: (.+)\n`)
@@ -103,6 +108,35 @@ func formatTerraformErrorOutput(errorOutput string) (string, string, error) {
 	base64FullErr := base64.StdEncoding.EncodeToString(buffer.Bytes())
 
 	return summary, base64FullErr, nil
+}
+
+// Format Terraform error output as gzipped and base64 encoded string
+func formatTerraformPlanOutput(output string) (string, error) {
+	// Gzip compress the output and base64 encode it.
+	var buffer bytes.Buffer
+	gz := gzip.NewWriter(&buffer)
+
+	if _, err := gz.Write([]byte(output)); err != nil {
+		return "", err
+	}
+
+	if err := gz.Flush(); err != nil {
+		return "", err
+	}
+
+	if err := gz.Close(); err != nil {
+		return "", err
+	}
+
+	if err := gz.Flush(); err != nil {
+		return "", err
+	}
+
+	formatString := "Terraform Plan. To see the full plan run: echo \"%s\" | base64 -d | gunzip"
+
+	base64FullPlan := base64.StdEncoding.EncodeToString(buffer.Bytes())
+
+	return fmt.Sprintf(formatString, base64FullPlan), nil
 }
 
 // NOTE(negz): The gosec linter returns a G204 warning anytime a command is
@@ -480,7 +514,7 @@ func WithVarFile(data []byte, f FileFormat) Option {
 // Diff invokes 'terraform plan' to determine whether there is a diff between
 // the desired and the actual state of the configuration. It returns true if
 // there is a diff.
-func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
+func (h Harness) Diff(ctx context.Context, o ...Option) (bool, string, error) {
 	ao := &options{}
 	for _, fn := range o {
 		fn(ao)
@@ -488,7 +522,7 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 
 	for _, vf := range ao.varFiles {
 		if err := os.WriteFile(filepath.Join(h.Dir, vf.filename), vf.data, 0600); err != nil {
-			return false, errors.Wrap(err, errWriteVarFile)
+			return false, noDiffInPlan, errors.Wrap(err, errWriteVarFile)
 		}
 	}
 
@@ -503,11 +537,19 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	// 0 - Succeeded, diff is empty (no changes)
 	// 1 - Errored
 	// 2 - Succeeded, there is a diff
-	_, err := cmd.Output()
+	planVal, err := cmd.Output()
+
 	if cmd.ProcessState.ExitCode() == 2 {
-		return true, nil
+
+		base64FullPlan, err := formatTerraformPlanOutput(string(planVal))
+		if err != nil {
+			return false, noDiffInPlan, Classify(err)
+		}
+
+		return true, base64FullPlan, nil
 	}
-	return false, Classify(err)
+
+	return false, noDiffInPlan, Classify(err)
 }
 
 // Apply a Terraform configuration.
