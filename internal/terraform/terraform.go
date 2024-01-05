@@ -522,7 +522,7 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, string, error) {
 
 	for _, vf := range ao.varFiles {
 		if err := os.WriteFile(filepath.Join(h.Dir, vf.filename), vf.data, 0600); err != nil {
-			return false, noDiffInPlan, errors.Wrap(err, errWriteVarFile)
+			return false, "", errors.Wrap(err, errWriteVarFile)
 		}
 	}
 
@@ -543,7 +543,7 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, string, error) {
 
 		base64FullPlan, err := formatTerraformPlanOutput(string(planVal))
 		if err != nil {
-			return false, noDiffInPlan, Classify(err)
+			return false, "", err
 		}
 
 		return true, base64FullPlan, nil

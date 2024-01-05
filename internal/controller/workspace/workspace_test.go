@@ -43,7 +43,8 @@ import (
 )
 
 const (
-	tfChecksum = "checksum"
+	tfChecksum   = "checksum"
+	noDiffInPlan = "No Change in terraform plan"
 )
 
 type ErrFs struct {
@@ -72,7 +73,7 @@ type MockTf struct {
 	MockWorkspace              func(ctx context.Context, name string) error
 	MockOutputs                func(ctx context.Context) ([]terraform.Output, error)
 	MockResources              func(ctx context.Context) ([]string, error)
-	MockDiff                   func(ctx context.Context, o ...terraform.Option) (bool, error)
+	MockDiff                   func(ctx context.Context, o ...terraform.Option) (bool, string, error)
 	MockApply                  func(ctx context.Context, o ...terraform.Option) error
 	MockDestroy                func(ctx context.Context, o ...terraform.Option) error
 	MockDeleteCurrentWorkspace func(ctx context.Context) error
@@ -99,7 +100,7 @@ func (tf *MockTf) Resources(ctx context.Context) ([]string, error) {
 	return tf.MockResources(ctx)
 }
 
-func (tf *MockTf) Diff(ctx context.Context, o ...terraform.Option) (bool, error) {
+func (tf *MockTf) Diff(ctx context.Context, o ...terraform.Option) (bool, string, error) {
 	return tf.MockDiff(ctx, o...)
 }
 
@@ -816,7 +817,9 @@ func TestObserve(t *testing.T) {
 			reason: "We should return any error encountered while diffing the Terraform configuration",
 			fields: fields{
 				tf: &MockTf{
-					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
+					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, string, error) {
+						return false, noDiffInPlan, errBoom
+					},
 				},
 			},
 			args: args{
@@ -830,7 +833,9 @@ func TestObserve(t *testing.T) {
 			reason: "We should return ResourceUpToDate true when resource is deleted and there are existing resources but terraform plan fails",
 			fields: fields{
 				tf: &MockTf{
-					MockDiff:             func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
+					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, string, error) {
+						return false, "", errBoom
+					},
 					MockGenerateChecksum: func(ctx context.Context) (string, error) { return tfChecksum, nil },
 					MockOutputs:          func(ctx context.Context) ([]terraform.Output, error) { return nil, nil },
 					MockResources: func(ctx context.Context) ([]string, error) {
@@ -861,7 +866,9 @@ func TestObserve(t *testing.T) {
 			reason: "We should return ResourceUpToDate true when resource is deleted and there are no existing resources and terraform plan fails",
 			fields: fields{
 				tf: &MockTf{
-					MockDiff:                   func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
+					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, string, error) {
+						return false, "", errBoom
+					},
 					MockGenerateChecksum:       func(ctx context.Context) (string, error) { return tfChecksum, nil },
 					MockOutputs:                func(ctx context.Context) ([]terraform.Output, error) { return nil, nil },
 					MockResources:              func(ctx context.Context) ([]string, error) { return nil, nil },
@@ -891,7 +898,9 @@ func TestObserve(t *testing.T) {
 			reason: "We should return ResourceUpToDate true when resource is deleted and there are no existing resources and terraform plan fails",
 			fields: fields{
 				tf: &MockTf{
-					MockDiff:                   func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, errBoom },
+					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, string, error) {
+						return false, noDiffInPlan, errBoom
+					},
 					MockResources:              func(ctx context.Context) ([]string, error) { return nil, nil },
 					MockDeleteCurrentWorkspace: func(ctx context.Context) error { return errBoom },
 				},
@@ -911,7 +920,9 @@ func TestObserve(t *testing.T) {
 			reason: "We should return any error encountered while listing extant Terraform resources",
 			fields: fields{
 				tf: &MockTf{
-					MockDiff:      func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, nil },
+					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, string, error) {
+						return false, noDiffInPlan, nil
+					},
 					MockResources: func(ctx context.Context) ([]string, error) { return nil, errBoom },
 				},
 			},
@@ -926,7 +937,9 @@ func TestObserve(t *testing.T) {
 			reason: "We should return any error encountered while listing Terraform outputs",
 			fields: fields{
 				tf: &MockTf{
-					MockDiff:      func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, nil },
+					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, string, error) {
+						return false, noDiffInPlan, nil
+					},
 					MockResources: func(ctx context.Context) ([]string, error) { return nil, nil },
 					MockOutputs:   func(ctx context.Context) ([]terraform.Output, error) { return nil, errBoom },
 				},
@@ -942,7 +955,9 @@ func TestObserve(t *testing.T) {
 			reason: "A workspace with zero resources should be considered to be non-existent",
 			fields: fields{
 				tf: &MockTf{
-					MockDiff:             func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, nil },
+					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, string, error) {
+						return false, "", nil
+					},
 					MockGenerateChecksum: func(ctx context.Context) (string, error) { return tfChecksum, nil },
 					MockResources:        func(ctx context.Context) ([]string, error) { return []string{}, nil },
 					MockOutputs:          func(ctx context.Context) ([]terraform.Output, error) { return nil, nil },
@@ -967,7 +982,9 @@ func TestObserve(t *testing.T) {
 			reason: "A workspace with resources should return its outputs as connection details",
 			fields: fields{
 				tf: &MockTf{
-					MockDiff:             func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, nil },
+					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, string, error) {
+						return false, "", nil
+					},
 					MockGenerateChecksum: func(ctx context.Context) (string, error) { return tfChecksum, nil },
 					MockResources: func(ctx context.Context) ([]string, error) {
 						return []string{"cool_resource.very"}, nil
@@ -1010,7 +1027,9 @@ func TestObserve(t *testing.T) {
 			reason: "A workspace with only outputs and no resources should set ResourceExists to true",
 			fields: fields{
 				tf: &MockTf{
-					MockDiff:             func(ctx context.Context, o ...terraform.Option) (bool, error) { return false, nil },
+					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, string, error) {
+						return false, "", nil
+					},
 					MockGenerateChecksum: func(ctx context.Context) (string, error) { return tfChecksum, nil },
 					MockResources: func(ctx context.Context) ([]string, error) {
 						return nil, nil

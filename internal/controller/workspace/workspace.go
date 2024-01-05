@@ -301,7 +301,12 @@ type external struct {
 	logger logging.Logger
 }
 
-func (c *external) checkDiff(ctx context.Context, cr *v1beta1.Workspace, o []terraform.Option) (bool, string, error) {
+func (c *external) checkDiff(ctx context.Context, cr *v1beta1.Workspace) (bool, string, error) {
+	o, err := c.options(ctx, cr.Spec.ForProvider)
+	if err != nil {
+		return false, "", errors.Wrap(err, errOptions)
+	}
+
 	o = append(o, terraform.WithArgs(cr.Spec.ForProvider.PlanArgs))
 	differs, planOutput, err := c.tf.Diff(ctx, o...)
 
@@ -322,12 +327,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.New(errNotWorkspace)
 	}
 
-	o, err := c.options(ctx, cr.Spec.ForProvider)
-	if err != nil {
-		return managed.ExternalObservation{}, errors.Wrap(err, errOptions)
-	}
-
-	differs, planOutput, err := c.checkDiff(ctx, cr, o)
+	differs, planOutput, err := c.checkDiff(ctx, cr)
 	if err != nil {
 		return managed.ExternalObservation{}, err
 	}
