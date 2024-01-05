@@ -148,6 +148,15 @@ func WithInitArgs(v []string) InitOption {
 	}
 }
 
+// InitArgsToString converts Terraform init arguments to a list of strings.
+func InitArgsToString(o []InitOption) []string {
+	io := &initOptions{}
+	for _, fn := range o {
+		fn(io)
+	}
+	return io.args
+}
+
 // RWMutex protects the terraform shared cache from corruption. If an init is
 // performed, it requires a write lock. Only one write lock at a time. If another
 // action is performed, a read lock is acquired. More than one read locks can be acquired.
@@ -157,12 +166,7 @@ var rwmutex = &sync.RWMutex{}
 
 // Init initializes a Terraform configuration.
 func (h Harness) Init(ctx context.Context, cache bool, o ...InitOption) error {
-	io := &initOptions{}
-	for _, fn := range o {
-		fn(io)
-	}
-
-	args := append([]string{"init", "-input=false", "-no-color"}, io.args...)
+	args := append([]string{"init", "-input=false", "-no-color"}, InitArgsToString(o)...)
 	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 	for _, e := range os.Environ() {

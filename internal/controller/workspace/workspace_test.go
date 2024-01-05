@@ -672,6 +672,53 @@ func TestConnect(t *testing.T) {
 			},
 			want: nil,
 		},
+		"SuccessUsingBackendFile": {
+			reason: "We should not return an error when we successfully 'connect' to Terraform using a Backend file",
+			fields: fields{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if pc, ok := obj.(*v1beta1.ProviderConfig); ok {
+							cfg := "I'm HCL!"
+							backendFile := "I'm a backend!"
+							pc.Spec.Configuration = &cfg
+							pc.Spec.BackendFile = &backendFile
+						}
+						return nil
+					}),
+				},
+				usage: resource.TrackerFn(func(_ context.Context, _ resource.Managed) error { return nil }),
+				fs:    afero.Afero{Fs: afero.NewMemMapFs()},
+				terraform: func(_ string) tfclient {
+					return &MockTf{
+						MockInit: func(ctx context.Context, cache bool, o ...terraform.InitOption) error {
+							args := terraform.InitArgsToString(o)
+							if len(args) != 2 {
+								return errors.New("two init args are expected")
+							} else if args[0] != "-backend-config=/tf/no-you-id/crossplane.remote.tfbackend" {
+								return errors.Errorf("backend config arg has invalid value: %s", args[0])
+							}
+							return nil
+						},
+						MockGenerateChecksum: func(ctx context.Context) (string, error) { return tfChecksum, nil },
+						MockWorkspace:        func(_ context.Context, _ string) error { return nil },
+					}
+				},
+			},
+			args: args{
+				mg: &v1beta1.Workspace{
+					ObjectMeta: metav1.ObjectMeta{UID: uid},
+					Spec: v1beta1.WorkspaceSpec{
+						ForProvider: v1beta1.WorkspaceParameters{
+							InitArgs: []string{"-upgrade=true"},
+						},
+						ResourceSpec: xpv1.ResourceSpec{
+							ProviderConfigReference: &xpv1.Reference{},
+						},
+					},
+				},
+			},
+			want: nil,
+		},
 	}
 
 	for name, tc := range cases {

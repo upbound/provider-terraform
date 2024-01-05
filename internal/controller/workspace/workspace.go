@@ -63,6 +63,7 @@ const (
 	errWriteGitCreds   = "cannot write .git-credentials to /tmp dir"
 	errWriteConfig     = "cannot write Terraform configuration " + tfConfig
 	errWriteMain       = "cannot write Terraform configuration " + tfMain
+	errWriteBackend    = "cannot write Terraform configuration " + tfBackendFile
 	errInit            = "cannot initialize Terraform configuration"
 	errWorkspace       = "cannot select Terraform workspace"
 	errResources       = "cannot list Terraform resources"
@@ -81,9 +82,10 @@ const (
 
 const (
 	// TODO(negz): Make the Terraform binary path and work dir configurable.
-	tfPath   = "terraform"
-	tfMain   = "main.tf"
-	tfConfig = "crossplane-provider-config.tf"
+	tfPath        = "terraform"
+	tfMain        = "main.tf"
+	tfConfig      = "crossplane-provider-config.tf"
+	tfBackendFile = "crossplane.remote.tfbackend"
 )
 
 func envVarFallback(envvar string, fallback string) string {
@@ -268,6 +270,12 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		}
 	}
 
+	if pc.Spec.BackendFile != nil {
+		if err := c.fs.WriteFile(filepath.Join(dir, tfBackendFile), []byte(*pc.Spec.BackendFile), 0600); err != nil {
+			return nil, errors.Wrap(err, errWriteBackend)
+		}
+	}
+
 	// NOTE(ytsarev): user tf provider cache mechanism to speed up
 	// reconciliation, see https://developer.hashicorp.com/terraform/cli/config/config-file#provider-plugin-cache
 	if pc.Spec.PluginCache == nil {
@@ -288,6 +296,9 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	o := make([]terraform.InitOption, 0, len(cr.Spec.ForProvider.InitArgs))
+	if pc.Spec.BackendFile != nil {
+		o = append(o, terraform.WithInitArgs([]string{"-backend-config=" + filepath.Join(dir, tfBackendFile)}))
+	}
 	o = append(o, terraform.WithInitArgs(cr.Spec.ForProvider.InitArgs))
 	if err := tf.Init(ctx, *pc.Spec.PluginCache, o...); err != nil {
 		return nil, errors.Wrap(err, errInit)
