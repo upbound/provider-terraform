@@ -32,6 +32,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"sync"
 
@@ -43,6 +44,9 @@ const (
 	errParse            = "cannot parse Terraform output"
 	errWriteVarFile     = "cannot write tfvars file"
 	errFmtInvalidConfig = "invalid Terraform configuration: found %d errors"
+	errRunCommand       = " shutdown while running terraform command"
+	errSigTerm          = "error sending SIGTERM to child process"
+	errWaitTerm         = "error waiting for child process to terminate"
 
 	tfDefault = "default"
 )
@@ -167,7 +171,7 @@ var rwmutex = &sync.RWMutex{}
 // Init initializes a Terraform configuration.
 func (h Harness) Init(ctx context.Context, cache bool, o ...InitOption) error {
 	args := append([]string{"init", "-input=false", "-no-color"}, InitArgsToString(o)...)
-	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
+	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 	for _, e := range os.Environ() {
 		if strings.Contains(e, "TF_PLUGIN_CACHE_DIR") {
@@ -180,7 +184,7 @@ func (h Harness) Init(ctx context.Context, cache bool, o ...InitOption) error {
 	cmd.Env = append(cmd.Env, "TF_CLI_CONFIG_FILE=./.terraformrc")
 	rwmutex.Lock()
 	defer rwmutex.Unlock()
-	_, err := cmd.Output()
+	_, err := runCommand(ctx, cmd)
 	return Classify(err)
 }
 
@@ -189,7 +193,7 @@ func (h Harness) Init(ctx context.Context, cache bool, o ...InitOption) error {
 // but isn't is deemed invalid. Attempts to initialise an invalid configuration
 // will result in errors, which are not available in a machine readable format.
 func (h Harness) Validate(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, h.Path, "validate", "-json") //nolint:gosec
+	cmd := exec.Command(h.Path, "validate", "-json") //nolint:gosec
 	cmd.Dir = h.Dir
 
 	type result struct {
@@ -199,7 +203,7 @@ func (h Harness) Validate(ctx context.Context) error {
 
 	// The validate command returns zero for a valid module and non-zero for an
 	// invalid module, but it returns its JSON to stdout either way.
-	out, err := cmd.Output()
+	out, err := runCommand(ctx, cmd)
 
 	r := &result{}
 	if jerr := json.Unmarshal(out, r); jerr != nil {
@@ -221,10 +225,10 @@ func (h Harness) Validate(ctx context.Context) error {
 // Workspace selects the named Terraform workspace. The workspace will be
 // created if it does not exist.
 func (h Harness) Workspace(ctx context.Context, name string) error {
-	cmd := exec.CommandContext(ctx, h.Path, "workspace", "select", "-no-color", name) //nolint:gosec
+	cmd := exec.Command(h.Path, "workspace", "select", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
 
-	if _, err := cmd.Output(); err == nil {
+	if _, err := runCommand(ctx, cmd); err == nil {
 		// We successfully selected the workspace; we're done.
 		return nil
 	}
@@ -232,20 +236,20 @@ func (h Harness) Workspace(ctx context.Context, name string) error {
 	// We weren't able to select a workspace. We assume this was because the
 	// workspace doesn't exist, which causes Terraform to return non-zero. This
 	// is somewhat optimistic, but it shouldn't hurt to try.
-	cmd = exec.CommandContext(ctx, h.Path, "workspace", "new", "-no-color", name) //nolint:gosec
+	cmd = exec.Command(h.Path, "workspace", "new", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
 	rwmutex.RLock()
 	defer rwmutex.RUnlock()
-	_, err := cmd.Output()
+	_, err := runCommand(ctx, cmd)
 	return Classify(err)
 }
 
 // DeleteCurrentWorkspace deletes the current Terraform workspace if it is not the default.
 func (h Harness) DeleteCurrentWorkspace(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, h.Path, "workspace", "show", "-no-color") //nolint:gosec
+	cmd := exec.Command(h.Path, "workspace", "show", "-no-color") //nolint:gosec
 	cmd.Dir = h.Dir
 
-	n, err := cmd.Output()
+	n, err := runCommand(ctx, cmd)
 	if err != nil {
 		return Classify(err)
 	}
@@ -259,12 +263,12 @@ func (h Harness) DeleteCurrentWorkspace(ctx context.Context) error {
 	if err != nil {
 		return Classify(err)
 	}
-	cmd = exec.CommandContext(ctx, h.Path, "workspace", "delete", "-no-color", name) //nolint:gosec
+	cmd = exec.Command(h.Path, "workspace", "delete", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
 
 	rwmutex.RLock()
 	defer rwmutex.RUnlock()
-	_, err = cmd.Output()
+	_, err = runCommand(ctx, cmd)
 	if err == nil {
 		// We successfully deleted the workspace; we're done.
 		return nil
@@ -276,10 +280,10 @@ func (h Harness) DeleteCurrentWorkspace(ctx context.Context) error {
 // GenerateChecksum calculates the md5sum of the workspace (excluding installed providers) to see if terraform init needs to run
 func (h Harness) GenerateChecksum(ctx context.Context) (string, error) {
 	command := "/usr/bin/find . -path ./.git -prune -o -path ./.terraform/providers -prune -o -type f -exec /usr/bin/md5sum {} + | LC_ALL=C /usr/bin/sort | /usr/bin/md5sum | /usr/bin/awk '{print $1}'"
-	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", command) //nolint:gosec
+	cmd := exec.Command("/bin/sh", "-c", command) //nolint:gosec
 	cmd.Dir = h.Dir
 
-	checksum, err := cmd.Output()
+	checksum, err := runCommand(ctx, cmd)
 	result := strings.ReplaceAll(string(checksum), "\n", "")
 	return result, Classify(err)
 }
@@ -363,7 +367,7 @@ func (o Output) JSONValue() ([]byte, error) {
 
 // Outputs extracts outputs from Terraform state.
 func (h Harness) Outputs(ctx context.Context) ([]Output, error) {
-	cmd := exec.CommandContext(ctx, h.Path, "output", "-json") //nolint:gosec
+	cmd := exec.Command(h.Path, "output", "-json") //nolint:gosec
 	cmd.Dir = h.Dir
 
 	type output struct {
@@ -376,7 +380,7 @@ func (h Harness) Outputs(ctx context.Context) ([]Output, error) {
 
 	rwmutex.RLock()
 	defer rwmutex.RUnlock()
-	out, err := cmd.Output()
+	out, err := runCommand(ctx, cmd)
 	if jerr := json.Unmarshal(out, &outputs); jerr != nil {
 		// If stdout doesn't appear to be the JSON we expected we try to extract
 		// an error from stderr.
@@ -417,12 +421,12 @@ func (h Harness) Outputs(ctx context.Context) ([]Output, error) {
 
 // Resources returns a list of resources in the Terraform state.
 func (h Harness) Resources(ctx context.Context) ([]string, error) {
-	cmd := exec.CommandContext(ctx, h.Path, "state", "list") //nolint:gosec
+	cmd := exec.Command(h.Path, "state", "list") //nolint:gosec
 	cmd.Dir = h.Dir
 
 	rwmutex.RLock()
 	defer rwmutex.RUnlock()
-	out, err := cmd.Output()
+	out, err := runCommand(ctx, cmd)
 	if err != nil {
 		return nil, Classify(err)
 	}
@@ -497,7 +501,7 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	}
 
 	args := append([]string{"plan", "-no-color", "-input=false", "-detailed-exitcode", "-lock=false"}, ao.args...)
-	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
+	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 
 	rwmutex.RLock()
@@ -507,7 +511,7 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	// 0 - Succeeded, diff is empty (no changes)
 	// 1 - Errored
 	// 2 - Succeeded, there is a diff
-	_, err := cmd.Output()
+	_, err := runCommand(ctx, cmd)
 	if cmd.ProcessState.ExitCode() == 2 {
 		return true, nil
 	}
@@ -528,12 +532,12 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 	}
 
 	args := append([]string{"apply", "-no-color", "-auto-approve", "-input=false"}, ao.args...)
-	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
+	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 
 	rwmutex.RLock()
 	defer rwmutex.RUnlock()
-	_, err := cmd.Output()
+	_, err := runCommand(ctx, cmd)
 	return Classify(err)
 }
 
@@ -551,11 +555,44 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	}
 
 	args := append([]string{"destroy", "-no-color", "-auto-approve", "-input=false"}, do.args...)
-	cmd := exec.CommandContext(ctx, h.Path, args...) //nolint:gosec
+	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 
 	rwmutex.RLock()
 	defer rwmutex.RUnlock()
-	_, err := cmd.Output()
+	_, err := runCommand(ctx, cmd)
 	return Classify(err)
+}
+
+// cmdResult represents the result of the command execution
+type cmdResult struct {
+	out []byte
+	err error
+}
+
+// runCommand executes the requested command and sends the process SIGTERM if the context finishes before the command
+func runCommand(ctx context.Context, c *exec.Cmd) ([]byte, error) {
+	ch := make(chan cmdResult, 1)
+	go func() {
+		defer close(ch)
+		r, e := c.Output()
+		ch <- cmdResult{out: r, err: e}
+	}()
+	select {
+	case <-ctx.Done():
+		err := ctx.Err()
+		// This could be container termination or the reconciliation deadline was exceeded.  Either way send a
+		// SIGTERM to the running process and wait for either the command to finish or the process to get killed.
+		e := c.Process.Signal(syscall.SIGTERM)
+		if e != nil {
+			return nil, errors.Wrap(errors.Wrap(e, errSigTerm), err.Error()+errRunCommand)
+		}
+		e = c.Wait()
+		if e != nil {
+			return nil, errors.Wrap(errors.Wrap(err, errWaitTerm), err.Error()+errRunCommand)
+		}
+		return nil, errors.Wrap(err, errRunCommand)
+	case res := <-ch:
+		return res.out, res.err
+	}
 }
