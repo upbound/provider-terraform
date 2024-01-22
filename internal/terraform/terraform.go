@@ -51,7 +51,7 @@ const varFilePrefix = "crossplane-provider-terraform-"
 
 // Info message to show plan change
 const (
-	noDiffInPlan = "No Change in terraform plan"
+	noDiffInPlan = "No change in the terraform plan"
 )
 
 // Terraform often returns a summary of the error it encountered on a single
