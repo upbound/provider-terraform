@@ -125,9 +125,6 @@ func formatTerraformPlanOutput(output string) (string, error) {
 		return "", err
 	}
 
-	if err := gz.Close(); err != nil {
-		return "", err
-	}
 
 
 	formatString := `Terraform Plan. To see the full plan run: echo "%s" | base64 -d | gunzip`
