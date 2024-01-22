@@ -115,6 +115,7 @@ func formatTerraformPlanOutput(output string) (string, error) {
 	// Gzip compress the output and base64 encode it.
 	var buffer bytes.Buffer
 	gz := gzip.NewWriter(&buffer)
+	defer func() { _ = gz.Close() }()
 
 	if _, err := gz.Write([]byte(output)); err != nil {
 		return "", err
