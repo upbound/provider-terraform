@@ -130,7 +130,7 @@ func formatTerraformPlanOutput(output string) (string, error) {
 	}
 
 
-	formatString := "Terraform Plan. To see the full plan run: echo \"%s\" | base64 -d | gunzip"
+	formatString := `Terraform Plan. To see the full plan run: echo "%s" | base64 -d | gunzip`
 
 	base64FullPlan := base64.StdEncoding.EncodeToString(buffer.Bytes())
 
