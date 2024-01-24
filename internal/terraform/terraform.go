@@ -44,7 +44,7 @@ const (
 	errParse            = "cannot parse Terraform output"
 	errWriteVarFile     = "cannot write tfvars file"
 	errFmtInvalidConfig = "invalid Terraform configuration: found %d errors"
-	errRunCommand       = " shutdown while running terraform command"
+	errRunCommand       = "shutdown while running terraform command"
 	errSigTerm          = "error sending SIGTERM to child process"
 	errWaitTerm         = "error waiting for child process to terminate"
 
@@ -585,11 +585,11 @@ func runCommand(ctx context.Context, c *exec.Cmd) ([]byte, error) {
 		// SIGTERM to the running process and wait for either the command to finish or the process to get killed.
 		e := c.Process.Signal(syscall.SIGTERM)
 		if e != nil {
-			return nil, errors.Wrap(errors.Wrap(e, errSigTerm), err.Error()+errRunCommand)
+			return nil, errors.Wrap(errors.Wrap(err, errRunCommand), errors.Wrap(e, errSigTerm).Error())
 		}
 		e = c.Wait()
 		if e != nil {
-			return nil, errors.Wrap(errors.Wrap(err, errWaitTerm), err.Error()+errRunCommand)
+			return nil, errors.Wrap(errors.Wrap(err, errRunCommand), errors.Wrap(e, errWaitTerm).Error())
 		}
 		return nil, errors.Wrap(err, errRunCommand)
 	case res := <-ch:
