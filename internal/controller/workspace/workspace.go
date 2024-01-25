@@ -366,7 +366,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 	cr.Status.AtProvider.Checksum = checksum
 
-	cr.Status.AtProvider.TFPlan = planOutput
+	cr.Status.AtProvider.TFPlan = &planOutput
 
 	if !differs {
 		// TODO(negz): Allow Workspaces to optionally derive their readiness from an

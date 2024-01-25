@@ -47,6 +47,10 @@ const (
 	noDiffInPlan = "No Change in terraform plan"
 )
 
+var (
+	emptyString = ""
+)
+
 type ErrFs struct {
 	afero.Fs
 
@@ -600,6 +604,7 @@ func TestConnect(t *testing.T) {
 					},
 					Status: v1beta1.WorkspaceStatus{
 						AtProvider: v1beta1.WorkspaceObservation{
+							TFPlan:   &emptyString,
 							Checksum: tfChecksum,
 						},
 					},
@@ -635,6 +640,7 @@ func TestConnect(t *testing.T) {
 					},
 					Status: v1beta1.WorkspaceStatus{
 						AtProvider: v1beta1.WorkspaceObservation{
+							TFPlan:   &emptyString,
 							Checksum: tfChecksum,
 						},
 					},
@@ -881,7 +887,7 @@ func TestObserve(t *testing.T) {
 			fields: fields{
 				tf: &MockTf{
 					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, string, error) {
-						return false, "", errBoom
+						return false, emptyString, errBoom
 					},
 					MockGenerateChecksum: func(ctx context.Context) (string, error) { return tfChecksum, nil },
 					MockOutputs:          func(ctx context.Context) ([]terraform.Output, error) { return nil, nil },
@@ -904,6 +910,7 @@ func TestObserve(t *testing.T) {
 					ConnectionDetails: managed.ConnectionDetails{},
 				},
 				wo: v1beta1.WorkspaceObservation{
+					TFPlan:   &emptyString,
 					Checksum: tfChecksum,
 					Outputs:  map[string]extensionsV1.JSON{},
 				},
@@ -914,7 +921,7 @@ func TestObserve(t *testing.T) {
 			fields: fields{
 				tf: &MockTf{
 					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, string, error) {
-						return false, "", errBoom
+						return false, emptyString, errBoom
 					},
 					MockGenerateChecksum:       func(ctx context.Context) (string, error) { return tfChecksum, nil },
 					MockOutputs:                func(ctx context.Context) ([]terraform.Output, error) { return nil, nil },
@@ -936,6 +943,7 @@ func TestObserve(t *testing.T) {
 					ConnectionDetails: managed.ConnectionDetails{},
 				},
 				wo: v1beta1.WorkspaceObservation{
+					TFPlan:   &emptyString,
 					Checksum: tfChecksum,
 					Outputs:  map[string]extensionsV1.JSON{},
 				},
@@ -1003,7 +1011,7 @@ func TestObserve(t *testing.T) {
 			fields: fields{
 				tf: &MockTf{
 					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, string, error) {
-						return false, "", nil
+						return false, emptyString, nil
 					},
 					MockGenerateChecksum: func(ctx context.Context) (string, error) { return tfChecksum, nil },
 					MockResources:        func(ctx context.Context) ([]string, error) { return []string{}, nil },
@@ -1020,6 +1028,7 @@ func TestObserve(t *testing.T) {
 					ConnectionDetails: managed.ConnectionDetails{},
 				},
 				wo: v1beta1.WorkspaceObservation{
+					TFPlan:   &emptyString,
 					Checksum: tfChecksum,
 					Outputs:  map[string]extensionsV1.JSON{},
 				},
@@ -1030,7 +1039,7 @@ func TestObserve(t *testing.T) {
 			fields: fields{
 				tf: &MockTf{
 					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, string, error) {
-						return false, "", nil
+						return false, emptyString, nil
 					},
 					MockGenerateChecksum: func(ctx context.Context) (string, error) { return tfChecksum, nil },
 					MockResources: func(ctx context.Context) ([]string, error) {
@@ -1063,6 +1072,7 @@ func TestObserve(t *testing.T) {
 					},
 				},
 				wo: v1beta1.WorkspaceObservation{
+					TFPlan:   &emptyString,
 					Checksum: tfChecksum,
 					Outputs: map[string]extensionsV1.JSON{
 						"string": {Raw: []byte("null")},
@@ -1075,7 +1085,7 @@ func TestObserve(t *testing.T) {
 			fields: fields{
 				tf: &MockTf{
 					MockDiff: func(ctx context.Context, o ...terraform.Option) (bool, string, error) {
-						return false, "", nil
+						return false, emptyString, nil
 					},
 					MockGenerateChecksum: func(ctx context.Context) (string, error) { return tfChecksum, nil },
 					MockResources: func(ctx context.Context) ([]string, error) {
@@ -1109,6 +1119,7 @@ func TestObserve(t *testing.T) {
 				},
 				wo: v1beta1.WorkspaceObservation{
 					Checksum: tfChecksum,
+					TFPlan:   &emptyString,
 					Outputs: map[string]extensionsV1.JSON{
 						"string": {Raw: []byte("null")},
 					},

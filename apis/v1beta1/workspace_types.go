@@ -136,7 +136,7 @@ type WorkspaceParameters struct {
 // WorkspaceObservation are the observable fields of a Workspace.
 type WorkspaceObservation struct {
 	// +optional
-	TFPlan   *string                       `json:"tfPlan,omitempty"`
+	TFPlan   *string                      `json:"tfPlan,omitempty"`
 	Checksum string                       `json:"checksum,omitempty"`
 	Outputs  map[string]extensionsV1.JSON `json:"outputs,omitempty"`
 }
