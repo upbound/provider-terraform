@@ -46,6 +46,12 @@ spec:
           spec:
             description: A ProviderConfigSpec defines the desired state of a ProviderConfig.
             properties:
+              backendFile:
+                description: Terraform backend file configuration content, it has
+                  the contents of the backend block as top-level attributes, without
+                  the need to wrap it in another terraform or backend block. More
+                  details at https://developer.hashicorp.com/terraform/language/settings/backends/configuration#file.
+                type: string
               configuration:
                 description: Configuration that should be injected into all workspaces
                   that use this provider config, expressed as inline HCL. This can

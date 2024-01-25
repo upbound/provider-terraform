@@ -34,6 +34,13 @@ type ProviderConfigSpec struct {
 	// +optional
 	Configuration *string `json:"configuration,omitempty"`
 
+	// Terraform backend file configuration content,
+	// it has the contents of the backend block as top-level attributes,
+	// without the need to wrap it in another terraform or backend block.
+	// More details at https://developer.hashicorp.com/terraform/language/settings/backends/configuration#file.
+	// +optional
+	BackendFile *string `json:"backendFile,omitempty"`
+
 	// PluginCache enables terraform provider plugin caching mechanism
 	// https://developer.hashicorp.com/terraform/cli/config/config-file#provider-plugin-cache
 	// +optional
