@@ -332,6 +332,7 @@ func (c *external) checkDiff(ctx context.Context, cr *v1beta1.Workspace) (bool, 
 	return differs, planOutput, nil
 }
 
+//nolint:gocyclo
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
 	cr, ok := mg.(*v1beta1.Workspace)
 	if !ok {
@@ -366,7 +367,9 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 	cr.Status.AtProvider.Checksum = checksum
 
-	cr.Status.AtProvider.TFPlan = &planOutput
+	if cr.Spec.ForProvider.ShowPlan {
+		cr.Status.AtProvider.TFPlan = &planOutput
+	}
 
 	if !differs {
 		// TODO(negz): Allow Workspaces to optionally derive their readiness from an

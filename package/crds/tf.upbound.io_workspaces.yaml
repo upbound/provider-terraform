@@ -101,6 +101,10 @@ spec:
                     items:
                       type: string
                     type: array
+                  showPlan:
+                    default: false
+                    description: Variable to show a plan on CR based on condition
+                    type: boolean
                   source:
                     description: Source of the root module of this workspace.
                     enum:
@@ -185,6 +189,7 @@ spec:
                     type: array
                 required:
                 - module
+                - showPlan
                 - source
                 type: object
               managementPolicies:

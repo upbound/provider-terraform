@@ -107,6 +107,10 @@ type WorkspaceParameters struct {
 	// +optional
 	Entrypoint string `json:"entrypoint"`
 
+	// Variable to show a plan on CR based on condition
+	// +kubebuilder:default=false
+	ShowPlan bool `json:"showPlan"`
+
 	// Configuration variables.
 	// +optional
 	Vars []Var `json:"vars,omitempty"`
