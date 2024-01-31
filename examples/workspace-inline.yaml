@@ -13,6 +13,7 @@ spec:
     # For simple cases you can use an inline source to specify the content of
     # main.tf as opaque, inline HCL.
     source: Inline
+    showPlan: true
     module: |
       // Outputs are written to the connection secret.
       output "url" {
@@ -29,7 +30,7 @@ spec:
         name = "crossplane-example-${terraform.workspace}-${random_id.example.hex}"
         location      = "US"
         force_destroy = true
-      
+
         public_access_prevention = "enforced"
       }
   writeConnectionSecretToRef:

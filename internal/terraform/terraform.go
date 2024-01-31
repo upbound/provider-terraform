@@ -132,11 +132,9 @@ func formatTerraformPlanOutput(output string) (string, error) {
 		return "", err
 	}
 
-	formatString := `Terraform Plan. To see the full plan run: echo "%s" | base64 -d | gunzip`
-
 	base64FullPlan := base64.StdEncoding.EncodeToString(buffer.Bytes())
 
-	return fmt.Sprintf(formatString, base64FullPlan), nil
+	return base64FullPlan, nil
 }
 
 // NOTE(negz): The gosec linter returns a G204 warning anytime a command is
