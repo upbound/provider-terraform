@@ -107,9 +107,10 @@ type WorkspaceParameters struct {
 	// +optional
 	Entrypoint string `json:"entrypoint"`
 
-	// Variable to show a plan on CR based on condition
+	// Include the output of terraform plan in the status.
+	// The plan will be gzipped and base64 encoded.
 	// +kubebuilder:default=false
-	ShowPlan bool `json:"showPlan"`
+	IncludePlan bool `json:"includePlan"`
 
 	// Configuration variables.
 	// +optional
@@ -140,7 +141,7 @@ type WorkspaceParameters struct {
 // WorkspaceObservation are the observable fields of a Workspace.
 type WorkspaceObservation struct {
 	// +optional
-	TFPlan   *string                      `json:"tfPlan,omitempty"`
+	Plan     *string                      `json:"tfPlan,omitempty"`
 	Checksum string                       `json:"checksum,omitempty"`
 	Outputs  map[string]extensionsV1.JSON `json:"outputs,omitempty"`
 }

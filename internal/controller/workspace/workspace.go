@@ -367,8 +367,8 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 	cr.Status.AtProvider.Checksum = checksum
 
-	if cr.Spec.ForProvider.ShowPlan {
-		cr.Status.AtProvider.TFPlan = &planOutput
+	if cr.Spec.ForProvider.IncludePlan {
+		cr.Status.AtProvider.Plan = &planOutput
 	}
 
 	if !differs {

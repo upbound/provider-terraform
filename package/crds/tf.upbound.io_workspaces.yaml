@@ -81,6 +81,11 @@ spec:
                     default: ""
                     description: Entrypoint for `terraform init` within the module
                     type: string
+                  includePlan:
+                    default: false
+                    description: Include the output of terraform plan in the status.
+                      The plan will be gzipped and base64 encoded.
+                    type: boolean
                   initArgs:
                     description: Arguments to be included in the terraform init CLI
                       command
@@ -101,10 +106,6 @@ spec:
                     items:
                       type: string
                     type: array
-                  showPlan:
-                    default: false
-                    description: Variable to show a plan on CR based on condition
-                    type: boolean
                   source:
                     description: Source of the root module of this workspace.
                     enum:
@@ -188,8 +189,8 @@ spec:
                       type: object
                     type: array
                 required:
+                - includePlan
                 - module
-                - showPlan
                 - source
                 type: object
               managementPolicies:

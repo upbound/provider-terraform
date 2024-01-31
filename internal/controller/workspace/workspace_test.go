@@ -604,7 +604,7 @@ func TestConnect(t *testing.T) {
 					},
 					Status: v1beta1.WorkspaceStatus{
 						AtProvider: v1beta1.WorkspaceObservation{
-							TFPlan:   &emptyString,
+							Plan:     &emptyString,
 							Checksum: tfChecksum,
 						},
 					},
@@ -640,7 +640,7 @@ func TestConnect(t *testing.T) {
 					},
 					Status: v1beta1.WorkspaceStatus{
 						AtProvider: v1beta1.WorkspaceObservation{
-							TFPlan:   &emptyString,
+							Plan:     &emptyString,
 							Checksum: tfChecksum,
 						},
 					},
@@ -910,7 +910,7 @@ func TestObserve(t *testing.T) {
 					ConnectionDetails: managed.ConnectionDetails{},
 				},
 				wo: v1beta1.WorkspaceObservation{
-					TFPlan:   nil,
+					Plan:     nil,
 					Checksum: tfChecksum,
 					Outputs:  map[string]extensionsV1.JSON{},
 				},
@@ -943,7 +943,7 @@ func TestObserve(t *testing.T) {
 					ConnectionDetails: managed.ConnectionDetails{},
 				},
 				wo: v1beta1.WorkspaceObservation{
-					TFPlan:   nil,
+					Plan:     nil,
 					Checksum: tfChecksum,
 					Outputs:  map[string]extensionsV1.JSON{},
 				},
@@ -1028,7 +1028,7 @@ func TestObserve(t *testing.T) {
 					ConnectionDetails: managed.ConnectionDetails{},
 				},
 				wo: v1beta1.WorkspaceObservation{
-					TFPlan:   nil,
+					Plan:     nil,
 					Checksum: tfChecksum,
 					Outputs:  map[string]extensionsV1.JSON{},
 				},
@@ -1072,7 +1072,7 @@ func TestObserve(t *testing.T) {
 					},
 				},
 				wo: v1beta1.WorkspaceObservation{
-					TFPlan:   nil,
+					Plan:     nil,
 					Checksum: tfChecksum,
 					Outputs: map[string]extensionsV1.JSON{
 						"string": {Raw: []byte("null")},
@@ -1119,7 +1119,7 @@ func TestObserve(t *testing.T) {
 				},
 				wo: v1beta1.WorkspaceObservation{
 					Checksum: tfChecksum,
-					TFPlan:   nil,
+					Plan:     nil,
 					Outputs: map[string]extensionsV1.JSON{
 						"string": {Raw: []byte("null")},
 					},
