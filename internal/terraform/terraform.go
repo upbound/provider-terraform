@@ -122,6 +122,9 @@ type Harness struct {
 	// Dir in which to execute the terraform binary.
 	Dir string
 
+	// Whether to use the terraform plugin cache
+	UsePluginCache bool
+
 	// TODO(negz): Harness is a subset of exec.Cmd. If callers need more insight
 	// into what the underlying Terraform binary is doing (e.g. for debugging)
 	// we could consider allowing them to attach io.Writers to Stdout and Stdin
@@ -169,21 +172,25 @@ func InitArgsToString(o []InitOption) []string {
 var rwmutex = &sync.RWMutex{}
 
 // Init initializes a Terraform configuration.
-func (h Harness) Init(ctx context.Context, cache bool, o ...InitOption) error {
+func (h Harness) Init(ctx context.Context, o ...InitOption) error {
 	args := append([]string{"init", "-input=false", "-no-color"}, InitArgsToString(o)...)
 	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 	for _, e := range os.Environ() {
 		if strings.Contains(e, "TF_PLUGIN_CACHE_DIR") {
-			if !cache {
+			if !h.UsePluginCache {
 				continue
 			}
 		}
 		cmd.Env = append(cmd.Env, e)
 	}
 	cmd.Env = append(cmd.Env, "TF_CLI_CONFIG_FILE=./.terraformrc")
-	rwmutex.Lock()
-	defer rwmutex.Unlock()
+
+	if h.UsePluginCache {
+		rwmutex.Lock()
+		defer rwmutex.Unlock()
+	}
+
 	_, err := runCommand(ctx, cmd)
 	return Classify(err)
 }
@@ -238,8 +245,12 @@ func (h Harness) Workspace(ctx context.Context, name string) error {
 	// is somewhat optimistic, but it shouldn't hurt to try.
 	cmd = exec.Command(h.Path, "workspace", "new", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
-	rwmutex.RLock()
-	defer rwmutex.RUnlock()
+
+	if h.UsePluginCache {
+		rwmutex.RLock()
+		defer rwmutex.RUnlock()
+	}
+
 	_, err := runCommand(ctx, cmd)
 	return Classify(err)
 }
@@ -266,8 +277,11 @@ func (h Harness) DeleteCurrentWorkspace(ctx context.Context) error {
 	cmd = exec.Command(h.Path, "workspace", "delete", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
 
-	rwmutex.RLock()
-	defer rwmutex.RUnlock()
+	if h.UsePluginCache {
+		rwmutex.RLock()
+		defer rwmutex.RUnlock()
+	}
+
 	_, err = runCommand(ctx, cmd)
 	if err == nil {
 		// We successfully deleted the workspace; we're done.
@@ -378,8 +392,11 @@ func (h Harness) Outputs(ctx context.Context) ([]Output, error) {
 
 	outputs := map[string]output{}
 
-	rwmutex.RLock()
-	defer rwmutex.RUnlock()
+	if h.UsePluginCache {
+		rwmutex.RLock()
+		defer rwmutex.RUnlock()
+	}
+
 	out, err := runCommand(ctx, cmd)
 	if jerr := json.Unmarshal(out, &outputs); jerr != nil {
 		// If stdout doesn't appear to be the JSON we expected we try to extract
@@ -424,8 +441,11 @@ func (h Harness) Resources(ctx context.Context) ([]string, error) {
 	cmd := exec.Command(h.Path, "state", "list") //nolint:gosec
 	cmd.Dir = h.Dir
 
-	rwmutex.RLock()
-	defer rwmutex.RUnlock()
+	if h.UsePluginCache {
+		rwmutex.RLock()
+		defer rwmutex.RUnlock()
+	}
+
 	out, err := runCommand(ctx, cmd)
 	if err != nil {
 		return nil, Classify(err)
@@ -504,8 +524,10 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 
-	rwmutex.RLock()
-	defer rwmutex.RUnlock()
+	if h.UsePluginCache {
+		rwmutex.RLock()
+		defer rwmutex.RUnlock()
+	}
 
 	// The -detailed-exitcode flag will make terraform plan return:
 	// 0 - Succeeded, diff is empty (no changes)
@@ -535,8 +557,11 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 
-	rwmutex.RLock()
-	defer rwmutex.RUnlock()
+	if h.UsePluginCache {
+		rwmutex.RLock()
+		defer rwmutex.RUnlock()
+	}
+
 	_, err := runCommand(ctx, cmd)
 	return Classify(err)
 }
@@ -558,8 +583,11 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 
-	rwmutex.RLock()
-	defer rwmutex.RUnlock()
+	if h.UsePluginCache {
+		rwmutex.RLock()
+		defer rwmutex.RUnlock()
+	}
+
 	_, err := runCommand(ctx, cmd)
 	return Classify(err)
 }
