@@ -98,7 +98,7 @@ func envVarFallback(envvar string, fallback string) string {
 var tfDir = envVarFallback("XP_TF_DIR", "/tf")
 
 type tfclient interface {
-	Init(ctx context.Context, cache bool, o ...terraform.InitOption) error
+	Init(ctx context.Context, o ...terraform.InitOption) error
 	Workspace(ctx context.Context, name string) error
 	Outputs(ctx context.Context) ([]terraform.Output, error)
 	Resources(ctx context.Context) ([]string, error)
@@ -126,11 +126,13 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Dura
 	}
 
 	c := &connector{
-		kube:      mgr.GetClient(),
-		usage:     resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1beta1.ProviderConfigUsage{}),
-		logger:    o.Logger,
-		fs:        fs,
-		terraform: func(dir string) tfclient { return terraform.Harness{Path: tfPath, Dir: dir} },
+		kube:   mgr.GetClient(),
+		usage:  resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1beta1.ProviderConfigUsage{}),
+		logger: o.Logger,
+		fs:     fs,
+		terraform: func(dir string, usePluginCache bool) tfclient {
+			return terraform.Harness{Path: tfPath, Dir: dir, UsePluginCache: usePluginCache}
+		},
 	}
 
 	opts := []managed.ReconcilerOption{
@@ -164,7 +166,7 @@ type connector struct {
 	usage     resource.Tracker
 	logger    logging.Logger
 	fs        afero.Afero
-	terraform func(dir string) tfclient
+	terraform func(dir string, usePluginCache bool) tfclient
 }
 
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) { //nolint:gocyclo
@@ -282,7 +284,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		pc.Spec.PluginCache = new(bool)
 		*pc.Spec.PluginCache = true
 	}
-	tf := c.terraform(dir)
+	tf := c.terraform(dir, *pc.Spec.PluginCache)
 	if cr.Status.AtProvider.Checksum != "" {
 		checksum, err := tf.GenerateChecksum(ctx)
 		if err != nil {
@@ -300,7 +302,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		o = append(o, terraform.WithInitArgs([]string{"-backend-config=" + filepath.Join(dir, tfBackendFile)}))
 	}
 	o = append(o, terraform.WithInitArgs(cr.Spec.ForProvider.InitArgs))
-	if err := tf.Init(ctx, *pc.Spec.PluginCache, o...); err != nil {
+	if err := tf.Init(ctx, o...); err != nil {
 		return nil, errors.Wrap(err, errInit)
 	}
 	return &external{tf: tf, kube: c.kube}, errors.Wrap(tf.Workspace(ctx, meta.GetExternalName(cr)), errWorkspace)

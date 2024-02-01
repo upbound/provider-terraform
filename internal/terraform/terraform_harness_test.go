@@ -439,9 +439,9 @@ func TestInitDiffApplyDestroy(t *testing.T) {
 			}
 			defer os.RemoveAll(dir)
 
-			tf := Harness{Path: tfBinaryPath, Dir: dir}
+			tf := Harness{Path: tfBinaryPath, Dir: dir, UsePluginCache: false}
 
-			err = tf.Init(tc.initArgs.ctx, false, tc.initArgs.o...)
+			err = tf.Init(tc.initArgs.ctx, tc.initArgs.o...)
 			if diff := cmp.Diff(tc.want.init, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ntf.Init(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
