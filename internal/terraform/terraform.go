@@ -524,10 +524,8 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 
-	if h.UsePluginCache {
-		rwmutex.RLock()
-		defer rwmutex.RUnlock()
-	}
+	// Note: the rwmutex is intentionally not locked here to avoid excessive blocking. See
+	// https://github.com/upbound/provider-terraform/issues/239#issuecomment-1921732682
 
 	// The -detailed-exitcode flag will make terraform plan return:
 	// 0 - Succeeded, diff is empty (no changes)
