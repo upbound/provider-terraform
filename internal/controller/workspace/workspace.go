@@ -30,6 +30,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensionsV1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -367,7 +368,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 	cr.Status.AtProvider.Checksum = checksum
 
-	if cr.Spec.ForProvider.IncludePlan {
+	if ptr.Deref[bool](cr.Spec.ForProvider.IncludePlan, false) {
 		cr.Status.AtProvider.Plan = &planOutput
 	}
 

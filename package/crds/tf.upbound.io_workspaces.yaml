@@ -189,7 +189,6 @@ spec:
                       type: object
                     type: array
                 required:
-                - includePlan
                 - module
                 - source
                 type: object

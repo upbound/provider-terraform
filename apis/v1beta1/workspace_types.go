@@ -110,7 +110,8 @@ type WorkspaceParameters struct {
 	// Include the output of terraform plan in the status.
 	// The plan will be gzipped and base64 encoded.
 	// +kubebuilder:default=false
-	IncludePlan bool `json:"includePlan"`
+	// +optional
+	IncludePlan *bool `json:"includePlan"`
 
 	// Configuration variables.
 	// +optional
