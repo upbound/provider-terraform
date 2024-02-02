@@ -524,7 +524,8 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 
-	// Note: the rwmutex is intentionally not locked here to avoid excessive blocking. See
+	// Note: the terraform lock is not used (see the -lock=false flag above) and the rwmutex is
+	// intentionally not locked here to avoid excessive blocking. See
 	// https://github.com/upbound/provider-terraform/issues/239#issuecomment-1921732682
 
 	// The -detailed-exitcode flag will make terraform plan return:
