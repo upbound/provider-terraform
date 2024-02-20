@@ -47,8 +47,8 @@ const (
 	errRunCommand       = "shutdown while running terraform command"
 	errSigTerm          = "error sending SIGTERM to child process"
 	errWaitTerm         = "error waiting for child process to terminate"
-
-	tfDefault = "default"
+	errWriteLogFile     = "cannot write log file"
+	tfDefault           = "default"
 )
 
 const varFilePrefix = "crossplane-provider-terraform-"
@@ -131,6 +131,8 @@ type Harness struct {
 	// here, like exec.Cmd. Doing so would prevent us from being able to use
 	// cmd.Output(), which means we'd have to implement our own version of the
 	// logic that copies Stderr into an *exec.ExitError.
+
+	LogPath string
 }
 
 type initOptions struct {
@@ -532,8 +534,20 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	// 0 - Succeeded, diff is empty (no changes)
 	// 1 - Errored
 	// 2 - Succeeded, there is a diff
-	_, err := runCommand(ctx, cmd)
+	out, err := runCommand(ctx, cmd)
 	if cmd.ProcessState.ExitCode() == 2 {
+		if h.LogPath != "" {
+			filePath := filepath.Join(h.Dir, h.LogPath)
+			f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				return true, errors.Wrap(err, errWriteLogFile)
+			}
+			defer f.Close()
+
+			if _, err := f.Write(out); err != nil {
+				return true, errors.Wrap(err, errWriteLogFile)
+			}
+		}
 		return true, nil
 	}
 	return false, Classify(err)
@@ -561,7 +575,19 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 		defer rwmutex.RUnlock()
 	}
 
-	_, err := runCommand(ctx, cmd)
+	out, err := runCommand(ctx, cmd)
+	if h.LogPath != "" {
+		filePath := filepath.Join(h.Dir, h.LogPath)
+		f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return errors.Wrap(err, errWriteLogFile)
+		}
+		defer f.Close()
+
+		if _, err := f.Write(out); err != nil {
+			return errors.Wrap(err, errWriteLogFile)
+		}
+	}
 	return Classify(err)
 }
 

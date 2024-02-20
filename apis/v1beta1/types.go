@@ -46,6 +46,10 @@ type ProviderConfigSpec struct {
 	// +optional
 	// +kubebuilder:default=true
 	PluginCache *bool `json:"pluginCache,omitempty"`
+
+	// Log Path
+	// +optional
+	LogPath *string `json:"logPath,omitempty"`
 }
 
 // ProviderCredentials required to authenticate.
