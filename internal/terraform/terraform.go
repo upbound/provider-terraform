@@ -33,6 +33,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"sync"
 
@@ -535,22 +536,43 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	// 1 - Errored
 	// 2 - Succeeded, there is a diff
 	out, err := runCommand(ctx, cmd)
-	if cmd.ProcessState.ExitCode() == 2 {
-		if h.LogPath != "" {
-			filePath := filepath.Join(h.Dir, h.LogPath)
-			f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if err != nil {
-				return true, errors.Wrap(err, errWriteLogFile)
-			}
-			defer f.Close()
-
-			if _, err := f.Write(out); err != nil {
-				return true, errors.Wrap(err, errWriteLogFile)
-			}
-		}
+	switch cmd.ProcessState.ExitCode() {
+	case 1:
+		ee := &exec.ExitError{}
+		errors.As(err, &ee)
+		logTerraformOutput(ee.Stderr, h.LogPath, h.Dir, false)
+	case 2:
+		logTerraformOutput(out, h.LogPath, h.Dir, true)
 		return true, nil
 	}
 	return false, Classify(err)
+}
+
+func logTerraformOutput(out []byte, logPath string, dir string, logRollOver bool) error {
+	if logPath != "" {
+		// get the filename from directory path
+		fileDir, fileName := filepath.Split(logPath)
+		if logRollOver {
+			// if logRollOver is true, we need to create a new file with a new name
+			// by appending a timestamp to the file name
+			fileName = strings.TrimSuffix(fileName, filepath.Ext(fileName))
+			fileName = fileName + "-" + time.Now().Format("20060102-150405") + filepath.Ext(logPath)
+			os.Rename(filepath.Join(dir, logPath), filepath.Join(dir, fileDir, fileName))
+		}
+		filePath := filepath.Join(dir, logPath)
+		f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return errors.Wrap(err, errWriteLogFile)
+		}
+		defer f.Close()
+		currentTime := time.Now().Format("2006-01-02 15:04:05")
+		logContents := "------------------------------------------------------------------------\n" + currentTime + "\n------------------------------------------------------------------------\n\n" + string(out)
+
+		if _, err := f.WriteString(logContents); err != nil {
+			return errors.Wrap(err, errWriteLogFile)
+		}
+	}
+	return nil
 }
 
 // Apply a Terraform configuration.
@@ -576,17 +598,17 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 	}
 
 	out, err := runCommand(ctx, cmd)
-	if h.LogPath != "" {
-		filePath := filepath.Join(h.Dir, h.LogPath)
-		f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			return errors.Wrap(err, errWriteLogFile)
-		}
-		defer f.Close()
 
-		if _, err := f.Write(out); err != nil {
-			return errors.Wrap(err, errWriteLogFile)
-		}
+	// In case of terraform destroy
+	// 0 - Succeeded
+	// 1 - Errored
+	switch cmd.ProcessState.ExitCode() {
+	case 0:
+		logTerraformOutput(out, h.LogPath, h.Dir, false)
+	case 1:
+		ee := &exec.ExitError{}
+		errors.As(err, &ee)
+		logTerraformOutput(ee.Stderr, h.LogPath, h.Dir, false)
 	}
 	return Classify(err)
 }
@@ -613,7 +635,20 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 		defer rwmutex.RUnlock()
 	}
 
-	_, err := runCommand(ctx, cmd)
+	out, err := runCommand(ctx, cmd)
+	// In case of terraform destroy
+	// 0 - Succeeded
+	// Non Zero output(1,2) - Errored
+	switch cmd.ProcessState.ExitCode() {
+	case 0:
+		logTerraformOutput(out, h.LogPath, h.Dir, false)
+		break
+	default:
+		ee := &exec.ExitError{}
+		errors.As(err, &ee)
+		logTerraformOutput(ee.Stderr, h.LogPath, h.Dir, false)
+	}
+
 	return Classify(err)
 }
 
