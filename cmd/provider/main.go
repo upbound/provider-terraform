@@ -66,12 +66,9 @@ func main() {
 
 	zl := zap.New(zap.UseDevMode(*debug), UseISO8601())
 	log := logging.NewLogrLogger(zl.WithName("provider-terraform"))
-	if *debug {
-		// The controller-runtime runs with a no-op logger by default. It is
-		// *very* verbose even at info level, so we only provide it a real
-		// logger when we're running in debug mode.
-		ctrl.SetLogger(zl)
-	}
+	// SetLogger is required starting in controller-runtime 0.15.0.
+	// https://github.com/kubernetes-sigs/controller-runtime/pull/2317
+	ctrl.SetLogger(zl)
 
 	log.Debug("Starting",
 		"sync-period", syncInterval.String(),
