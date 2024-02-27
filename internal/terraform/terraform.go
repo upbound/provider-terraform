@@ -133,7 +133,7 @@ type Harness struct {
 	// cmd.Output(), which means we'd have to implement our own version of the
 	// logic that copies Stderr into an *exec.ExitError.
 
-	LogPath string
+	EnableLogging bool
 }
 
 type initOptions struct {
@@ -540,26 +540,24 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	case 1:
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
-		logTerraformOutput(ee.Stderr, h.LogPath, h.Dir, false)
+		logTerraformOutput(ee.Stderr, h.EnableLogging, h.Dir, false)
 	case 2:
-		logTerraformOutput(out, h.LogPath, h.Dir, true)
+		logTerraformOutput(out, h.EnableLogging, h.Dir, true)
 		return true, nil
 	}
 	return false, Classify(err)
 }
 
-func logTerraformOutput(out []byte, logPath string, dir string, logRollOver bool) error {
-	if logPath != "" {
-		// get the filename from directory path
-		fileDir, fileName := filepath.Split(logPath)
+func logTerraformOutput(out []byte, enableLogging bool, dir string, logRollOver bool) error {
+	if enableLogging {
+		fileName := "terraform.log"
 		if logRollOver {
 			// if logRollOver is true, we need to create a new file with a new name
 			// by appending a timestamp to the file name
-			fileName = strings.TrimSuffix(fileName, filepath.Ext(fileName))
-			fileName = fileName + "-" + time.Now().Format("20060102-150405") + filepath.Ext(logPath)
-			os.Rename(filepath.Join(dir, logPath), filepath.Join(dir, fileDir, fileName))
+			archiveFileName := fileName + "." + time.Now().Format("20060102-150405")
+			os.Rename(filepath.Join(dir, fileName), filepath.Join(dir, archiveFileName))
 		}
-		filePath := filepath.Join(dir, logPath)
+		filePath := filepath.Join(dir, fileName)
 		f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			return errors.Wrap(err, errWriteLogFile)
@@ -604,11 +602,11 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 	// 1 - Errored
 	switch cmd.ProcessState.ExitCode() {
 	case 0:
-		logTerraformOutput(out, h.LogPath, h.Dir, false)
+		logTerraformOutput(out, h.EnableLogging, h.Dir, false)
 	case 1:
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
-		logTerraformOutput(ee.Stderr, h.LogPath, h.Dir, false)
+		logTerraformOutput(ee.Stderr, h.EnableLogging, h.Dir, false)
 	}
 	return Classify(err)
 }
@@ -641,12 +639,12 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	// Non Zero output(1,2) - Errored
 	switch cmd.ProcessState.ExitCode() {
 	case 0:
-		logTerraformOutput(out, h.LogPath, h.Dir, false)
+		logTerraformOutput(out, h.EnableLogging, h.Dir, false)
 		break
 	default:
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
-		logTerraformOutput(ee.Stderr, h.LogPath, h.Dir, false)
+		logTerraformOutput(ee.Stderr, h.EnableLogging, h.Dir, false)
 	}
 
 	return Classify(err)

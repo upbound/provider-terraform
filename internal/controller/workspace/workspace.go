@@ -130,8 +130,8 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Dura
 		usage:  resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1beta1.ProviderConfigUsage{}),
 		logger: o.Logger,
 		fs:     fs,
-		terraform: func(dir string, usePluginCache bool, logPath string) tfclient {
-			return terraform.Harness{Path: tfPath, Dir: dir, UsePluginCache: usePluginCache, LogPath: logPath}
+		terraform: func(dir string, usePluginCache bool, enableLogging bool) tfclient {
+			return terraform.Harness{Path: tfPath, Dir: dir, UsePluginCache: usePluginCache, EnableLogging: enableLogging}
 		},
 	}
 
@@ -166,7 +166,7 @@ type connector struct {
 	usage     resource.Tracker
 	logger    logging.Logger
 	fs        afero.Afero
-	terraform func(dir string, usePluginCache bool, logPath string) tfclient
+	terraform func(dir string, usePluginCache bool, enableLogging bool) tfclient
 }
 
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) { //nolint:gocyclo
@@ -284,13 +284,12 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		pc.Spec.PluginCache = new(bool)
 		*pc.Spec.PluginCache = true
 	}
-
-	if pc.Spec.LogPath == nil {
-		pc.Spec.LogPath = new(string)
-		*pc.Spec.LogPath = ""
+	if pc.Spec.EnableLogging == nil {
+		pc.Spec.EnableLogging = new(bool)
+		*pc.Spec.EnableLogging = false
 	}
 
-	tf := c.terraform(dir, *pc.Spec.PluginCache, *pc.Spec.LogPath)
+	tf := c.terraform(dir, *pc.Spec.PluginCache, *pc.Spec.EnableLogging)
 	if cr.Status.AtProvider.Checksum != "" {
 		checksum, err := tf.GenerateChecksum(ctx)
 		if err != nil {

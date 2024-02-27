@@ -49,7 +49,7 @@ type ProviderConfigSpec struct {
 
 	// Log Path
 	// +optional
-	LogPath *string `json:"logPath,omitempty"`
+	EnableLogging *bool `json:"enableLogging,omitempty"`
 }
 
 // ProviderCredentials required to authenticate.
