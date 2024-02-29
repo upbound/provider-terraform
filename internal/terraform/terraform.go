@@ -38,6 +38,7 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
+	"github.com/upbound/provider-terraform/apis/v1beta1"
 )
 
 // Error strings.
@@ -126,6 +127,9 @@ type Harness struct {
 	// Whether to use the terraform plugin cache
 	UsePluginCache bool
 
+	// LogConfigs enables terraform provider plugin logging mechanism
+	LogConfigs v1beta1.LogConfig
+
 	// TODO(negz): Harness is a subset of exec.Cmd. If callers need more insight
 	// into what the underlying Terraform binary is doing (e.g. for debugging)
 	// we could consider allowing them to attach io.Writers to Stdout and Stdin
@@ -133,7 +137,6 @@ type Harness struct {
 	// cmd.Output(), which means we'd have to implement our own version of the
 	// logic that copies Stderr into an *exec.ExitError.
 
-	EnableLogging bool
 }
 
 type initOptions struct {
@@ -540,16 +543,16 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	case 1:
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
-		logTerraformOutput(ee.Stderr, h.EnableLogging, h.Dir, false)
+		logTerraformOutput(ee.Stderr, h.LogConfigs, h.Dir, false)
 	case 2:
-		logTerraformOutput(out, h.EnableLogging, h.Dir, true)
+		logTerraformOutput(out, h.LogConfigs, h.Dir, true)
 		return true, nil
 	}
 	return false, Classify(err)
 }
 
-func logTerraformOutput(out []byte, enableLogging bool, dir string, logRollOver bool) error {
-	if enableLogging {
+func logTerraformOutput(out []byte, logConfigs v1beta1.LogConfig, dir string, logRollOver bool) error {
+	if *logConfigs.EnableLogging {
 		fileName := "terraform.log"
 		if logRollOver {
 			// if logRollOver is true, we need to create a new file with a new name
@@ -569,7 +572,47 @@ func logTerraformOutput(out []byte, enableLogging bool, dir string, logRollOver 
 		if _, err := f.WriteString(logContents); err != nil {
 			return errors.Wrap(err, errWriteLogFile)
 		}
+
 	}
+	CleanupTerraformLogs(*logConfigs.NumberOfFilesToKeep, dir)
+	return nil
+}
+
+func CleanupTerraformLogs(n int, dir string) error {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+
+	var terraformLogs []os.DirEntry
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		if strings.HasPrefix(file.Name(), "terraform.log.") {
+			terraformLogs = append(terraformLogs, file)
+		}
+	}
+
+	// Sort by modification time (newest first)
+	sort.Slice(terraformLogs, func(i, j int) bool {
+		fi, _ := terraformLogs[i].Info()
+		fj, _ := terraformLogs[j].Info()
+		return fi.ModTime().After(fj.ModTime())
+	})
+
+	// Delete all but the n newest files
+	if len(terraformLogs) > n {
+		for _, file := range terraformLogs[n:] {
+			err := os.Remove(filepath.Join(dir, file.Name()))
+			if err != nil {
+				fmt.Println("Failed to delete file:", file.Name(), "Error:", err)
+			} else {
+				fmt.Println("Deleted file:", file.Name())
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -602,11 +645,11 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 	// 1 - Errored
 	switch cmd.ProcessState.ExitCode() {
 	case 0:
-		logTerraformOutput(out, h.EnableLogging, h.Dir, false)
+		logTerraformOutput(out, h.LogConfigs, h.Dir, false)
 	case 1:
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
-		logTerraformOutput(ee.Stderr, h.EnableLogging, h.Dir, false)
+		logTerraformOutput(ee.Stderr, h.LogConfigs, h.Dir, false)
 	}
 	return Classify(err)
 }
@@ -639,12 +682,12 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	// Non Zero output(1,2) - Errored
 	switch cmd.ProcessState.ExitCode() {
 	case 0:
-		logTerraformOutput(out, h.EnableLogging, h.Dir, false)
+		logTerraformOutput(out, h.LogConfigs, h.Dir, false)
 		break
 	default:
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
-		logTerraformOutput(ee.Stderr, h.EnableLogging, h.Dir, false)
+		logTerraformOutput(ee.Stderr, h.LogConfigs, h.Dir, false)
 	}
 
 	return Classify(err)

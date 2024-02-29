@@ -130,8 +130,8 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Dura
 		usage:  resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1beta1.ProviderConfigUsage{}),
 		logger: o.Logger,
 		fs:     fs,
-		terraform: func(dir string, usePluginCache bool, enableLogging bool) tfclient {
-			return terraform.Harness{Path: tfPath, Dir: dir, UsePluginCache: usePluginCache, EnableLogging: enableLogging}
+		terraform: func(dir string, usePluginCache bool, logConfigs v1beta1.LogConfig) tfclient {
+			return terraform.Harness{Path: tfPath, Dir: dir, UsePluginCache: usePluginCache, LogConfigs: logConfigs}
 		},
 	}
 
@@ -166,7 +166,7 @@ type connector struct {
 	usage     resource.Tracker
 	logger    logging.Logger
 	fs        afero.Afero
-	terraform func(dir string, usePluginCache bool, enableLogging bool) tfclient
+	terraform func(dir string, usePluginCache bool, logConfigs v1beta1.LogConfig) tfclient
 }
 
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) { //nolint:gocyclo
@@ -284,12 +284,29 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		pc.Spec.PluginCache = new(bool)
 		*pc.Spec.PluginCache = true
 	}
-	if pc.Spec.EnableLogging == nil {
-		pc.Spec.EnableLogging = new(bool)
-		*pc.Spec.EnableLogging = false
+
+	//diable logging by default
+	if pc.Spec.LogConfigs == nil {
+		pc.Spec.LogConfigs = &v1beta1.LogConfig{
+			EnableLogging:       new(bool),
+			NumberOfFilesToKeep: new(int),
+		}
+		*pc.Spec.LogConfigs.EnableLogging = false
+		*pc.Spec.LogConfigs.NumberOfFilesToKeep = 0
+	} else
+	//if logging is not null, then set the value of EnableLogging and NumberOfFilesToKeep if it is not set
+	{
+		if pc.Spec.LogConfigs.EnableLogging == nil {
+			pc.Spec.LogConfigs.EnableLogging = new(bool)
+			*pc.Spec.LogConfigs.EnableLogging = false
+		}
+		if pc.Spec.LogConfigs.NumberOfFilesToKeep == nil {
+			pc.Spec.LogConfigs.NumberOfFilesToKeep = new(int)
+			*pc.Spec.LogConfigs.NumberOfFilesToKeep = 0
+		}
 	}
 
-	tf := c.terraform(dir, *pc.Spec.PluginCache, *pc.Spec.EnableLogging)
+	tf := c.terraform(dir, *pc.Spec.PluginCache, *pc.Spec.LogConfigs)
 	if cr.Status.AtProvider.Checksum != "" {
 		checksum, err := tf.GenerateChecksum(ctx)
 		if err != nil {

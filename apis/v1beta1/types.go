@@ -47,9 +47,16 @@ type ProviderConfigSpec struct {
 	// +kubebuilder:default=true
 	PluginCache *bool `json:"pluginCache,omitempty"`
 
+	// LogsConfig enables terraform provider plugin logging mechanism
+	// +optional
+	LogConfigs *LogConfig `json:"logConfigs,omitempty"`
+}
+
+type LogConfig struct {
 	// Log Path
 	// +optional
-	EnableLogging *bool `json:"enableLogging,omitempty"`
+	EnableLogging       *bool `json:"enableLogging,omitempty"`
+	NumberOfFilesToKeep *int  `json:"numberOfFilesToKeep,omitempty"`
 }
 
 // ProviderCredentials required to authenticate.
