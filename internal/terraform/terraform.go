@@ -127,8 +127,8 @@ type Harness struct {
 	// Whether to use the terraform plugin cache
 	UsePluginCache bool
 
-	// LogConfigs enables terraform provider plugin logging mechanism
-	LogConfigs v1beta1.LogConfig
+	// LogConfig enables terraform provider plugin logging mechanism
+	LogConfig v1beta1.LogConfig
 
 	// TODO(negz): Harness is a subset of exec.Cmd. If callers need more insight
 	// into what the underlying Terraform binary is doing (e.g. for debugging)
@@ -543,16 +543,16 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	case 1:
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
-		logTerraformOutput(ee.Stderr, h.LogConfigs, h.Dir, false)
+		logTerraformOutput(ee.Stderr, h.LogConfig, h.Dir, false)
 	case 2:
-		logTerraformOutput(out, h.LogConfigs, h.Dir, true)
+		logTerraformOutput(out, h.LogConfig, h.Dir, true)
 		return true, nil
 	}
 	return false, Classify(err)
 }
 
-func logTerraformOutput(out []byte, logConfigs v1beta1.LogConfig, dir string, logRollOver bool) error {
-	if *logConfigs.EnableLogging {
+func logTerraformOutput(out []byte, logConfig v1beta1.LogConfig, dir string, logRollOver bool) error {
+	if *logConfig.EnableLogging {
 		fileName := "terraform.log"
 		if logRollOver {
 			// if logRollOver is true, we need to create a new file with a new name
@@ -574,7 +574,7 @@ func logTerraformOutput(out []byte, logConfigs v1beta1.LogConfig, dir string, lo
 		}
 
 	}
-	CleanupTerraformLogs(*logConfigs.NumberOfFilesToKeep, dir)
+	CleanupTerraformLogs(*logConfig.BackupLogFilesCount, dir)
 	return nil
 }
 
@@ -645,11 +645,11 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 	// 1 - Errored
 	switch cmd.ProcessState.ExitCode() {
 	case 0:
-		logTerraformOutput(out, h.LogConfigs, h.Dir, false)
+		logTerraformOutput(out, h.LogConfig, h.Dir, false)
 	case 1:
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
-		logTerraformOutput(ee.Stderr, h.LogConfigs, h.Dir, false)
+		logTerraformOutput(ee.Stderr, h.LogConfig, h.Dir, false)
 	}
 	return Classify(err)
 }
@@ -682,12 +682,12 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	// Non Zero output(1,2) - Errored
 	switch cmd.ProcessState.ExitCode() {
 	case 0:
-		logTerraformOutput(out, h.LogConfigs, h.Dir, false)
+		logTerraformOutput(out, h.LogConfig, h.Dir, false)
 		break
 	default:
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
-		logTerraformOutput(ee.Stderr, h.LogConfigs, h.Dir, false)
+		logTerraformOutput(ee.Stderr, h.LogConfig, h.Dir, false)
 	}
 
 	return Classify(err)

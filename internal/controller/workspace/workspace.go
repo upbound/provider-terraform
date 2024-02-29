@@ -130,8 +130,8 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Dura
 		usage:  resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1beta1.ProviderConfigUsage{}),
 		logger: o.Logger,
 		fs:     fs,
-		terraform: func(dir string, usePluginCache bool, logConfigs v1beta1.LogConfig) tfclient {
-			return terraform.Harness{Path: tfPath, Dir: dir, UsePluginCache: usePluginCache, LogConfigs: logConfigs}
+		terraform: func(dir string, usePluginCache bool, logConfig v1beta1.LogConfig) tfclient {
+			return terraform.Harness{Path: tfPath, Dir: dir, UsePluginCache: usePluginCache, LogConfig: logConfig}
 		},
 	}
 
@@ -166,7 +166,7 @@ type connector struct {
 	usage     resource.Tracker
 	logger    logging.Logger
 	fs        afero.Afero
-	terraform func(dir string, usePluginCache bool, logConfigs v1beta1.LogConfig) tfclient
+	terraform func(dir string, usePluginCache bool, logConfig v1beta1.LogConfig) tfclient
 }
 
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) { //nolint:gocyclo
@@ -286,27 +286,27 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	//diable logging by default
-	if pc.Spec.LogConfigs == nil {
-		pc.Spec.LogConfigs = &v1beta1.LogConfig{
+	if pc.Spec.LogConfig == nil {
+		pc.Spec.LogConfig = &v1beta1.LogConfig{
 			EnableLogging:       new(bool),
-			NumberOfFilesToKeep: new(int),
+			BackupLogFilesCount: new(int),
 		}
-		*pc.Spec.LogConfigs.EnableLogging = false
-		*pc.Spec.LogConfigs.NumberOfFilesToKeep = 0
+		*pc.Spec.LogConfig.EnableLogging = false
+		*pc.Spec.LogConfig.BackupLogFilesCount = 0
 	} else
-	//if logging is not null, then set the value of EnableLogging and NumberOfFilesToKeep if it is not set
+	//if logging is not null, then set the value of EnableLogging and BackupLogFilesCount if it is not set
 	{
-		if pc.Spec.LogConfigs.EnableLogging == nil {
-			pc.Spec.LogConfigs.EnableLogging = new(bool)
-			*pc.Spec.LogConfigs.EnableLogging = false
+		if pc.Spec.LogConfig.EnableLogging == nil {
+			pc.Spec.LogConfig.EnableLogging = new(bool)
+			*pc.Spec.LogConfig.EnableLogging = false
 		}
-		if pc.Spec.LogConfigs.NumberOfFilesToKeep == nil {
-			pc.Spec.LogConfigs.NumberOfFilesToKeep = new(int)
-			*pc.Spec.LogConfigs.NumberOfFilesToKeep = 0
+		if pc.Spec.LogConfig.BackupLogFilesCount == nil {
+			pc.Spec.LogConfig.BackupLogFilesCount = new(int)
+			*pc.Spec.LogConfig.BackupLogFilesCount = 0
 		}
 	}
 
-	tf := c.terraform(dir, *pc.Spec.PluginCache, *pc.Spec.LogConfigs)
+	tf := c.terraform(dir, *pc.Spec.PluginCache, *pc.Spec.LogConfig)
 	if cr.Status.AtProvider.Checksum != "" {
 		checksum, err := tf.GenerateChecksum(ctx)
 		if err != nil {

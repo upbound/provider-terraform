@@ -133,12 +133,12 @@ spec:
                     PluginCache enables terraform provider plugin caching
                     mechanism https://developer.hashicorp.com/terraform/cli/config/config-file#provider-plugin-cache
                   type: boolean
-                logConfigs:
+                logConfig:
                   type: object
                   properties:
                     enableLogging:
                       type: boolean
-                    numberOfFilesToKeep:
+                    backupLogFilesCount:
                       type: integer
               type: object
             status:

@@ -124,7 +124,7 @@ func TestConnect(t *testing.T) {
 		kube      client.Client
 		usage     resource.Tracker
 		fs        afero.Afero
-		terraform func(dir string, usePluginCache bool, logConfigs v1beta1.LogConfig) tfclient
+		terraform func(dir string, usePluginCache bool, logConfig v1beta1.LogConfig) tfclient
 	}
 
 	type args struct {
