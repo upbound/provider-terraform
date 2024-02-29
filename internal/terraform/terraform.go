@@ -543,15 +543,15 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	case 1:
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
-		logTerraformOutput(ee.Stderr, h.LogConfig, h.Dir, false)
+		writeTerraformCLILogs(out, h.LogConfig, h.Dir, false)
 	case 2:
-		logTerraformOutput(out, h.LogConfig, h.Dir, true)
+		writeTerraformCLILogs(out, h.LogConfig, h.Dir, true)
 		return true, nil
 	}
 	return false, Classify(err)
 }
 
-func logTerraformOutput(out []byte, logConfig v1beta1.LogConfig, dir string, logRollOver bool) error {
+func writeTerraformCLILogs(out []byte, logConfig v1beta1.LogConfig, dir string, logRollOver bool) error {
 	if *logConfig.EnableLogging {
 		fileName := "terraform.log"
 		if logRollOver {
@@ -574,11 +574,11 @@ func logTerraformOutput(out []byte, logConfig v1beta1.LogConfig, dir string, log
 		}
 
 	}
-	CleanupTerraformLogs(*logConfig.BackupLogFilesCount, dir)
+	CleanupTerraformLogFiles(*logConfig.BackupLogFilesCount, dir)
 	return nil
 }
 
-func CleanupTerraformLogs(n int, dir string) error {
+func CleanupTerraformLogFiles(n int, dir string) error {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return err
@@ -637,20 +637,8 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 		rwmutex.RLock()
 		defer rwmutex.RUnlock()
 	}
-
 	out, err := runCommand(ctx, cmd)
-
-	// In case of terraform destroy
-	// 0 - Succeeded
-	// 1 - Errored
-	switch cmd.ProcessState.ExitCode() {
-	case 0:
-		logTerraformOutput(out, h.LogConfig, h.Dir, false)
-	case 1:
-		ee := &exec.ExitError{}
-		errors.As(err, &ee)
-		logTerraformOutput(ee.Stderr, h.LogConfig, h.Dir, false)
-	}
+	writeTerraformCLILogs(out, h.LogConfig, h.Dir, false)
 	return Classify(err)
 }
 
@@ -677,18 +665,7 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	}
 
 	out, err := runCommand(ctx, cmd)
-	// In case of terraform destroy
-	// 0 - Succeeded
-	// Non Zero output(1,2) - Errored
-	switch cmd.ProcessState.ExitCode() {
-	case 0:
-		logTerraformOutput(out, h.LogConfig, h.Dir, false)
-		break
-	default:
-		ee := &exec.ExitError{}
-		errors.As(err, &ee)
-		logTerraformOutput(ee.Stderr, h.LogConfig, h.Dir, false)
-	}
+	writeTerraformCLILogs(out, h.LogConfig, h.Dir, false)
 
 	return Classify(err)
 }
