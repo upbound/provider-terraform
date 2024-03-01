@@ -122,7 +122,7 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Dura
 
 	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
 	if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
-		cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), v1beta1.StoreConfigGroupVersionKind))
+		cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), v1beta1.StoreConfigGroupVersionKind, connection.WithTLSConfig(o.ESSOptions.TLSConfig)))
 	}
 
 	c := &connector{
@@ -355,7 +355,6 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 	// Include any non-sensitive outputs in our status
 	op, err := c.tf.Outputs(ctx)
-
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, errOutputs)
 	}

@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/crossplane/crossplane-runtime/pkg/certificates"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"go.uber.org/zap/zapcore"
@@ -59,6 +60,7 @@ func main() {
 		namespace                  = app.Flag("namespace", "Namespace used to set as default scope in default secret store config.").Default("crossplane-system").Envar("POD_NAMESPACE").String()
 		enableExternalSecretStores = app.Flag("enable-external-secret-stores", "Enable support for ExternalSecretStores.").Default("false").Envar("ENABLE_EXTERNAL_SECRET_STORES").Bool()
 		enableManagementPolicies   = app.Flag("enable-management-policies", "Enable support for Management Policies.").Default("true").Envar("ENABLE_MANAGEMENT_POLICIES").Bool()
+		essTLSCertsPath            = app.Flag("ess-tls-cert-dir", "Path of ESS TLS certificates.").Envar("ESS_TLS_CERTS_DIR").String()
 	)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
@@ -118,6 +120,14 @@ func main() {
 	if *enableExternalSecretStores {
 		o.Features.Enable(features.EnableAlphaExternalSecretStores)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExternalSecretStores)
+		o.ESSOptions = &controller.ESSOptions{}
+		if *essTLSCertsPath != "" {
+			log.Info("ESS TLS certificates path is set. Loading mTLS configuration.")
+			tCfg, err := certificates.LoadMTLSConfig(filepath.Join(*essTLSCertsPath, "ca.crt"), filepath.Join(*essTLSCertsPath, "tls.crt"), filepath.Join(*essTLSCertsPath, "tls.key"), false)
+			kingpin.FatalIfError(err, "Cannot load ESS TLS config.")
+
+			o.ESSOptions.TLSConfig = tCfg
+		}
 
 		// Ensure default store config exists.
 		kingpin.FatalIfError(resource.Ignore(kerrors.IsAlreadyExists, mgr.GetClient().Create(context.Background(), &v1beta1.StoreConfig{
