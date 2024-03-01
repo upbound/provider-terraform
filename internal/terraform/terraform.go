@@ -543,9 +543,13 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	case 1:
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
-		writeTerraformCLILogs(out, h.LogConfig, h.Dir, false)
+		if err := writeTerraformCLILogs(out, h.LogConfig, h.Dir, false); err != nil {
+			fmt.Print(err, "Error writing logs")
+		}
 	case 2:
-		writeTerraformCLILogs(out, h.LogConfig, h.Dir, true)
+		if err := writeTerraformCLILogs(out, h.LogConfig, h.Dir, true); err != nil {
+			fmt.Print(err, "Error writing logs")
+		}
 		return true, nil
 	}
 	return false, Classify(err)
@@ -558,14 +562,22 @@ func writeTerraformCLILogs(out []byte, logConfig v1beta1.LogConfig, dir string, 
 			// if logRollOver is true, we need to create a new file with a new name
 			// by appending a timestamp to the file name
 			archiveFileName := fileName + "." + time.Now().Format("20060102-150405")
-			os.Rename(filepath.Join(dir, fileName), filepath.Join(dir, archiveFileName))
+			err := os.Rename(filepath.Join(dir, fileName), filepath.Join(dir, archiveFileName))
+			if err != nil {
+				return errors.Wrap(err, errWriteLogFile)
+			}
 		}
 		filePath := filepath.Join(dir, fileName)
-		f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
 			return errors.Wrap(err, errWriteLogFile)
 		}
-		defer f.Close()
+		defer func() {
+			// Capture the error from Close, if any, and return it.
+			if closeErr := f.Close(); closeErr != nil && err == nil {
+				err = errors.Wrap(closeErr, "error closing log file")
+			}
+		}()
 		currentTime := time.Now().Format("2006-01-02 15:04:05")
 		logContents := "------------------------------------------------------------------------\n" + currentTime + "\n------------------------------------------------------------------------\n\n" + string(out)
 
@@ -574,11 +586,13 @@ func writeTerraformCLILogs(out []byte, logConfig v1beta1.LogConfig, dir string, 
 		}
 
 	}
-	CleanupTerraformLogFiles(*logConfig.BackupLogFilesCount, dir)
+	if err := cleanupTerraformLogFiles(*logConfig.BackupLogFilesCount, dir); err != nil {
+		print(err, "Error cleaning up log files")
+	}
 	return nil
 }
 
-func CleanupTerraformLogFiles(n int, dir string) error {
+func cleanupTerraformLogFiles(n int, dir string) error {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return err
@@ -596,8 +610,14 @@ func CleanupTerraformLogFiles(n int, dir string) error {
 
 	// Sort by modification time (newest first)
 	sort.Slice(terraformLogs, func(i, j int) bool {
-		fi, _ := terraformLogs[i].Info()
-		fj, _ := terraformLogs[j].Info()
+		fi, err := terraformLogs[i].Info()
+		if err != nil {
+			return false
+		}
+		fj, err := terraformLogs[j].Info()
+		if err != nil {
+			return false
+		}
 		return fi.ModTime().After(fj.ModTime())
 	})
 
@@ -638,7 +658,9 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 		defer rwmutex.RUnlock()
 	}
 	out, err := runCommand(ctx, cmd)
-	writeTerraformCLILogs(out, h.LogConfig, h.Dir, false)
+	if err := writeTerraformCLILogs(out, h.LogConfig, h.Dir, false); err != nil {
+		fmt.Print(err, "Error writing logs")
+	}
 	return Classify(err)
 }
 
@@ -665,8 +687,9 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	}
 
 	out, err := runCommand(ctx, cmd)
-	writeTerraformCLILogs(out, h.LogConfig, h.Dir, false)
-
+	if err := writeTerraformCLILogs(out, h.LogConfig, h.Dir, false); err != nil {
+		fmt.Print(err, "Error writing logs")
+	}
 	return Classify(err)
 }
 

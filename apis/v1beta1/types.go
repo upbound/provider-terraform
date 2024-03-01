@@ -52,11 +52,12 @@ type ProviderConfigSpec struct {
 	LogConfig *LogConfig `json:"logConfig,omitempty"`
 }
 
+// LogConfig configures terraform cli logging
 type LogConfig struct {
 	// EnableLogging enables terraform cli logging
 	// +optional
 	EnableLogging *bool `json:"enableLogging,omitempty"`
-	//BackupLogFilesCount is the number of archived log files to retain
+	// BackupLogFilesCount is the number of archived log files to retain
 	// +optional
 	BackupLogFilesCount *int `json:"backupLogFilesCount,omitempty"`
 }

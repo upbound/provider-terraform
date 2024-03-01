@@ -285,7 +285,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		*pc.Spec.PluginCache = true
 	}
 
-	//diable logging by default
+	// diable logging by default
 	if pc.Spec.LogConfig == nil {
 		pc.Spec.LogConfig = &v1beta1.LogConfig{
 			EnableLogging:       new(bool),
@@ -294,7 +294,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		*pc.Spec.LogConfig.EnableLogging = false
 		*pc.Spec.LogConfig.BackupLogFilesCount = 0
 	} else
-	//if logging is not null, then set the value of EnableLogging and BackupLogFilesCount if it is not set
+	// if logging is not null, then set the value of EnableLogging and BackupLogFilesCount if it is not set
 	{
 		if pc.Spec.LogConfig.EnableLogging == nil {
 			pc.Spec.LogConfig.EnableLogging = new(bool)

@@ -119,21 +119,22 @@ spec:
                   - source
                   type: object
                 type: array
+              logConfig:
+                description: LogConfig configures terraform cli logging
+                properties:
+                  backupLogFilesCount:
+                    description: BackupLogFilesCount is the number of archived log
+                      files to retain
+                    type: integer
+                  enableLogging:
+                    description: EnableLogging enables terraform cli logging
+                    type: boolean
+                type: object
               pluginCache:
                 default: true
                 description: PluginCache enables terraform provider plugin caching
                   mechanism https://developer.hashicorp.com/terraform/cli/config/config-file#provider-plugin-cache
                 type: boolean
-              logConfig:
-		description: LogConfig configures terraform cli logging
-                type: object
-                properties:
-                  enableLogging:
-		    description: EnableLogging enables terraform cli logging
-                    type: boolean
-                  backupLogFilesCount:
-	            description: BackupLogFilesCount is the number of archived log files to retain
-                    type: integer
             type: object
           status:
             description: A ProviderConfigStatus reflects the observed state of a ProviderConfig.
