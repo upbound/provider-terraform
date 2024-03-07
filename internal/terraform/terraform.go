@@ -50,6 +50,7 @@ const (
 	errSigTerm          = "error sending SIGTERM to child process"
 	errWaitTerm         = "error waiting for child process to terminate"
 	errWriteLogFile     = "cannot write log file"
+	errDeleteLogFile    = "cannot delete file"
 	tfDefault           = "default"
 )
 
@@ -543,12 +544,12 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	case 1:
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
-		if err := writeTerraformCLILogs(out, h.LogConfig, h.Dir, false); err != nil {
-			fmt.Print(err, "Error writing logs")
+		if err = writeTerraformCLILogs(ee.Stderr, h.LogConfig, h.Dir, false); err != nil {
+			return false, errors.Wrap(err, "error writing logs")
 		}
 	case 2:
-		if err := writeTerraformCLILogs(out, h.LogConfig, h.Dir, true); err != nil {
-			fmt.Print(err, "Error writing logs")
+		if err = writeTerraformCLILogs(out, h.LogConfig, h.Dir, true); err != nil {
+			return false, errors.Wrap(err, "error writing logs")
 		}
 		return true, nil
 	}
@@ -568,7 +569,7 @@ func writeTerraformCLILogs(out []byte, logConfig v1beta1.LogConfig, dir string, 
 			}
 		}
 		filePath := filepath.Join(dir, fileName)
-		f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		f, err := os.OpenFile(filepath.Clean(filePath), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
 			return errors.Wrap(err, errWriteLogFile)
 		}
@@ -624,11 +625,8 @@ func cleanupTerraformLogFiles(n int, dir string) error {
 	// Delete all but the n newest files
 	if len(terraformLogs) > n {
 		for _, file := range terraformLogs[n:] {
-			err := os.Remove(filepath.Join(dir, file.Name()))
-			if err != nil {
-				fmt.Println("Failed to delete file:", file.Name(), "Error:", err)
-			} else {
-				fmt.Println("Deleted file:", file.Name())
+			if err = os.Remove(filepath.Join(dir, file.Name())); err != nil {
+				return errors.Wrap(err, fmt.Sprintf("%s: %s", errDeleteLogFile, file.Name()))
 			}
 		}
 	}
@@ -658,9 +656,24 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 		defer rwmutex.RUnlock()
 	}
 	out, err := runCommand(ctx, cmd)
-	if err := writeTerraformCLILogs(out, h.LogConfig, h.Dir, false); err != nil {
-		fmt.Print(err, "Error writing logs")
+
+	// In case of terraform destroy
+	// 0 - Succeeded
+	// 1 - Errored
+
+	switch cmd.ProcessState.ExitCode() {
+	case 0:
+		if err := writeTerraformCLILogs(out, h.LogConfig, h.Dir, false); err != nil {
+			return errors.Wrap(err, "error writing logs")
+		}
+	case 1:
+		ee := &exec.ExitError{}
+		errors.As(err, &ee)
+		if err := writeTerraformCLILogs(ee.Stderr, h.LogConfig, h.Dir, false); err != nil {
+			return errors.Wrap(err, "error writing logs")
+		}
 	}
+
 	return Classify(err)
 }
 
@@ -687,9 +700,24 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	}
 
 	out, err := runCommand(ctx, cmd)
-	if err := writeTerraformCLILogs(out, h.LogConfig, h.Dir, false); err != nil {
-		fmt.Print(err, "Error writing logs")
+	// In case of terraform destroy
+	// 0 - Succeeded
+	// Non Zero output(1,2) - Errored
+
+	switch cmd.ProcessState.ExitCode() {
+	case 0:
+		if err := writeTerraformCLILogs(out, h.LogConfig, h.Dir, false); err != nil {
+			return errors.Wrap(err, errWriteVarFile)
+		}
+		break
+	default:
+		ee := &exec.ExitError{}
+		errors.As(err, &ee)
+		if err := writeTerraformCLILogs(ee.Stderr, h.LogConfig, h.Dir, false); err != nil {
+			return errors.Wrap(err, errWriteVarFile)
+		}
 	}
+
 	return Classify(err)
 }
 

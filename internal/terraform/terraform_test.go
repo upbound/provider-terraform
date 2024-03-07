@@ -17,6 +17,8 @@ limitations under the License.
 package terraform
 
 import (
+	"github.com/upbound/provider-terraform/apis/v1beta1"
+	"os"
 	"os/exec"
 	"testing"
 
@@ -286,5 +288,79 @@ func TestFormatTerraformErrorOutput(t *testing.T) {
 			base64FullErr,
 			expectedOutput["tooManyListItems"]["base64full"],
 		)
+	}
+}
+
+func TestWriteTerraformCLILogs(t *testing.T) {
+	//create a directory
+	os.Mkdir("tmp", 0755)
+	defer os.RemoveAll("tmp")
+	newTrue := true
+	filesCount := 1
+	input := []struct {
+		output      []byte
+		logConfig   v1beta1.LogConfig
+		dir         string
+		logRollOver bool
+		isPositive  bool
+	}{
+		{
+			output: []byte("This is a test log"),
+			logConfig: v1beta1.LogConfig{
+				EnableLogging:       &newTrue,
+				BackupLogFilesCount: &filesCount,
+			},
+			dir:         "tmp",
+			logRollOver: false,
+			isPositive:  true,
+		},
+		{
+			output: []byte("This is a test log"),
+			logConfig: v1beta1.LogConfig{
+				EnableLogging:       &newTrue,
+				BackupLogFilesCount: &filesCount,
+			},
+			dir:         "tmp",
+			logRollOver: true,
+			isPositive:  true,
+		},
+		{
+			output: []byte("This is a test log"),
+			logConfig: v1beta1.LogConfig{
+				EnableLogging:       &newTrue,
+				BackupLogFilesCount: &filesCount,
+			},
+			dir:         "tmp",
+			logRollOver: true,
+			isPositive:  true,
+		},
+	}
+
+	for _, in := range input {
+		err := writeTerraformCLILogs(in.output, in.logConfig, in.dir, in.logRollOver)
+		if err != nil && in.isPositive {
+			t.Errorf("Unexpected error: %s", err)
+		}
+
+		if in.isPositive && !in.logRollOver {
+			if _, err := os.Stat(in.dir); os.IsNotExist(err) {
+				t.Errorf("Directory %s does not exist", in.dir)
+			}
+			// Check if the file exists
+			if _, err := os.Stat(in.dir + "/terraform.log"); os.IsNotExist(err) {
+				t.Errorf("File %s does not exist", in.dir+"/terraform.log")
+			}
+		} else if in.isPositive && in.logRollOver {
+			//this block is visited for input 2 & 3
+			//check if file count is 2 , even when the cli logs are created since the filesCount is 1
+			//it will only preserve 1 archived log and terraform.log and delete the oldest log file
+			files, err := os.ReadDir(in.dir)
+			if err != nil {
+				t.Errorf("Unexpected error: %s", err)
+			}
+			if len(files) != 2 {
+				t.Errorf("Unexpected number of files got: %d expected: %d", len(files), 2)
+			}
+		}
 	}
 }
