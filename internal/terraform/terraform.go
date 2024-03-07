@@ -526,7 +526,6 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 			return false, errors.Wrap(err, errWriteVarFile)
 		}
 	}
-
 	args := append([]string{"plan", "-no-color", "-input=false", "-detailed-exitcode", "-lock=false"}, ao.args...)
 	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
@@ -560,12 +559,15 @@ func writeTerraformCLILogs(out []byte, logConfig v1beta1.LogConfig, dir string, 
 	if *logConfig.EnableLogging {
 		fileName := "terraform.log"
 		if logRollOver {
-			// if logRollOver is true, we need to create a new file with a new name
-			// by appending a timestamp to the file name
-			archiveFileName := fileName + "." + time.Now().Format("20060102-150405")
-			err := os.Rename(filepath.Join(dir, fileName), filepath.Join(dir, archiveFileName))
-			if err != nil {
-				return errors.Wrap(err, errWriteLogFile)
+			// Backup the already existing terraform.log file
+			if _, err := os.Stat(filepath.Join(dir, fileName)); err == nil {
+				// if logRollOver is true, we need to create a new file with a new name
+				// by appending a timestamp to the file name
+				archiveFileName := fileName + "." + time.Now().Format("20060102-150405")
+				err := os.Rename(filepath.Join(dir, fileName), filepath.Join(dir, archiveFileName))
+				if err != nil {
+					return errors.Wrap(err, errWriteLogFile)
+				}
 			}
 		}
 		filePath := filepath.Join(dir, fileName)
@@ -657,16 +659,15 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 	}
 	out, err := runCommand(ctx, cmd)
 
-	// In case of terraform destroy
+	// In case of terraform apply
 	// 0 - Succeeded
-	// 1 - Errored
-
+	// Non Zero output - Errored
 	switch cmd.ProcessState.ExitCode() {
 	case 0:
 		if err := writeTerraformCLILogs(out, h.LogConfig, h.Dir, false); err != nil {
 			return errors.Wrap(err, "error writing logs")
 		}
-	case 1:
+	default:
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
 		if err := writeTerraformCLILogs(ee.Stderr, h.LogConfig, h.Dir, false); err != nil {
@@ -700,16 +701,15 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	}
 
 	out, err := runCommand(ctx, cmd)
+
 	// In case of terraform destroy
 	// 0 - Succeeded
-	// Non Zero output(1,2) - Errored
-
+	// Non Zero output - Errored
 	switch cmd.ProcessState.ExitCode() {
 	case 0:
 		if err := writeTerraformCLILogs(out, h.LogConfig, h.Dir, false); err != nil {
 			return errors.Wrap(err, errWriteVarFile)
 		}
-		break
 	default:
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)

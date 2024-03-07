@@ -285,7 +285,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		*pc.Spec.PluginCache = true
 	}
 
-	// diable logging by default
+	// disable logging by default
 	if pc.Spec.LogConfig == nil {
 		pc.Spec.LogConfig = &v1beta1.LogConfig{
 			EnableLogging:       new(bool),

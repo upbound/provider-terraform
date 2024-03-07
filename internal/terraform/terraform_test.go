@@ -17,10 +17,11 @@ limitations under the License.
 package terraform
 
 import (
-	"github.com/upbound/provider-terraform/apis/v1beta1"
 	"os"
 	"os/exec"
 	"testing"
+
+	"github.com/upbound/provider-terraform/apis/v1beta1"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/google/go-cmp/cmp"
@@ -291,58 +292,78 @@ func TestFormatTerraformErrorOutput(t *testing.T) {
 	}
 }
 
+func TestWriteTerraformCLILogsWithLoggingDisabled(t *testing.T) {
+	// Create a temporary directory for testing
+	directory := "tmp"
+	os.Mkdir(directory, 0755)
+	defer os.RemoveAll(directory)
+	loggingEnabled := false
+	backUpFilesCount := 1
+	logConfig := v1beta1.LogConfig{
+		EnableLogging:       &loggingEnabled,
+		BackupLogFilesCount: &backUpFilesCount,
+	}
+	err := writeTerraformCLILogs([]byte("This is a test log"), logConfig, directory, false)
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+	files, err := os.ReadDir(directory)
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("Unexpected number of files got: %d expected: %d", len(files), 0)
+	}
+}
+
 func TestWriteTerraformCLILogs(t *testing.T) {
-	//create a directory
+	// Create a temporary directory for testing
 	os.Mkdir("tmp", 0755)
 	defer os.RemoveAll("tmp")
-	newTrue := true
-	filesCount := 1
+	loggingEnabled := true
+	backUpFilesCount := 1
 	input := []struct {
 		output      []byte
 		logConfig   v1beta1.LogConfig
 		dir         string
 		logRollOver bool
-		isPositive  bool
 	}{
 		{
 			output: []byte("This is a test log"),
 			logConfig: v1beta1.LogConfig{
-				EnableLogging:       &newTrue,
-				BackupLogFilesCount: &filesCount,
+				EnableLogging:       &loggingEnabled,
+				BackupLogFilesCount: &backUpFilesCount,
 			},
 			dir:         "tmp",
 			logRollOver: false,
-			isPositive:  true,
 		},
 		{
 			output: []byte("This is a test log"),
 			logConfig: v1beta1.LogConfig{
-				EnableLogging:       &newTrue,
-				BackupLogFilesCount: &filesCount,
+				EnableLogging:       &loggingEnabled,
+				BackupLogFilesCount: &backUpFilesCount,
 			},
 			dir:         "tmp",
 			logRollOver: true,
-			isPositive:  true,
 		},
 		{
 			output: []byte("This is a test log"),
 			logConfig: v1beta1.LogConfig{
-				EnableLogging:       &newTrue,
-				BackupLogFilesCount: &filesCount,
+				EnableLogging:       &loggingEnabled,
+				BackupLogFilesCount: &backUpFilesCount,
 			},
 			dir:         "tmp",
 			logRollOver: true,
-			isPositive:  true,
 		},
 	}
 
 	for _, in := range input {
 		err := writeTerraformCLILogs(in.output, in.logConfig, in.dir, in.logRollOver)
-		if err != nil && in.isPositive {
+		if err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 
-		if in.isPositive && !in.logRollOver {
+		if !in.logRollOver {
 			if _, err := os.Stat(in.dir); os.IsNotExist(err) {
 				t.Errorf("Directory %s does not exist", in.dir)
 			}
@@ -350,10 +371,10 @@ func TestWriteTerraformCLILogs(t *testing.T) {
 			if _, err := os.Stat(in.dir + "/terraform.log"); os.IsNotExist(err) {
 				t.Errorf("File %s does not exist", in.dir+"/terraform.log")
 			}
-		} else if in.isPositive && in.logRollOver {
-			//this block is visited for input 2 & 3
-			//check if file count is 2 , even when the cli logs are created since the filesCount is 1
-			//it will only preserve 1 archived log and terraform.log and delete the oldest log file
+		} else if in.logRollOver {
+			// this block is visited for input 2 & 3
+			// check if file count is 2, since the backUpFilesCount is 1, it will delete the oldest archived log
+			// and preserve 1 archived log & terraform.log
 			files, err := os.ReadDir(in.dir)
 			if err != nil {
 				t.Errorf("Unexpected error: %s", err)
