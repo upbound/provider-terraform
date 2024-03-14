@@ -130,8 +130,8 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Dura
 		usage:  resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1beta1.ProviderConfigUsage{}),
 		logger: o.Logger,
 		fs:     fs,
-		terraform: func(dir string, usePluginCache bool) tfclient {
-			return terraform.Harness{Path: tfPath, Dir: dir, UsePluginCache: usePluginCache}
+		terraform: func(dir string, usePluginCache bool, logConfig v1beta1.LogConfig) tfclient {
+			return terraform.Harness{Path: tfPath, Dir: dir, UsePluginCache: usePluginCache, LogConfig: logConfig}
 		},
 	}
 
@@ -166,7 +166,7 @@ type connector struct {
 	usage     resource.Tracker
 	logger    logging.Logger
 	fs        afero.Afero
-	terraform func(dir string, usePluginCache bool) tfclient
+	terraform func(dir string, usePluginCache bool, logConfig v1beta1.LogConfig) tfclient
 }
 
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) { //nolint:gocyclo
@@ -284,7 +284,29 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		pc.Spec.PluginCache = new(bool)
 		*pc.Spec.PluginCache = true
 	}
-	tf := c.terraform(dir, *pc.Spec.PluginCache)
+
+	// disable logging by default
+	if pc.Spec.LogConfig == nil {
+		pc.Spec.LogConfig = &v1beta1.LogConfig{
+			EnableLogging:       new(bool),
+			BackupLogFilesCount: new(int),
+		}
+		*pc.Spec.LogConfig.EnableLogging = false
+		*pc.Spec.LogConfig.BackupLogFilesCount = 0
+	} else
+	// if logging is not null, then set the value of EnableLogging and BackupLogFilesCount if it is not set
+	{
+		if pc.Spec.LogConfig.EnableLogging == nil {
+			pc.Spec.LogConfig.EnableLogging = new(bool)
+			*pc.Spec.LogConfig.EnableLogging = false
+		}
+		if pc.Spec.LogConfig.BackupLogFilesCount == nil {
+			pc.Spec.LogConfig.BackupLogFilesCount = new(int)
+			*pc.Spec.LogConfig.BackupLogFilesCount = 0
+		}
+	}
+
+	tf := c.terraform(dir, *pc.Spec.PluginCache, *pc.Spec.LogConfig)
 	if cr.Status.AtProvider.Checksum != "" {
 		checksum, err := tf.GenerateChecksum(ctx)
 		if err != nil {

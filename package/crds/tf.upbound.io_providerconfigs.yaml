@@ -119,6 +119,17 @@ spec:
                   - source
                   type: object
                 type: array
+              logConfig:
+                description: LogConfig configures terraform cli logging
+                properties:
+                  backupLogFilesCount:
+                    description: BackupLogFilesCount is the number of archived log
+                      files to retain
+                    type: integer
+                  enableLogging:
+                    description: EnableLogging enables terraform cli logging
+                    type: boolean
+                type: object
               pluginCache:
                 default: true
                 description: PluginCache enables terraform provider plugin caching
