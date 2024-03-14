@@ -30,6 +30,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensionsV1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -102,7 +103,7 @@ type tfclient interface {
 	Workspace(ctx context.Context, name string) error
 	Outputs(ctx context.Context) ([]terraform.Output, error)
 	Resources(ctx context.Context) ([]string, error)
-	Diff(ctx context.Context, o ...terraform.Option) (bool, error)
+	Diff(ctx context.Context, o ...terraform.Option) (bool, string, error)
 	Apply(ctx context.Context, o ...terraform.Option) error
 	Destroy(ctx context.Context, o ...terraform.Option) error
 	DeleteCurrentWorkspace(ctx context.Context) error
@@ -314,32 +315,34 @@ type external struct {
 	logger logging.Logger
 }
 
-func (c *external) checkDiff(ctx context.Context, cr *v1beta1.Workspace) (bool, error) {
+func (c *external) checkDiff(ctx context.Context, cr *v1beta1.Workspace) (bool, string, error) {
 	o, err := c.options(ctx, cr.Spec.ForProvider)
 	if err != nil {
-		return false, errors.Wrap(err, errOptions)
+		return false, "", errors.Wrap(err, errOptions)
 	}
 
 	o = append(o, terraform.WithArgs(cr.Spec.ForProvider.PlanArgs))
-	differs, err := c.tf.Diff(ctx, o...)
+	differs, planOutput, err := c.tf.Diff(ctx, o...)
+
 	if err != nil {
 		if !meta.WasDeleted(cr) {
-			return false, errors.Wrap(err, errDiff)
+			return false, planOutput, errors.Wrap(err, errDiff)
 		}
 		// terraform plan can fail on deleted resources, so let the reconciliation loop
 		// call Delete() if there are still resources in the tfstate file
 		differs = false
 	}
-	return differs, nil
+	return differs, planOutput, nil
 }
 
+//nolint:gocyclo
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
 	cr, ok := mg.(*v1beta1.Workspace)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotWorkspace)
 	}
 
-	differs, err := c.checkDiff(ctx, cr)
+	differs, planOutput, err := c.checkDiff(ctx, cr)
 	if err != nil {
 		return managed.ExternalObservation{}, err
 	}
@@ -365,6 +368,10 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.Wrap(err, errChecksum)
 	}
 	cr.Status.AtProvider.Checksum = checksum
+
+	if ptr.Deref[bool](cr.Spec.ForProvider.IncludePlan, false) {
+		cr.Status.AtProvider.Plan = &planOutput
+	}
 
 	if !differs {
 		// TODO(negz): Allow Workspaces to optionally derive their readiness from an
