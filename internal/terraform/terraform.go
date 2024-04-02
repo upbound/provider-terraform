@@ -33,10 +33,12 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"sync"
 
 	"github.com/pkg/errors"
+	"github.com/upbound/provider-terraform/apis/v1beta1"
 )
 
 // Error strings.
@@ -47,8 +49,9 @@ const (
 	errRunCommand       = "shutdown while running terraform command"
 	errSigTerm          = "error sending SIGTERM to child process"
 	errWaitTerm         = "error waiting for child process to terminate"
-
-	tfDefault = "default"
+	errWriteLogFile     = "cannot write log file"
+	errDeleteLogFile    = "cannot delete file"
+	tfDefault           = "default"
 )
 
 const varFilePrefix = "crossplane-provider-terraform-"
@@ -125,12 +128,16 @@ type Harness struct {
 	// Whether to use the terraform plugin cache
 	UsePluginCache bool
 
+	// LogConfig enables terraform provider plugin logging mechanism
+	LogConfig v1beta1.LogConfig
+
 	// TODO(negz): Harness is a subset of exec.Cmd. If callers need more insight
 	// into what the underlying Terraform binary is doing (e.g. for debugging)
 	// we could consider allowing them to attach io.Writers to Stdout and Stdin
 	// here, like exec.Cmd. Doing so would prevent us from being able to use
 	// cmd.Output(), which means we'd have to implement our own version of the
 	// logic that copies Stderr into an *exec.ExitError.
+
 }
 
 type initOptions struct {
@@ -519,7 +526,6 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 			return false, errors.Wrap(err, errWriteVarFile)
 		}
 	}
-
 	args := append([]string{"plan", "-no-color", "-input=false", "-detailed-exitcode", "-lock=false"}, ao.args...)
 	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
@@ -532,11 +538,102 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	// 0 - Succeeded, diff is empty (no changes)
 	// 1 - Errored
 	// 2 - Succeeded, there is a diff
-	_, err := runCommand(ctx, cmd)
-	if cmd.ProcessState.ExitCode() == 2 {
+	out, err := runCommand(ctx, cmd)
+	switch cmd.ProcessState.ExitCode() {
+	case 1:
+		ee := &exec.ExitError{}
+		errors.As(err, &ee)
+		if err = writeTerraformCLILogs(ee.Stderr, h.LogConfig, h.Dir, false); err != nil {
+			return false, errors.Wrap(err, "error writing logs")
+		}
+	case 2:
+		if err = writeTerraformCLILogs(out, h.LogConfig, h.Dir, true); err != nil {
+			return false, errors.Wrap(err, "error writing logs")
+		}
 		return true, nil
 	}
 	return false, Classify(err)
+}
+
+func writeTerraformCLILogs(out []byte, logConfig v1beta1.LogConfig, dir string, logRollOver bool) error {
+	if *logConfig.EnableLogging {
+		fileName := "terraform.log"
+		if logRollOver {
+			// Backup the already existing terraform.log file
+			if _, err := os.Stat(filepath.Join(dir, fileName)); err == nil {
+				// if logRollOver is true, we need to create a new file with a new name
+				// by appending a timestamp to the file name
+				archiveFileName := fileName + "." + time.Now().Format("20060102-150405")
+				err := os.Rename(filepath.Join(dir, fileName), filepath.Join(dir, archiveFileName))
+				if err != nil {
+					return errors.Wrap(err, errWriteLogFile)
+				}
+			}
+		}
+		filePath := filepath.Join(dir, fileName)
+		f, err := os.OpenFile(filepath.Clean(filePath), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		if err != nil {
+			return errors.Wrap(err, errWriteLogFile)
+		}
+		defer func() {
+			// Capture the error from Close, if any, and return it.
+			if closeErr := f.Close(); closeErr != nil && err == nil {
+				err = errors.Wrap(closeErr, "error closing log file")
+			}
+		}()
+		currentTime := time.Now().Format("2006-01-02 15:04:05")
+		logContents := "------------------------------------------------------------------------\n" + currentTime + "\n------------------------------------------------------------------------\n\n" + string(out)
+
+		if _, err := f.WriteString(logContents); err != nil {
+			return errors.Wrap(err, errWriteLogFile)
+		}
+
+	}
+	if err := cleanupTerraformLogFiles(*logConfig.BackupLogFilesCount, dir); err != nil {
+		print(err, "Error cleaning up log files")
+	}
+	return nil
+}
+
+func cleanupTerraformLogFiles(n int, dir string) error {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+
+	var terraformLogs []os.DirEntry
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		if strings.HasPrefix(file.Name(), "terraform.log.") {
+			terraformLogs = append(terraformLogs, file)
+		}
+	}
+
+	// Sort by modification time (newest first)
+	sort.Slice(terraformLogs, func(i, j int) bool {
+		fi, err := terraformLogs[i].Info()
+		if err != nil {
+			return false
+		}
+		fj, err := terraformLogs[j].Info()
+		if err != nil {
+			return false
+		}
+		return fi.ModTime().After(fj.ModTime())
+	})
+
+	// Delete all but the n newest files
+	if len(terraformLogs) > n {
+		for _, file := range terraformLogs[n:] {
+			if err = os.Remove(filepath.Join(dir, file.Name())); err != nil {
+				return errors.Wrap(err, fmt.Sprintf("%s: %s", errDeleteLogFile, file.Name()))
+			}
+		}
+	}
+
+	return nil
 }
 
 // Apply a Terraform configuration.
@@ -560,8 +657,24 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 		rwmutex.RLock()
 		defer rwmutex.RUnlock()
 	}
+	out, err := runCommand(ctx, cmd)
 
-	_, err := runCommand(ctx, cmd)
+	// In case of terraform apply
+	// 0 - Succeeded
+	// Non Zero output - Errored
+	switch cmd.ProcessState.ExitCode() {
+	case 0:
+		if err := writeTerraformCLILogs(out, h.LogConfig, h.Dir, false); err != nil {
+			return errors.Wrap(err, "error writing logs")
+		}
+	default:
+		ee := &exec.ExitError{}
+		errors.As(err, &ee)
+		if err := writeTerraformCLILogs(ee.Stderr, h.LogConfig, h.Dir, false); err != nil {
+			return errors.Wrap(err, "error writing logs")
+		}
+	}
+
 	return Classify(err)
 }
 
@@ -587,7 +700,24 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 		defer rwmutex.RUnlock()
 	}
 
-	_, err := runCommand(ctx, cmd)
+	out, err := runCommand(ctx, cmd)
+
+	// In case of terraform destroy
+	// 0 - Succeeded
+	// Non Zero output - Errored
+	switch cmd.ProcessState.ExitCode() {
+	case 0:
+		if err := writeTerraformCLILogs(out, h.LogConfig, h.Dir, false); err != nil {
+			return errors.Wrap(err, errWriteVarFile)
+		}
+	default:
+		ee := &exec.ExitError{}
+		errors.As(err, &ee)
+		if err := writeTerraformCLILogs(ee.Stderr, h.LogConfig, h.Dir, false); err != nil {
+			return errors.Wrap(err, errWriteVarFile)
+		}
+	}
+
 	return Classify(err)
 }
 

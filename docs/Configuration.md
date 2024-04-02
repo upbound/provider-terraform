@@ -355,3 +355,25 @@ spec:
 At Vault side configuration is also needed to allow the write operation, see
 [example](https://docs.crossplane.io/knowledge-base/integrations/vault-as-secret-store/)
 here for inspiration.
+
+## Enable Terraform CLI logs
+
+Terraform CLI logs can be written to a log file to assist with debugging and to view detailed information about Terraform operations.
+To enable it, the `ProviderConfig` spec has an **optional** `LogConfig` field.
+
+```yaml
+apiVersion: tf.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+spec:
+  logConfig:
+    enableLogging: True
+    backupLogFilesCount: 1
+...
+```
+
+- `enableLogging`: Specifies whether logging is enabled (`true`) or disabled (`false`). When enabled, Terraform CLI command logs will be written to a file. Default is `false`
+- `backupLogFilesCount`: Specifies the number of archived log files to retain. When a new log file is created due to a change detected by `terraform diff`, the previous log file is archived and renamed with a timestamp. This parameter controls how many archived log files are kept before older ones are deleted. Default is `0`
+
+By default, Terraform CLI stores log files in the workspace directory. The default log file name is `terraform.log`. When a backup is taken (e.g., due to a new change detected by `terraform diff`), the current log file is renamed to `terraform.log.<timestamp>`, where `<timestamp>` is a placeholder for the actual timestamp of the backup.
