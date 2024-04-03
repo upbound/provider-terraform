@@ -188,7 +188,9 @@ func (h Harness) Init(ctx context.Context, o ...InitOption) error {
 		cmd.Env = append(cmd.Env, e)
 	}
 	cmd.Env = append(cmd.Env, "TF_CLI_CONFIG_FILE=./.terraformrc")
-	cmd.Env = append(cmd.Env, h.Envs...)
+	if len(h.Envs) > 0 {
+		cmd.Env = append(cmd.Env, h.Envs...)
+	}
 
 	if h.UsePluginCache {
 		rwmutex.Lock()

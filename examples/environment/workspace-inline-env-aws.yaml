@@ -5,6 +5,19 @@ metadata:
 spec:
   forProvider:
     source: Inline
+    env:
+      - name: TF_VAR_vpcName
+        value: 'sample-tf-inline-with-env'
+      - name: TF_VAR_EnvFromConfigMap
+        configMapKeyRef:
+          namespace: default
+          name: provider-terraform-test
+          key: envfromconfigmap
+      - name: TF_VAR_EnvFromSecret
+        secretKeyRef:
+          namespace: default
+          name: provider-terraform-test
+          key: envfromsecret
     module: |
       resource "aws_vpc" "main" {
         cidr_block       = "10.0.0.0/16"
@@ -39,16 +52,3 @@ spec:
         description = "Environment Value From Secret"
         type        = string
       }
-    env:
-      - name: TF_VAR_vpcName
-        value: 'sample-tf-inline-with-env'
-      - name: TF_VAR_EnvFromConfigMap
-        configMapKeyRef:
-          namespace: default
-          name: provider-terraform-test
-          key: envfromconfigmap
-      - name: TF_VAR_EnvFromSecret
-        secretKeyRef:
-          namespace: default
-          name: provider-terraform-test
-          key: envfromsecret

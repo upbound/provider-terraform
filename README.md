@@ -64,8 +64,8 @@ spec:
     module: https://github.com/crossplane/tf
     # Environment variables can be passed through
     env:
-      - name: TFENV_TERRAFORM_VERSION
-        value: '1.3.5'
+      - name: TF_VAR_varFromValue
+        value: 'value'
       - name: ENV_FROM_CONFIGMAP
         configMapKeyRef:
           namespace: my-namespace
