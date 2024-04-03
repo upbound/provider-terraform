@@ -81,6 +81,56 @@ spec:
                     default: ""
                     description: Entrypoint for `terraform init` within the module
                     type: string
+                  env:
+                    description: Environment variables.
+                    items:
+                      description: An EnvVar specifies an environment variable to
+                        be set for the workspace.
+                      properties:
+                        configMapKeyRef:
+                          description: A ConfigMap key containing the desired env
+                            var value.
+                          properties:
+                            key:
+                              description: Key within the referenced resource.
+                              type: string
+                            name:
+                              description: Name of the referenced resource.
+                              type: string
+                            namespace:
+                              description: Namespace of the referenced resource.
+                              type: string
+                          required:
+                          - key
+                          - name
+                          - namespace
+                          type: object
+                        name:
+                          type: string
+                        secretKeyRef:
+                          description: A Secret key containing the desired env var
+                            value.
+                          properties:
+                            key:
+                              description: Key within the referenced resource.
+                              type: string
+                            name:
+                              description: Name of the referenced resource.
+                              type: string
+                            namespace:
+                              description: Namespace of the referenced resource.
+                              type: string
+                          required:
+                          - key
+                          - name
+                          - namespace
+                          type: object
+                        value:
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
                   initArgs:
                     description: Arguments to be included in the terraform init CLI
                       command

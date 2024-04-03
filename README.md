@@ -62,6 +62,20 @@ spec:
     # Use any module source supported by terraform init -from-module.
     source: Remote
     module: https://github.com/crossplane/tf
+    # Environment variables can be passed through
+    env:
+      - name: TF_VAR_varFromValue
+        value: 'value'
+      - name: ENV_FROM_CONFIGMAP
+        configMapKeyRef:
+          namespace: my-namespace
+          name: my-config-map
+          key: target-key
+      - name: ENV_FROM_SECRET
+        secretKeyRef:
+          namespace: my-namespace
+          name: my-secret
+          key: target-key
     # Variables can be specified inline as a list of key-value pairs or as an json object, or loaded from a ConfigMap or Secret.
     vars:
     - key: region
