@@ -71,6 +71,11 @@ spec:
           namespace: my-namespace
           name: my-config-map
           key: target-key
+      - name: ENV_FROM_SECRET
+        secretKeyRef:
+          namespace: my-namespace
+          name: my-secret
+          key: target-key
     # Variables can be specified inline as a list of key-value pairs or as an json object, or loaded from a ConfigMap or Secret.
     vars:
     - key: region
