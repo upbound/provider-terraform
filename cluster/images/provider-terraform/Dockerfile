@@ -3,6 +3,7 @@ RUN apk --no-cache add ca-certificates bash git curl
 ARG TARGETOS
 ARG TARGETARCH
 
+ENV TENV_VERSION=1.5.0
 ENV TERRAFORM_VERSION=1.5.5
 ENV TF_IN_AUTOMATION=1
 ENV TF_PLUGIN_CACHE_DIR=/tf/plugin-cache
@@ -13,10 +14,10 @@ ADD .gitconfig .gitconfig
 # Do not change the URL from which the Terraform CLI is downloaded.
 # We are using an MPL-2.0 licensed version of the CLI and
 # we must make sure that this holds true.
-RUN curl -s -L https://github.com/upbound/terraform/releases/download/v${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_${TARGETOS}_${TARGETARCH}.zip -o terraform.zip \
-  && unzip -d /usr/local/bin terraform.zip \
-  && rm terraform.zip \
-  && chmod +x /usr/local/bin/terraform \
+RUN wget https://github.com/tofuutils/tenv/releases/download/v${TENV_VERSION}/tenv_v${TENV_VERSION}_amd64.apk \
+  && apk add --allow-untrusted tenv_v${TENV_VERSION}_amd64.apk \
+  && rm tenv_v${TENV_VERSION}_amd64.apk \
+  && tenv tf use ${TERRAFORM_VERSION} \
   && mkdir -p ${TF_PLUGIN_CACHE_DIR} \
   && chown -R 2000 /tf
 # As of Crossplane v1.3.0 provider controllers run as UID 2000.
