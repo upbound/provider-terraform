@@ -76,6 +76,8 @@ spec:
           namespace: my-namespace
           name: my-secret
           key: target-key
+      - name: TFENV_TERRAFORM_VERSION # Override default terraform version for this Workspace
+        value: 1.4.0
     # Variables can be specified inline as a list of key-value pairs or as an json object, or loaded from a ConfigMap or Secret.
     vars:
     - key: region
