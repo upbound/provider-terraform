@@ -34,6 +34,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -85,6 +86,16 @@ func main() {
 	mgr, err := ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, *maxReconcileRate), ctrl.Options{
 		Cache: cache.Options{
 			SyncPeriod: syncInterval,
+		},
+
+		// TODO(slittley): Remove this when kubernetes/kubernetes#112328 or kubernetes/kubernetes#123071
+		// is merged and propagated through the chain of dependencies.
+		Client: client.Options{
+			Cache: &client.CacheOptions{
+				DisableFor: []client.Object{
+					&v1beta1.Workspace{},
+				},
+			},
 		},
 
 		// controller-runtime uses both ConfigMaps and Leases for leader
