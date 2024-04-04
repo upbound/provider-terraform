@@ -355,3 +355,22 @@ spec:
 At Vault side configuration is also needed to allow the write operation, see
 [example](https://docs.crossplane.io/knowledge-base/integrations/vault-as-secret-store/)
 here for inspiration.
+
+## Custom Terraform CLI version
+
+To customize the terraform version per workspace simply declare the special
+environment variable:
+
+```yaml
+apiVersion: tf.upbound.io/v1beta1
+kind: Workspace
+metadata:
+  name: sample-inline-own-tf-version
+spec:
+  forProvider:
+    source: Inline
+    env:
+      - name: TFENV_TERRAFORM_VERSION
+        value: 1.4.0 # Custom version for this Workspace
+...
+```
