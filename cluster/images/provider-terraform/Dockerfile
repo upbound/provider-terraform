@@ -4,6 +4,7 @@ ARG TARGETOS
 ARG TARGETARCH
 
 ENV TENV_VERSION=1.5.0
+ENV TENV_ROOT=/.tenv
 ENV TFENV_TERRAFORM_DEFAULT_VERSION=1.5.5
 ENV TF_IN_AUTOMATION=1
 ENV TF_PLUGIN_CACHE_DIR=/tf/plugin-cache
@@ -20,7 +21,7 @@ RUN wget https://github.com/tofuutils/tenv/releases/download/v${TENV_VERSION}/te
   && mkdir -p ${TF_PLUGIN_CACHE_DIR} \
   && mkdir -p /.tenv \
   && chown -R 2000 /tf /.tenv/ \
-  && tenv tf use ${TFENV_TERRAFORM_DEFAULT_VERSION}
+  && tenv tf install ${TFENV_TERRAFORM_DEFAULT_VERSION}
 # As of Crossplane v1.3.0 provider controllers run as UID 2000.
 # https://github.com/crossplane/crossplane/blob/v1.3.0/internal/controller/pkg/revision/deployment.go#L32
 
