@@ -19,7 +19,8 @@ RUN wget https://github.com/tofuutils/tenv/releases/download/v${TENV_VERSION}/te
   && rm tenv_v${TENV_VERSION}_amd64.apk \
   && tenv tf use ${TERRAFORM_VERSION} \
   && mkdir -p ${TF_PLUGIN_CACHE_DIR} \
-  && chown -R 2000 /tf
+  && mkdir -p /.tenv \
+  && chown -R 2000 /tf /.tenv/
 # As of Crossplane v1.3.0 provider controllers run as UID 2000.
 # https://github.com/crossplane/crossplane/blob/v1.3.0/internal/controller/pkg/revision/deployment.go#L32
 
