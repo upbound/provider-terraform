@@ -125,6 +125,9 @@ type Harness struct {
 	// Whether to use the terraform plugin cache
 	UsePluginCache bool
 
+	// Whether to enable logging to container stdout
+	EnableLogging bool
+
 	// Environment Variables
 	Envs []string
 
@@ -550,6 +553,8 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	if len(h.Envs) > 0 {
 		cmd.Env = append(os.Environ(), h.Envs...)
 	}
+
+	fmt.Println(h.EnableLogging)
 
 	// Note: the terraform lock is not used (see the -lock=false flag above) and the rwmutex is
 	// intentionally not locked here to avoid excessive blocking. See
