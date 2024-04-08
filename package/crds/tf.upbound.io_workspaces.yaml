@@ -61,6 +61,8 @@ spec:
                 - Orphan
                 - Delete
                 type: string
+              enableLogging:
+                type: boolean
               forProvider:
                 description: WorkspaceParameters are the configurable fields of a
                   Workspace.
