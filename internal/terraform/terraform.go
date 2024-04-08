@@ -36,6 +36,7 @@ import (
 
 	"sync"
 
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/pkg/errors"
 )
 
@@ -47,6 +48,7 @@ const (
 	errRunCommand       = "shutdown while running terraform command"
 	errSigTerm          = "error sending SIGTERM to child process"
 	errWaitTerm         = "error waiting for child process to terminate"
+	errWriteLogs        = "error writing terraform logs to stdout"
 
 	tfDefault = "default"
 )
@@ -127,6 +129,9 @@ type Harness struct {
 
 	// Whether to enable logging to container stdout
 	EnableLogging bool
+
+	// Logger
+	Logger logging.Logger
 
 	// Environment Variables
 	Envs []string
@@ -554,8 +559,6 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 		cmd.Env = append(os.Environ(), h.Envs...)
 	}
 
-	fmt.Println(h.EnableLogging)
-
 	// Note: the terraform lock is not used (see the -lock=false flag above) and the rwmutex is
 	// intentionally not locked here to avoid excessive blocking. See
 	// https://github.com/upbound/provider-terraform/issues/239#issuecomment-1921732682
@@ -564,11 +567,29 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	// 0 - Succeeded, diff is empty (no changes)
 	// 1 - Errored
 	// 2 - Succeeded, there is a diff
-	_, err := runCommand(ctx, cmd)
-	if cmd.ProcessState.ExitCode() == 2 {
+	log, err := runCommand(ctx, cmd)
+	switch cmd.ProcessState.ExitCode() {
+	case 1: 
+		ee := &exec.ExitError{}
+		errors.As(err, &ee)
+		if err = h.writeLogs(ee.Stderr, h.EnableLogging); err != nil {
+			return false, errors.Wrap(err, errWriteLogs)
+		}
+	case 2:
+		if err = h.writeLogs(log, h.EnableLogging); err != nil {
+			return false, errors.Wrap(err, errWriteLogs)
+		}
 		return true, nil
 	}
 	return false, Classify(err)
+}
+
+func (h Harness) writeLogs(out []byte, enableLogging bool) error {
+	if !enableLogging {
+		return nil
+	}
+	h.Logger.Debug(string(out))
+	return nil
 }
 
 // Apply a Terraform configuration.

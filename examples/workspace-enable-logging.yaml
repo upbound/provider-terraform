@@ -13,7 +13,7 @@ spec:
     source: Inline
     module: |
       resource "random_id" "example_id" {
-        byte_length = 6
+        byte_length = 7
       }
       resource "random_password" "password" {
         length = 16
