@@ -125,8 +125,8 @@ type Harness struct {
 	// Whether to use the terraform plugin cache
 	UsePluginCache bool
 
-	// Whether to enable logging to container stdout
-	EnableLogging bool
+	// Whether to enable writing Terraform CLI logs to container stdout
+	EnableTerraformCLILogging bool
 
 	// Logger
 	Logger logging.Logger
@@ -570,24 +570,16 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	case 1: 
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
-		if err = h.writeLogs(ee.Stderr, h.EnableLogging ); err != nil {
-			return false, errors.Wrap(err, errWriteLogs)
+		if h.EnableTerraformCLILogging{
+			h.Logger.Info(string(ee.Stderr))
 		}
 	case 2:
-		if err = h.writeLogs(log, h.EnableLogging); err != nil {
-			return false, errors.Wrap(err, errWriteLogs)
+		if h.EnableTerraformCLILogging{
+			h.Logger.Info(string(log))
 		}
 		return true, nil
 	}
 	return false, Classify(err)
-}
-
-func (h Harness) writeLogs(out []byte, enableLogging bool) error {
-	if !enableLogging {
-		return nil
-	}
-	h.Logger.Debug(string(out))
-	return nil
 }
 
 // Apply a Terraform configuration.
@@ -615,7 +607,23 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 		defer rwmutex.RUnlock()
 	}
 
-	_, err := runCommand(ctx, cmd)
+	// In case of terraform apply
+	// 0 - Succeeded
+	// Non Zero output - Errored
+
+	log, err := runCommand(ctx, cmd)
+	switch cmd.ProcessState.ExitCode() {
+	case 0:
+		if h.EnableTerraformCLILogging{
+			h.Logger.Info(string(log))
+		}
+	default:
+		ee := &exec.ExitError{}
+		errors.As(err, &ee)
+		if h.EnableTerraformCLILogging{
+			h.Logger.Info(string(ee.Stderr))
+		}
+	}
 	return Classify(err)
 }
 
@@ -644,7 +652,23 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 		defer rwmutex.RUnlock()
 	}
 
-	_, err := runCommand(ctx, cmd)
+	log, err := runCommand(ctx, cmd)
+
+	// In case of terraform destroy
+	// 0 - Succeeded
+	// Non Zero output - Errored
+	switch cmd.ProcessState.ExitCode() {
+	case 0:
+		if h.EnableTerraformCLILogging{
+			h.Logger.Info(string(log))
+		}
+	default:
+		ee := &exec.ExitError{}
+		errors.As(err, &ee)
+		if h.EnableTerraformCLILogging{
+			h.Logger.Info(string(ee.Stderr))
+		}
+	}
 	return Classify(err)
 }
 

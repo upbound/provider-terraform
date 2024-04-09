@@ -61,7 +61,7 @@ spec:
                 - Orphan
                 - Delete
                 type: string
-              enableLogging:
+              enableTerraformCLILogging:
                 type: boolean
               forProvider:
                 description: WorkspaceParameters are the configurable fields of a

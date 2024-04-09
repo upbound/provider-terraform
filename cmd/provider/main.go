@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	zapuber "go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"time"
@@ -149,19 +150,10 @@ func main() {
 }
 
 func UseJSONencoder() zap.Opts {
-	// Create a zap logger with JSON encoding
-	encoderCfg := zapcore.EncoderConfig{
-		TimeKey:        "time",
-		LevelKey:       "level",
-		NameKey:        "logger",
-		MessageKey:     "message",
-		StacktraceKey:  "stacktrace",
-		LineEnding:     zapcore.DefaultLineEnding,
-		EncodeLevel:    zapcore.LowercaseLevelEncoder,
-		EncodeTime:     zapcore.ISO8601TimeEncoder,
-	}
 	return func(o *zap.Options) {
-		o.Encoder = zapcore.NewJSONEncoder(encoderCfg)
+		encoderConfig := zapuber.NewProductionEncoderConfig()
+		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		o.Encoder = zapcore.NewJSONEncoder(encoderConfig)
 	}
 }
 
