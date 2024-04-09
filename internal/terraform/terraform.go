@@ -25,6 +25,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/pkg/errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,12 +34,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
-
 	"sync"
-
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/pkg/errors"
+	"syscall"
 )
 
 // Error strings.
@@ -572,7 +570,7 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	case 1: 
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
-		if err = h.writeLogs(ee.Stderr, h.EnableLogging); err != nil {
+		if err = h.writeLogs(ee.Stderr, h.EnableLogging ); err != nil {
 			return false, errors.Wrap(err, errWriteLogs)
 		}
 	case 2:

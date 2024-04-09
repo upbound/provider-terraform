@@ -1,7 +1,7 @@
 apiVersion: tf.upbound.io/v1beta1
 kind: Workspace
 metadata:
-  name: example-random-generator-no-logging
+  name: example-random-generator
   annotations:
     meta.upbound.io/example-id: tf/v1beta1/workspace
     # The terraform workspace will be named 'random'. If you omit this

@@ -64,7 +64,7 @@ func main() {
 	)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
-	zl := zap.New(zap.UseDevMode(*debug), UseISO8601())
+	zl := zap.New(zap.UseDevMode(*debug),UseJSONencoder())
 	log := logging.NewLogrLogger(zl.WithName("provider-terraform"))
 	if *debug {
 		// The controller-runtime runs with a no-op logger by default. It is
@@ -89,7 +89,7 @@ func main() {
 
 		// controller-runtime uses both ConfigMaps and Leases for leader
 		// election by default. Leases expire after 15 seconds, with a
-		// 10 second renewal deadline. We've observed leader loss due to
+		// 10 seconds renewal deadline. We've observed leader loss due to
 		// renewal deadlines being exceeded when under high load - i.e.
 		// hundreds of reconciles per second and ~200rps to the API
 		// server. Switching to Leases only and longer leases appears to
@@ -148,9 +148,20 @@ func main() {
 	kingpin.FatalIfError(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
 }
 
-// UseISO8601 sets the logger to use ISO8601 timestamp format
-func UseISO8601() zap.Opts {
+func UseJSONencoder() zap.Opts {
+	// Create a zap logger with JSON encoding
+	encoderCfg := zapcore.EncoderConfig{
+		TimeKey:        "time",
+		LevelKey:       "level",
+		NameKey:        "logger",
+		MessageKey:     "message",
+		StacktraceKey:  "stacktrace",
+		LineEnding:     zapcore.DefaultLineEnding,
+		EncodeLevel:    zapcore.LowercaseLevelEncoder,
+		EncodeTime:     zapcore.ISO8601TimeEncoder,
+	}
 	return func(o *zap.Options) {
-		o.TimeEncoder = zapcore.ISO8601TimeEncoder
+		o.Encoder = zapcore.NewJSONEncoder(encoderCfg)
 	}
 }
+

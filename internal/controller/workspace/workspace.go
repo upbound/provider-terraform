@@ -320,7 +320,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		envs[idx] = strings.Join([]string{env.Name, runtimeVal}, "=")
 	}
 	
-	tf := c.terraform(dir, *pc.Spec.PluginCache, cr.Spec.EnableLogging, c.logger, envs...)
+	tf := c.terraform(dir, *pc.Spec.PluginCache, cr.Spec.EnableLogging, l, envs...)
 	if cr.Status.AtProvider.Checksum != "" {
 		checksum, err := tf.GenerateChecksum(ctx)
 		if err != nil {
