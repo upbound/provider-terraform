@@ -355,3 +355,25 @@ spec:
 At Vault side configuration is also needed to allow the write operation, see
 [example](https://docs.crossplane.io/knowledge-base/integrations/vault-as-secret-store/)
 here for inspiration.
+
+
+## Enable Terraform CLI logs
+
+Terraform CLI logs can be written to a container logs as standard output to assist with debugging and to view detailed information about Terraform operations.
+To enable it, the `Workspace` spec has an **optional** `EnableTerraformCLILogging` field.
+```yaml
+apiVersion: tf.upbound.io/v1beta1
+kind: Workspace
+metadata:
+  name: example-random-generator
+  annotations:
+    meta.upbound.io/example-id: tf/v1beta1/workspace
+    crossplane.io/external-name: random
+spec:
+  enableTerraformCLILogging: true
+  forProvider:
+    source: Inline
+...
+```
+
+- `enableTerraformCLILogging`: Specifies whether logging is enabled (`true`) or disabled (`false`). When enabled, Terraform CLI command logs will be written cpntainer logs as standard output. Default is `false`
