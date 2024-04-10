@@ -359,7 +359,7 @@ here for inspiration.
 
 ## Enable Terraform CLI logs
 
-Terraform CLI logs can be written to a container logs as standard output to assist with debugging and to view detailed information about Terraform operations.
+Terraform CLI logs can be written to the container logs as standard output to assist with debugging and to view detailed information about Terraform operations.
 To enable it, the `Workspace` spec has an **optional** `EnableTerraformCLILogging` field.
 ```yaml
 apiVersion: tf.upbound.io/v1beta1
@@ -376,4 +376,4 @@ spec:
 ...
 ```
 
-- `enableTerraformCLILogging`: Specifies whether logging is enabled (`true`) or disabled (`false`). When enabled, Terraform CLI command logs will be written cpntainer logs as standard output. Default is `false`
+- `enableTerraformCLILogging`: Specifies whether logging is enabled (`true`) or disabled (`false`). When enabled, Terraform CLI command logs will be written to the container logs as standard output. Default is `false`

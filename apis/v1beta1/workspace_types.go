@@ -157,9 +157,9 @@ type WorkspaceObservation struct {
 
 // A WorkspaceSpec defines the desired state of a Workspace.
 type WorkspaceSpec struct {
-	xpv1.ResourceSpec `json:",inline"`
-	ForProvider       WorkspaceParameters `json:"forProvider"`
-	EnableTerraformCLILogging     bool                `json:"enableTerraformCLILogging,omitempty"`
+	xpv1.ResourceSpec         `json:",inline"`
+	ForProvider               WorkspaceParameters `json:"forProvider"`
+	EnableTerraformCLILogging bool                `json:"enableTerraformCLILogging,omitempty"`
 }
 
 // A WorkspaceStatus represents the observed state of a Workspace.

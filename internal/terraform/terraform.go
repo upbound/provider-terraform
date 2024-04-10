@@ -25,8 +25,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/pkg/errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,6 +34,9 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/pkg/errors"
 )
 
 // Error strings.
@@ -567,14 +568,14 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	// 2 - Succeeded, there is a diff
 	log, err := runCommand(ctx, cmd)
 	switch cmd.ProcessState.ExitCode() {
-	case 1: 
+	case 1:
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
-		if h.EnableTerraformCLILogging{
+		if h.EnableTerraformCLILogging {
 			h.Logger.Info(string(ee.Stderr))
 		}
 	case 2:
-		if h.EnableTerraformCLILogging{
+		if h.EnableTerraformCLILogging {
 			h.Logger.Info(string(log))
 		}
 		return true, nil
@@ -614,13 +615,13 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 	log, err := runCommand(ctx, cmd)
 	switch cmd.ProcessState.ExitCode() {
 	case 0:
-		if h.EnableTerraformCLILogging{
+		if h.EnableTerraformCLILogging {
 			h.Logger.Info(string(log))
 		}
 	default:
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
-		if h.EnableTerraformCLILogging{
+		if h.EnableTerraformCLILogging {
 			h.Logger.Info(string(ee.Stderr))
 		}
 	}
@@ -659,13 +660,13 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	// Non Zero output - Errored
 	switch cmd.ProcessState.ExitCode() {
 	case 0:
-		if h.EnableTerraformCLILogging{
+		if h.EnableTerraformCLILogging {
 			h.Logger.Info(string(log))
 		}
 	default:
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
-		if h.EnableTerraformCLILogging{
+		if h.EnableTerraformCLILogging {
 			h.Logger.Info(string(ee.Stderr))
 		}
 	}

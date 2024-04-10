@@ -18,10 +18,11 @@ package main
 
 import (
 	"context"
-	zapuber "go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"time"
+
+	zapuber "go.uber.org/zap"
 
 	"github.com/crossplane/crossplane-runtime/pkg/certificates"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
@@ -65,7 +66,7 @@ func main() {
 	)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
-	zl := zap.New(zap.UseDevMode(*debug),UseJSONencoder())
+	zl := zap.New(zap.UseDevMode(*debug), UseJSONencoder())
 	log := logging.NewLogrLogger(zl.WithName("provider-terraform"))
 	if *debug {
 		// The controller-runtime runs with a no-op logger by default. It is
@@ -149,6 +150,7 @@ func main() {
 	kingpin.FatalIfError(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
 }
 
+// UseJSONencoder sets the logger to use json format for log records
 func UseJSONencoder() zap.Opts {
 	return func(o *zap.Options) {
 		encoderConfig := zapuber.NewProductionEncoderConfig()
@@ -156,4 +158,3 @@ func UseJSONencoder() zap.Opts {
 		o.Encoder = zapcore.NewJSONEncoder(encoderConfig)
 	}
 }
-
