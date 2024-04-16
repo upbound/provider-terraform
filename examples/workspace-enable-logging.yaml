@@ -8,12 +8,12 @@ metadata:
     # annotation it would be derived from metadata.name - e.g. 'example-random-generator.
     crossplane.io/external-name: random
 spec:
-  enableTerraformCLILogging: true
   forProvider:
+    enableTerraformCLILogging: true
     source: Inline
     module: |
       resource "random_id" "example_id" {
-        byte_length = 7
+        byte_length = 8
       }
       resource "random_password" "password" {
         length = 16

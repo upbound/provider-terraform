@@ -147,6 +147,8 @@ type WorkspaceParameters struct {
 
 	// Arguments to be included in the terraform destroy CLI command
 	DestroyArgs []string `json:"destroyArgs,omitempty"`
+
+	EnableTerraformCLILogging bool  `json:"enableTerraformCLILogging,omitempty"`
 }
 
 // WorkspaceObservation are the observable fields of a Workspace.
@@ -159,7 +161,6 @@ type WorkspaceObservation struct {
 type WorkspaceSpec struct {
 	xpv1.ResourceSpec         `json:",inline"`
 	ForProvider               WorkspaceParameters `json:"forProvider"`
-	EnableTerraformCLILogging bool                `json:"enableTerraformCLILogging,omitempty"`
 }
 
 // A WorkspaceStatus represents the observed state of a Workspace.

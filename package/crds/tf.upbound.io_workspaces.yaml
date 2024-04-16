@@ -61,8 +61,6 @@ spec:
                 - Orphan
                 - Delete
                 type: string
-              enableTerraformCLILogging:
-                type: boolean
               forProvider:
                 description: WorkspaceParameters are the configurable fields of a
                   Workspace.
@@ -79,6 +77,8 @@ spec:
                     items:
                       type: string
                     type: array
+                  enableTerraformCLILogging:
+                    type: boolean
                   entrypoint:
                     default: ""
                     description: Entrypoint for `terraform init` within the module

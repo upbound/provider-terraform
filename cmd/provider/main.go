@@ -91,7 +91,7 @@ func main() {
 
 		// controller-runtime uses both ConfigMaps and Leases for leader
 		// election by default. Leases expire after 15 seconds, with a
-		// 10 seconds renewal deadline. We've observed leader loss due to
+		// 10 second renewal deadline. We've observed leader loss due to
 		// renewal deadlines being exceeded when under high load - i.e.
 		// hundreds of reconciles per second and ~200rps to the API
 		// server. Switching to Leases only and longer leases appears to
