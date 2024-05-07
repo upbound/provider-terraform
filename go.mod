@@ -8,7 +8,7 @@ require (
 	github.com/crossplane/crossplane-tools v0.0.0-20230925130601-628280f8bf79
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.4.0
-	github.com/hashicorp/go-getter v1.7.0
+	github.com/hashicorp/go-getter v1.7.4
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/afero v1.11.0
 	go.uber.org/zap v1.26.0
