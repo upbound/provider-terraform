@@ -576,7 +576,7 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 		}
 	case 2:
 		if h.EnableTerraformCLILogging {
-			h.Logger.Info("plan-"+string(log))
+			h.Logger.Info(string(log),"operation","plan")
 		}
 		return true, nil
 	}
@@ -616,7 +616,7 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 	switch cmd.ProcessState.ExitCode() {
 	case 0:
 		if h.EnableTerraformCLILogging {
-			h.Logger.Info("apply-"+string(log))
+			h.Logger.Info(string(log),"operation","apply")
 		}
 	default:
 		ee := &exec.ExitError{}
@@ -661,7 +661,7 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	switch cmd.ProcessState.ExitCode() {
 	case 0:
 		if h.EnableTerraformCLILogging {
-			h.Logger.Info("delete-"+string(log))
+			h.Logger.Info(string(log),"operation","delete")
 		}
 	default:
 		ee := &exec.ExitError{}

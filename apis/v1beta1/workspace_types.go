@@ -148,6 +148,8 @@ type WorkspaceParameters struct {
 	// Arguments to be included in the terraform destroy CLI command
 	DestroyArgs []string `json:"destroyArgs,omitempty"`
 
+	// Boolean value to indicate  CLI logging of terraform execution is enabled or not
+    // +optional
 	EnableTerraformCLILogging bool  `json:"enableTerraformCLILogging,omitempty"`
 }
 
