@@ -149,7 +149,7 @@ type WorkspaceParameters struct {
 	DestroyArgs []string `json:"destroyArgs,omitempty"`
 
 	// Boolean value to indicate  CLI logging of terraform execution is enabled or not
-    // +optional
+	// +optional
 	EnableTerraformCLILogging bool  `json:"enableTerraformCLILogging,omitempty"`
 }
 
@@ -161,8 +161,8 @@ type WorkspaceObservation struct {
 
 // A WorkspaceSpec defines the desired state of a Workspace.
 type WorkspaceSpec struct {
-	xpv1.ResourceSpec         `json:",inline"`
-	ForProvider               WorkspaceParameters `json:"forProvider"`
+	xpv1.ResourceSpec `json:",inline"`
+	ForProvider       WorkspaceParameters `json:"forProvider"`
 }
 
 // A WorkspaceStatus represents the observed state of a Workspace.
