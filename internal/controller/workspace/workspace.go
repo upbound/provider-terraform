@@ -19,6 +19,7 @@ package workspace
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -75,6 +76,7 @@ const (
 	errDestroy         = "cannot destroy Terraform configuration"
 	errVarFile         = "cannot get tfvars"
 	errVarMap          = "cannot get tfvars from var map"
+	errVarResolution   = "cannot resolve variables"
 	errDeleteWorkspace = "cannot delete Terraform workspace"
 	errChecksum        = "cannot calculate workspace checksum"
 
@@ -99,7 +101,7 @@ func envVarFallback(envvar string, fallback string) string {
 var tfDir = envVarFallback("XP_TF_DIR", "/tf")
 
 type tfclient interface {
-	Init(ctx context.Context, cache bool, o ...terraform.InitOption) error
+	Init(ctx context.Context, o ...terraform.InitOption) error
 	Workspace(ctx context.Context, name string) error
 	Outputs(ctx context.Context) ([]terraform.Output, error)
 	Resources(ctx context.Context) ([]string, error)
@@ -123,15 +125,17 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Dura
 
 	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
 	if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
-		cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), v1beta1.StoreConfigGroupVersionKind))
+		cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), v1beta1.StoreConfigGroupVersionKind, connection.WithTLSConfig(o.ESSOptions.TLSConfig)))
 	}
 
 	c := &connector{
-		kube:      mgr.GetClient(),
-		usage:     resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1beta1.ProviderConfigUsage{}),
-		logger:    o.Logger,
-		fs:        fs,
-		terraform: func(dir string) tfclient { return terraform.Harness{Path: tfPath, Dir: dir} },
+		kube:   mgr.GetClient(),
+		usage:  resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1beta1.ProviderConfigUsage{}),
+		logger: o.Logger,
+		fs:     fs,
+		terraform: func(dir string, usePluginCache bool, envs ...string) tfclient {
+			return terraform.Harness{Path: tfPath, Dir: dir, UsePluginCache: usePluginCache, Envs: envs}
+		},
 	}
 
 	opts := []managed.ReconcilerOption{
@@ -165,7 +169,7 @@ type connector struct {
 	usage     resource.Tracker
 	logger    logging.Logger
 	fs        afero.Afero
-	terraform func(dir string) tfclient
+	terraform func(dir string, usePluginCache bool, envs ...string) tfclient
 }
 
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) { //nolint:gocyclo
@@ -283,7 +287,41 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		pc.Spec.PluginCache = new(bool)
 		*pc.Spec.PluginCache = true
 	}
-	tf := c.terraform(dir)
+
+	envs := make([]string, len(cr.Spec.ForProvider.Env))
+	for idx, env := range cr.Spec.ForProvider.Env {
+		runtimeVal := env.Value
+		if runtimeVal == "" {
+			switch {
+			case env.ConfigMapKeyReference != nil:
+				cm := &corev1.ConfigMap{}
+				r := env.ConfigMapKeyReference
+				nn := types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
+				if err := c.kube.Get(ctx, nn, cm); err != nil {
+					return nil, errors.Wrap(err, errVarResolution)
+				}
+				runtimeVal, ok = cm.Data[r.Key]
+				if !ok {
+					return nil, errors.Wrap(fmt.Errorf("couldn't find key %v in ConfigMap %v/%v", r.Key, r.Namespace, r.Name), errVarResolution)
+				}
+			case env.SecretKeyReference != nil:
+				s := &corev1.Secret{}
+				r := env.SecretKeyReference
+				nn := types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
+				if err := c.kube.Get(ctx, nn, s); err != nil {
+					return nil, errors.Wrap(err, errVarResolution)
+				}
+				secretBytes, ok := s.Data[r.Key]
+				if !ok {
+					return nil, errors.Wrap(fmt.Errorf("couldn't find key %v in Secret %v/%v", r.Key, r.Namespace, r.Name), errVarResolution)
+				}
+				runtimeVal = string(secretBytes)
+			}
+		}
+		envs[idx] = strings.Join([]string{env.Name, runtimeVal}, "=")
+	}
+
+	tf := c.terraform(dir, *pc.Spec.PluginCache, envs...)
 	if cr.Status.AtProvider.Checksum != "" {
 		checksum, err := tf.GenerateChecksum(ctx)
 		if err != nil {
@@ -301,7 +339,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		o = append(o, terraform.WithInitArgs([]string{"-backend-config=" + filepath.Join(dir, tfBackendFile)}))
 	}
 	o = append(o, terraform.WithInitArgs(cr.Spec.ForProvider.InitArgs))
-	if err := tf.Init(ctx, *pc.Spec.PluginCache, o...); err != nil {
+	if err := tf.Init(ctx, o...); err != nil {
 		return nil, errors.Wrap(err, errInit)
 	}
 	return &external{tf: tf, kube: c.kube}, errors.Wrap(tf.Workspace(ctx, meta.GetExternalName(cr)), errWorkspace)
@@ -356,7 +394,6 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 	// Include any non-sensitive outputs in our status
 	op, err := c.tf.Outputs(ctx)
-
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, errOutputs)
 	}

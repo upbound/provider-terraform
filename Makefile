@@ -26,7 +26,7 @@ GO111MODULE = on
 
 # Uncomment below to override the versions from the build module
 # KIND_VERSION = v0.15.0
-# UP_VERSION = v0.14.0
+UP_VERSION = v0.28.0
 # UP_CHANNEL = stable
 UPTEST_VERSION = v0.5.0
 -include build/makelib/k8s_tools.mk

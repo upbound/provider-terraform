@@ -1,0 +1,54 @@
+apiVersion: tf.upbound.io/v1beta1
+kind: Workspace
+metadata:
+  name: sample-inline-with-env
+spec:
+  forProvider:
+    source: Inline
+    env:
+      - name: TF_VAR_vpcName
+        value: 'sample-tf-inline-with-env'
+      - name: TF_VAR_EnvFromConfigMap
+        configMapKeyRef:
+          namespace: default
+          name: provider-terraform-test
+          key: envfromconfigmap
+      - name: TF_VAR_EnvFromSecret
+        secretKeyRef:
+          namespace: default
+          name: provider-terraform-test
+          key: envfromsecret
+    module: |
+      resource "aws_vpc" "main" {
+        cidr_block       = "10.0.0.0/16"
+        tags = {
+          Name = var.vpcName
+          EnvFromConfigMap = var.EnvFromConfigMap
+          EnvFromSecret = var.EnvFromSecret
+        }
+      }
+      resource "aws_subnet" "main" {
+        vpc_id     = aws_vpc.main.id
+        cidr_block = "10.0.1.0/24"
+      }
+      output "vpc_id" {
+        value       = aws_vpc.main.id
+      }
+      output "subnet_data" {
+        value = {
+          "id" = aws_subnet.main.id
+          "arn" = aws_subnet.main.arn
+        }
+      }
+      variable "vpcName" {
+        description = "VPC name"
+        type        = string
+      }
+      variable "EnvFromConfigMap" {
+        description = "Environment Value From ConfigMap"
+        type        = string
+      }
+      variable "EnvFromSecret" {
+        description = "Environment Value From Secret"
+        type        = string
+      }

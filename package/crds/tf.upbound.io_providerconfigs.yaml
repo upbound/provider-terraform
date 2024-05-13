@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.13.0
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: providerconfigs.tf.upbound.io
 spec:
   group: tf.upbound.io
@@ -32,14 +32,19 @@ spec:
         description: A ProviderConfig configures a Terraform provider.
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -47,16 +52,17 @@ spec:
             description: A ProviderConfigSpec defines the desired state of a ProviderConfig.
             properties:
               backendFile:
-                description: Terraform backend file configuration content, it has
-                  the contents of the backend block as top-level attributes, without
-                  the need to wrap it in another terraform or backend block. More
-                  details at https://developer.hashicorp.com/terraform/language/settings/backends/configuration#file.
+                description: |-
+                  Terraform backend file configuration content,
+                  it has the contents of the backend block as top-level attributes,
+                  without the need to wrap it in another terraform or backend block.
+                  More details at https://developer.hashicorp.com/terraform/language/settings/backends/configuration#file.
                 type: string
               configuration:
-                description: Configuration that should be injected into all workspaces
-                  that use this provider config, expressed as inline HCL. This can
-                  be used to automatically inject Terraform provider configuration
-                  blocks.
+                description: |-
+                  Configuration that should be injected into all workspaces that use
+                  this provider config, expressed as inline HCL. This can be used to
+                  automatically inject Terraform provider configuration blocks.
                 type: string
               credentials:
                 description: Credentials required to authenticate to this provider.
@@ -64,8 +70,9 @@ spec:
                   description: ProviderCredentials required to authenticate.
                   properties:
                     env:
-                      description: Env is a reference to an environment variable that
-                        contains credentials that must be used to connect to the provider.
+                      description: |-
+                        Env is a reference to an environment variable that contains credentials
+                        that must be used to connect to the provider.
                       properties:
                         name:
                           description: Name is the name of an environment variable.
@@ -74,12 +81,14 @@ spec:
                       - name
                       type: object
                     filename:
-                      description: Filename (relative to main.tf) to which these provider
-                        credentials should be written.
+                      description: |-
+                        Filename (relative to main.tf) to which these provider credentials
+                        should be written.
                       type: string
                     fs:
-                      description: Fs is a reference to a filesystem location that
-                        contains credentials that must be used to connect to the provider.
+                      description: |-
+                        Fs is a reference to a filesystem location that contains credentials that
+                        must be used to connect to the provider.
                       properties:
                         path:
                           description: Path is a filesystem path.
@@ -88,9 +97,9 @@ spec:
                       - path
                       type: object
                     secretRef:
-                      description: A SecretRef is a reference to a secret key that
-                        contains the credentials that must be used to connect to the
-                        provider.
+                      description: |-
+                        A SecretRef is a reference to a secret key that contains the credentials
+                        that must be used to connect to the provider.
                       properties:
                         key:
                           description: The key to select.
@@ -121,8 +130,9 @@ spec:
                 type: array
               pluginCache:
                 default: true
-                description: PluginCache enables terraform provider plugin caching
-                  mechanism https://developer.hashicorp.com/terraform/cli/config/config-file#provider-plugin-cache
+                description: |-
+                  PluginCache enables terraform provider plugin caching mechanism
+                  https://developer.hashicorp.com/terraform/cli/config/config-file#provider-plugin-cache
                 type: boolean
             type: object
           status:
@@ -134,13 +144,15 @@ spec:
                   description: A Condition that may apply to a resource.
                   properties:
                     lastTransitionTime:
-                      description: LastTransitionTime is the last time this condition
-                        transitioned from one status to another.
+                      description: |-
+                        LastTransitionTime is the last time this condition transitioned from one
+                        status to another.
                       format: date-time
                       type: string
                     message:
-                      description: A Message containing details about this condition's
-                        last transition from one status to another, if any.
+                      description: |-
+                        A Message containing details about this condition's last transition from
+                        one status to another, if any.
                       type: string
                     reason:
                       description: A Reason for this condition's last transition from
@@ -151,8 +163,9 @@ spec:
                         False, or Unknown?
                       type: string
                     type:
-                      description: Type of this condition. At most one of each condition
-                        type may apply to a resource at any point in time.
+                      description: |-
+                        Type of this condition. At most one of each condition type may apply to
+                        a resource at any point in time.
                       type: string
                   required:
                   - lastTransitionTime
@@ -161,6 +174,9 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               users:
                 description: Users of this provider configuration.
                 format: int64
