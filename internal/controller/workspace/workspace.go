@@ -19,6 +19,7 @@ package workspace
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,6 +31,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensionsV1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -74,6 +76,7 @@ const (
 	errDestroy         = "cannot destroy Terraform configuration"
 	errVarFile         = "cannot get tfvars"
 	errVarMap          = "cannot get tfvars from var map"
+	errVarResolution   = "cannot resolve variables"
 	errDeleteWorkspace = "cannot delete Terraform workspace"
 	errChecksum        = "cannot calculate workspace checksum"
 
@@ -102,7 +105,7 @@ type tfclient interface {
 	Workspace(ctx context.Context, name string) error
 	Outputs(ctx context.Context) ([]terraform.Output, error)
 	Resources(ctx context.Context) ([]string, error)
-	Diff(ctx context.Context, o ...terraform.Option) (bool, error)
+	Diff(ctx context.Context, o ...terraform.Option) (bool, string, error)
 	Apply(ctx context.Context, o ...terraform.Option) error
 	Destroy(ctx context.Context, o ...terraform.Option) error
 	DeleteCurrentWorkspace(ctx context.Context) error
@@ -122,7 +125,7 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Dura
 
 	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
 	if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
-		cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), v1beta1.StoreConfigGroupVersionKind))
+		cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), v1beta1.StoreConfigGroupVersionKind, connection.WithTLSConfig(o.ESSOptions.TLSConfig)))
 	}
 
 	c := &connector{
@@ -130,8 +133,8 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Dura
 		usage:  resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1beta1.ProviderConfigUsage{}),
 		logger: o.Logger,
 		fs:     fs,
-		terraform: func(dir string, usePluginCache bool) tfclient {
-			return terraform.Harness{Path: tfPath, Dir: dir, UsePluginCache: usePluginCache}
+		terraform: func(dir string, usePluginCache bool, envs ...string) tfclient {
+			return terraform.Harness{Path: tfPath, Dir: dir, UsePluginCache: usePluginCache, Envs: envs}
 		},
 	}
 
@@ -166,7 +169,7 @@ type connector struct {
 	usage     resource.Tracker
 	logger    logging.Logger
 	fs        afero.Afero
-	terraform func(dir string, usePluginCache bool) tfclient
+	terraform func(dir string, usePluginCache bool, envs ...string) tfclient
 }
 
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) { //nolint:gocyclo
@@ -284,7 +287,41 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		pc.Spec.PluginCache = new(bool)
 		*pc.Spec.PluginCache = true
 	}
-	tf := c.terraform(dir, *pc.Spec.PluginCache)
+
+	envs := make([]string, len(cr.Spec.ForProvider.Env))
+	for idx, env := range cr.Spec.ForProvider.Env {
+		runtimeVal := env.Value
+		if runtimeVal == "" {
+			switch {
+			case env.ConfigMapKeyReference != nil:
+				cm := &corev1.ConfigMap{}
+				r := env.ConfigMapKeyReference
+				nn := types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
+				if err := c.kube.Get(ctx, nn, cm); err != nil {
+					return nil, errors.Wrap(err, errVarResolution)
+				}
+				runtimeVal, ok = cm.Data[r.Key]
+				if !ok {
+					return nil, errors.Wrap(fmt.Errorf("couldn't find key %v in ConfigMap %v/%v", r.Key, r.Namespace, r.Name), errVarResolution)
+				}
+			case env.SecretKeyReference != nil:
+				s := &corev1.Secret{}
+				r := env.SecretKeyReference
+				nn := types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
+				if err := c.kube.Get(ctx, nn, s); err != nil {
+					return nil, errors.Wrap(err, errVarResolution)
+				}
+				secretBytes, ok := s.Data[r.Key]
+				if !ok {
+					return nil, errors.Wrap(fmt.Errorf("couldn't find key %v in Secret %v/%v", r.Key, r.Namespace, r.Name), errVarResolution)
+				}
+				runtimeVal = string(secretBytes)
+			}
+		}
+		envs[idx] = strings.Join([]string{env.Name, runtimeVal}, "=")
+	}
+
+	tf := c.terraform(dir, *pc.Spec.PluginCache, envs...)
 	if cr.Status.AtProvider.Checksum != "" {
 		checksum, err := tf.GenerateChecksum(ctx)
 		if err != nil {
@@ -314,32 +351,34 @@ type external struct {
 	logger logging.Logger
 }
 
-func (c *external) checkDiff(ctx context.Context, cr *v1beta1.Workspace) (bool, error) {
+func (c *external) checkDiff(ctx context.Context, cr *v1beta1.Workspace) (bool, string, error) {
 	o, err := c.options(ctx, cr.Spec.ForProvider)
 	if err != nil {
-		return false, errors.Wrap(err, errOptions)
+		return false, "", errors.Wrap(err, errOptions)
 	}
 
 	o = append(o, terraform.WithArgs(cr.Spec.ForProvider.PlanArgs))
-	differs, err := c.tf.Diff(ctx, o...)
+	differs, planOutput, err := c.tf.Diff(ctx, o...)
+
 	if err != nil {
 		if !meta.WasDeleted(cr) {
-			return false, errors.Wrap(err, errDiff)
+			return false, planOutput, errors.Wrap(err, errDiff)
 		}
 		// terraform plan can fail on deleted resources, so let the reconciliation loop
 		// call Delete() if there are still resources in the tfstate file
 		differs = false
 	}
-	return differs, nil
+	return differs, planOutput, nil
 }
 
+//nolint:gocyclo
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
 	cr, ok := mg.(*v1beta1.Workspace)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotWorkspace)
 	}
 
-	differs, err := c.checkDiff(ctx, cr)
+	differs, planOutput, err := c.checkDiff(ctx, cr)
 	if err != nil {
 		return managed.ExternalObservation{}, err
 	}
@@ -355,7 +394,6 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 	// Include any non-sensitive outputs in our status
 	op, err := c.tf.Outputs(ctx)
-
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, errOutputs)
 	}
@@ -366,6 +404,10 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.Wrap(err, errChecksum)
 	}
 	cr.Status.AtProvider.Checksum = checksum
+
+	if ptr.Deref[bool](cr.Spec.ForProvider.IncludePlan, false) {
+		cr.Status.AtProvider.Plan = &planOutput
+	}
 
 	if !differs {
 		// TODO(negz): Allow Workspaces to optionally derive their readiness from an

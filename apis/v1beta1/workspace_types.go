@@ -68,6 +68,18 @@ type VarFile struct {
 	SecretKeyReference *KeyReference `json:"secretKeyRef,omitempty"`
 }
 
+// An EnvVar specifies an environment variable to be set for the workspace.
+type EnvVar struct {
+	Name  string `json:"name"`
+	Value string `json:"value,omitempty"`
+
+	// A ConfigMap key containing the desired env var value.
+	ConfigMapKeyReference *KeyReference `json:"configMapKeyRef,omitempty"`
+
+	// A Secret key containing the desired env var value.
+	SecretKeyReference *KeyReference `json:"secretKeyRef,omitempty"`
+}
+
 // A KeyReference references a key within a Secret or a ConfigMap.
 type KeyReference struct {
 	// Namespace of the referenced resource.
@@ -107,6 +119,16 @@ type WorkspaceParameters struct {
 	// +optional
 	Entrypoint string `json:"entrypoint"`
 
+	// Include the output of terraform plan in the status.
+	// The plan will be gzipped and base64 encoded.
+	// +kubebuilder:default=false
+	// +optional
+	IncludePlan *bool `json:"includePlan"`
+	
+  // Environment variables.
+	// +optional
+	Env []EnvVar `json:"env,omitempty"`
+
 	// Configuration variables.
 	// +optional
 	Vars []Var `json:"vars,omitempty"`
@@ -135,6 +157,8 @@ type WorkspaceParameters struct {
 
 // WorkspaceObservation are the observable fields of a Workspace.
 type WorkspaceObservation struct {
+	// +optional
+	Plan     *string                      `json:"tfPlan,omitempty"`
 	Checksum string                       `json:"checksum,omitempty"`
 	Outputs  map[string]extensionsV1.JSON `json:"outputs,omitempty"`
 }
@@ -155,8 +179,8 @@ type WorkspaceStatus struct {
 
 // A Workspace of Terraform Configuration.
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="SYNCED",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
+// +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories={crossplane,managed,terraform}
 type Workspace struct {

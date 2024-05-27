@@ -53,6 +53,11 @@ const (
 
 const varFilePrefix = "crossplane-provider-terraform-"
 
+// Info message to show plan change
+const (
+	noDiffInPlan = "No change in the terraform plan"
+)
+
 // Terraform often returns a summary of the error it encountered on a single
 // line, prefixed with 'Error: '.
 var tfError = regexp.MustCompile(`Error: (.+)\n`)
@@ -109,6 +114,29 @@ func formatTerraformErrorOutput(errorOutput string) (string, string, error) {
 	return summary, base64FullErr, nil
 }
 
+// Format Terraform error output as gzipped and base64 encoded string
+func formatTerraformPlanOutput(output string) (string, error) {
+	// Gzip compress the output and base64 encode it.
+	var buffer bytes.Buffer
+	gz := gzip.NewWriter(&buffer)
+
+	if _, err := gz.Write([]byte(output)); err != nil {
+		return "", err
+	}
+
+	if err := gz.Flush(); err != nil {
+		return "", err
+	}
+
+	if err := gz.Close(); err != nil {
+		return "", err
+	}
+
+	base64FullPlan := base64.StdEncoding.EncodeToString(buffer.Bytes())
+
+	return base64FullPlan, nil
+}
+
 // NOTE(negz): The gosec linter returns a G204 warning anytime a command is
 // executed with any kind of variable input. This isn't inherently a problem,
 // and is apparently mostly intended to catch the attention of code auditors per
@@ -124,6 +152,9 @@ type Harness struct {
 
 	// Whether to use the terraform plugin cache
 	UsePluginCache bool
+
+	// Environment Variables
+	Envs []string
 
 	// TODO(negz): Harness is a subset of exec.Cmd. If callers need more insight
 	// into what the underlying Terraform binary is doing (e.g. for debugging)
@@ -185,6 +216,9 @@ func (h Harness) Init(ctx context.Context, o ...InitOption) error {
 		cmd.Env = append(cmd.Env, e)
 	}
 	cmd.Env = append(cmd.Env, "TF_CLI_CONFIG_FILE=./.terraformrc")
+	if len(h.Envs) > 0 {
+		cmd.Env = append(cmd.Env, h.Envs...)
+	}
 
 	if h.UsePluginCache {
 		rwmutex.Lock()
@@ -202,6 +236,9 @@ func (h Harness) Init(ctx context.Context, o ...InitOption) error {
 func (h Harness) Validate(ctx context.Context) error {
 	cmd := exec.Command(h.Path, "validate", "-json") //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	type result struct {
 		Valid      bool `json:"valid"`
@@ -234,6 +271,9 @@ func (h Harness) Validate(ctx context.Context) error {
 func (h Harness) Workspace(ctx context.Context, name string) error {
 	cmd := exec.Command(h.Path, "workspace", "select", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	if _, err := runCommand(ctx, cmd); err == nil {
 		// We successfully selected the workspace; we're done.
@@ -259,6 +299,9 @@ func (h Harness) Workspace(ctx context.Context, name string) error {
 func (h Harness) DeleteCurrentWorkspace(ctx context.Context) error {
 	cmd := exec.Command(h.Path, "workspace", "show", "-no-color") //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	n, err := runCommand(ctx, cmd)
 	if err != nil {
@@ -276,6 +319,9 @@ func (h Harness) DeleteCurrentWorkspace(ctx context.Context) error {
 	}
 	cmd = exec.Command(h.Path, "workspace", "delete", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	if h.UsePluginCache {
 		rwmutex.RLock()
@@ -383,6 +429,9 @@ func (o Output) JSONValue() ([]byte, error) {
 func (h Harness) Outputs(ctx context.Context) ([]Output, error) {
 	cmd := exec.Command(h.Path, "output", "-json") //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	type output struct {
 		Sensitive bool `json:"sensitive"`
@@ -440,6 +489,9 @@ func (h Harness) Outputs(ctx context.Context) ([]Output, error) {
 func (h Harness) Resources(ctx context.Context) ([]string, error) {
 	cmd := exec.Command(h.Path, "state", "list") //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	if h.UsePluginCache {
 		rwmutex.RLock()
@@ -508,7 +560,7 @@ func WithVarFile(data []byte, f FileFormat) Option {
 // Diff invokes 'terraform plan' to determine whether there is a diff between
 // the desired and the actual state of the configuration. It returns true if
 // there is a diff.
-func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
+func (h Harness) Diff(ctx context.Context, o ...Option) (bool, string, error) {
 	ao := &options{}
 	for _, fn := range o {
 		fn(ao)
@@ -516,13 +568,16 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 
 	for _, vf := range ao.varFiles {
 		if err := os.WriteFile(filepath.Join(h.Dir, vf.filename), vf.data, 0600); err != nil {
-			return false, errors.Wrap(err, errWriteVarFile)
+			return false, "", errors.Wrap(err, errWriteVarFile)
 		}
 	}
 
 	args := append([]string{"plan", "-no-color", "-input=false", "-detailed-exitcode", "-lock=false"}, ao.args...)
 	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	// Note: the terraform lock is not used (see the -lock=false flag above) and the rwmutex is
 	// intentionally not locked here to avoid excessive blocking. See
@@ -532,11 +587,19 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	// 0 - Succeeded, diff is empty (no changes)
 	// 1 - Errored
 	// 2 - Succeeded, there is a diff
-	_, err := runCommand(ctx, cmd)
+
+	planVal, err := runCommand(ctx, cmd)
 	if cmd.ProcessState.ExitCode() == 2 {
-		return true, nil
+
+		base64FullPlan, err := formatTerraformPlanOutput(string(planVal))
+		if err != nil {
+			return false, "", err
+		}
+
+		return true, base64FullPlan, nil
 	}
-	return false, Classify(err)
+
+	return false, noDiffInPlan, Classify(err)
 }
 
 // Apply a Terraform configuration.
@@ -555,6 +618,9 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 	args := append([]string{"apply", "-no-color", "-auto-approve", "-input=false"}, ao.args...)
 	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	if h.UsePluginCache {
 		rwmutex.RLock()
@@ -581,6 +647,9 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	args := append([]string{"destroy", "-no-color", "-auto-approve", "-input=false"}, do.args...)
 	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	if h.UsePluginCache {
 		rwmutex.RLock()
