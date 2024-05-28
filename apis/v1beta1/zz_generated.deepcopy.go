@@ -480,6 +480,7 @@ func (in *WorkspaceParameters) DeepCopyInto(out *WorkspaceParameters) {
 		in, out := &in.IncludePlan, &out.IncludePlan
 		*out = new(bool)
 		**out = **in
+	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
 		*out = make([]EnvVar, len(*in))

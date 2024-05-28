@@ -87,11 +87,6 @@ spec:
                     default: ""
                     description: Entrypoint for `terraform init` within the module
                     type: string
-                  includePlan:
-                    default: false
-                    description: Include the output of terraform plan in the status.
-                      The plan will be gzipped and base64 encoded.
-                    type: boolean
                   env:
                     description: Environment variables.
                     items:
@@ -142,6 +137,12 @@ spec:
                       - name
                       type: object
                     type: array
+                  includePlan:
+                    default: false
+                    description: |-
+                      Include the output of terraform plan in the status.
+                      The plan will be gzipped and base64 encoded.
+                    type: boolean
                   initArgs:
                     description: Arguments to be included in the terraform init CLI
                       command
