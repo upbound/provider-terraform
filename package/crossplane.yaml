@@ -3,8 +3,8 @@ kind: Provider
 metadata:
   name: provider-terraform
   annotations:
-    meta.crossplane.io/maintainer: Upbound <support@upbound.io>
-    meta.crossplane.io/source: github.com/upbound/provider-terraform
+    meta.crossplane.io/maintainer: Freshworks <support@upbound.io>
+    meta.crossplane.io/source: github.com/freshworksinc/provider-terraform
     meta.crossplane.io/description: |
       Upbound's official Crossplane provider to manage Terraform workspaces.
     meta.crossplane.io/readme: |
