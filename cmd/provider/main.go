@@ -66,7 +66,7 @@ func main() {
 	)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
-	zl := zap.New(zap.UseDevMode(*debug), UseJSONencoder())
+	zl := zap.New(zap.UseDevMode(*debug), UseISO8601())
 	log := logging.NewLogrLogger(zl.WithName("provider-terraform"))
 	if *debug {
 		// The controller-runtime runs with a no-op logger by default. It is
@@ -150,11 +150,9 @@ func main() {
 	kingpin.FatalIfError(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
 }
 
-// UseJSONencoder sets the logger to use json format for log records
-func UseJSONencoder() zap.Opts {
+// UseISO8601 sets the logger to use ISO8601 timestamp format
+func UseISO8601() zap.Opts {
 	return func(o *zap.Options) {
-		encoderConfig := zapuber.NewProductionEncoderConfig()
-		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-		o.Encoder = zapcore.NewJSONEncoder(encoderConfig)
+		o.TimeEncoder = zapcore.ISO8601TimeEncoder
 	}
 }
