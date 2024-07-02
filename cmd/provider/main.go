@@ -22,8 +22,6 @@ import (
 	"path/filepath"
 	"time"
 
-	zapuber "go.uber.org/zap"
-
 	"github.com/crossplane/crossplane-runtime/pkg/certificates"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/feature"

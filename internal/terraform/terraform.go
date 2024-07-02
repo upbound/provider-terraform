@@ -661,13 +661,13 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	switch cmd.ProcessState.ExitCode() {
 	case 0:
 		if h.EnableTerraformCLILogging {
-			h.Logger.Info(string(log), "operation", "delete")
+			h.Logger.Info(string(log), "operation", "destroy")
 		}
 	default:
 		ee := &exec.ExitError{}
 		errors.As(err, &ee)
 		if h.EnableTerraformCLILogging {
-			h.Logger.Info(string(ee.Stderr), "operation", "delete")
+			h.Logger.Info(string(ee.Stderr), "operation", "destroy")
 		}
 	}
 	return Classify(err)
