@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/statemetrics"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
@@ -145,10 +146,16 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Dura
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		managed.WithTimeout(timeout),
 		managed.WithConnectionPublishers(cps...),
+		managed.WithMetricRecorder(o.MetricOptions.MRMetrics),
 	}
 
 	if o.Features.Enabled(features.EnableBetaManagementPolicies) {
 		opts = append(opts, managed.WithManagementPolicies())
+	}
+
+	if err := mgr.Add(statemetrics.NewMRStateRecorder(
+		mgr.GetClient(), o.Logger, o.MetricOptions.MRStateMetrics, &v1beta1.WorkspaceList{}, o.MetricOptions.PollStateMetricInterval)); err != nil {
+		return err
 	}
 
 	r := managed.NewReconciler(mgr,
