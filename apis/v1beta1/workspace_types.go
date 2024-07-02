@@ -150,7 +150,7 @@ type WorkspaceParameters struct {
 
 	// Boolean value to indicate  CLI logging of terraform execution is enabled or not
 	// +optional
-	EnableTerraformCLILogging bool  `json:"enableTerraformCLILogging,omitempty"`
+	EnableTerraformCLILogging bool `json:"enableTerraformCLILogging,omitempty"`
 }
 
 // WorkspaceObservation are the observable fields of a Workspace.
