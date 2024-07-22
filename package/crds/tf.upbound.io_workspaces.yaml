@@ -429,6 +429,8 @@ spec:
                     additionalProperties:
                       x-kubernetes-preserve-unknown-fields: true
                     type: object
+                  planStamp:
+                    type: string
                   tfPlan:
                     type: string
                 type: object

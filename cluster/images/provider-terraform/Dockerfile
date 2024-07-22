@@ -5,7 +5,7 @@ ARG TARGETARCH
 
 ENV TERRAFORM_VERSION=1.5.5
 ENV TF_IN_AUTOMATION=1
-ENV TF_PLUGIN_CACHE_DIR=/tf/plugin-cache
+ENV TF_DIR=/tf/
 
 ADD "bin/${TARGETOS}_${TARGETARCH}/provider" /usr/local/bin/crossplane-terraform-provider
 ADD .gitconfig .gitconfig
@@ -17,7 +17,7 @@ RUN curl -s -L https://github.com/upbound/terraform/releases/download/v${TERRAFO
   && unzip -d /usr/local/bin terraform.zip \
   && rm terraform.zip \
   && chmod +x /usr/local/bin/terraform \
-  && mkdir -p ${TF_PLUGIN_CACHE_DIR} \
+  && mkdir -p ${TF_DIR} \
   && chown -R 2000 /tf
 # As of Crossplane v1.3.0 provider controllers run as UID 2000.
 # https://github.com/crossplane/crossplane/blob/v1.3.0/internal/controller/pkg/revision/deployment.go#L32

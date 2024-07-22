@@ -32,7 +32,7 @@ UPTEST_VERSION = v0.5.0
 -include build/makelib/k8s_tools.mk
 
 # Setup Images
-REGISTRY_ORGS ?= xpkg.upbound.io/upbound
+REGISTRY_ORGS ?= 696234406407.dkr.ecr.us-east-1.amazonaws.com
 IMAGES = provider-terraform
 -include build/makelib/imagelight.mk
 
@@ -58,10 +58,10 @@ submodules:
 # ====================================================================================
 # Setup XPKG
 
-XPKG_REG_ORGS ?= xpkg.upbound.io/upbound
+XPKG_REG_ORGS ?= 696234406407.dkr.ecr.us-east-1.amazonaws.com/upbound
 # NOTE(hasheddan): skip promoting on xpkg.upbound.io as channel tags are
 # inferred.
-XPKG_REG_ORGS_NO_PROMOTE ?= xpkg.upbound.io/upbound
+XPKG_REG_ORGS_NO_PROMOTE ?= 696234406407.dkr.ecr.us-east-1.amazonaws.com/upbound
 XPKGS = provider-terraform
 -include build/makelib/xpkg.mk
 

@@ -124,8 +124,8 @@ type WorkspaceParameters struct {
 	// +kubebuilder:default=false
 	// +optional
 	IncludePlan *bool `json:"includePlan"`
-	
-  // Environment variables.
+
+	// Environment variables.
 	// +optional
 	Env []EnvVar `json:"env,omitempty"`
 
@@ -158,9 +158,10 @@ type WorkspaceParameters struct {
 // WorkspaceObservation are the observable fields of a Workspace.
 type WorkspaceObservation struct {
 	// +optional
-	Plan     *string                      `json:"tfPlan,omitempty"`
-	Checksum string                       `json:"checksum,omitempty"`
-	Outputs  map[string]extensionsV1.JSON `json:"outputs,omitempty"`
+	PlanStamp *string                      `json:"planStamp,omitempty"`
+	Plan      *string                      `json:"tfPlan,omitempty"`
+	Checksum  string                       `json:"checksum,omitempty"`
+	Outputs   map[string]extensionsV1.JSON `json:"outputs,omitempty"`
 }
 
 // A WorkspaceSpec defines the desired state of a Workspace.

@@ -288,6 +288,12 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		*pc.Spec.PluginCache = true
 	}
 
+	pluginCacheDir := filepath.Join(tfDir, "cache", string(cr.GetUID()))
+
+	if err := c.fs.MkdirAll(pluginCacheDir, 0700); resource.Ignore(os.IsExist, err) != nil {
+		return nil, errors.Wrap(err, errMkdir)
+	}
+
 	envs := make([]string, len(cr.Spec.ForProvider.Env))
 	for idx, env := range cr.Spec.ForProvider.Env {
 		runtimeVal := env.Value
@@ -407,6 +413,8 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	if ptr.Deref[bool](cr.Spec.ForProvider.IncludePlan, false) {
 		cr.Status.AtProvider.Plan = &planOutput
+		planStamp := time.Now().UTC().Format("2006-01-02 15:04:05")
+		cr.Status.AtProvider.PlanStamp = &planStamp
 	}
 
 	if !differs {
