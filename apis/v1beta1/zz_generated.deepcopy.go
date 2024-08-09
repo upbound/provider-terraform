@@ -362,7 +362,7 @@ func (in *VarFile) DeepCopyInto(out *VarFile) {
 	*out = *in
 	if in.Format != nil {
 		in, out := &in.Format, &out.Format
-		*out = new(VarFileFormat)
+		*out = new(FileFormat)
 		**out = **in
 	}
 	if in.ConfigMapKeyReference != nil {

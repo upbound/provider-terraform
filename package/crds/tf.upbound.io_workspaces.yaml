@@ -143,13 +143,21 @@ spec:
                     items:
                       type: string
                     type: array
+                  inlineFormat:
+                    description: |-
+                      Specifies the format of the inline Terraform content
+                      if Source is 'Inline'
+                    enum:
+                    - HCL
+                    - JSON
+                    type: string
                   module:
                     description: |-
                       The root module of this workspace; i.e. the module containing its main.tf
                       file. When the workspace's source is 'Remote' (the default) this can be
                       any address supported by terraform init -from-module, for example a git
                       repository or an S3 bucket. When the workspace's source is 'Inline' the
-                      content of a simple main.tf file may be written inline.
+                      content of a simple main.tf or main.tf.json file may be written inline.
                     type: string
                   planArgs:
                     description: Arguments to be included in the terraform plan CLI
