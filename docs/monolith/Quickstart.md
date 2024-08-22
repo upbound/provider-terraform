@@ -28,7 +28,7 @@ mv up /usr/local/bin/
 Verify the version of `up` with `up --version`
 
 ```shell
-$ up --version
+$ up version
 v0.13.0
 ```
 
