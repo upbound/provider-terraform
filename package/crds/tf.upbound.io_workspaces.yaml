@@ -83,6 +83,10 @@ spec:
                     items:
                       type: string
                     type: array
+                  enableTerraformCLILogging:
+                    description: Boolean value to indicate  CLI logging of terraform
+                      execution is enabled or not
+                    type: boolean
                   entrypoint:
                     default: ""
                     description: Entrypoint for `terraform init` within the module
