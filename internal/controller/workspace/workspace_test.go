@@ -534,7 +534,7 @@ func TestConnect(t *testing.T) {
 						errs: map[string]error{filepath.Join(tfDir, string(uid), tfMainJSON): errBoom},
 					},
 				},
-				terraform: func(_ string, _ bool, _ ...string) tfclient {
+				terraform: func(_ string, _ bool, _ bool, _ logging.Logger, _ ...string) tfclient {
 					return &MockTf{
 						MockInit: func(ctx context.Context, o ...terraform.InitOption) error { return nil },
 					}
