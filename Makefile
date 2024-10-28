@@ -29,6 +29,7 @@ GO111MODULE = on
 UP_VERSION = v0.28.0
 # UP_CHANNEL = stable
 UPTEST_VERSION = v0.5.0
+CROSSPLANE_VERSION = 1.16.0
 -include build/makelib/k8s_tools.mk
 
 # Setup Images
@@ -177,3 +178,6 @@ go.mod.cachedir:
 	@go env GOMODCACHE
 
 .PHONY: go.mod.cachedir
+
+vendor: modules.download
+vendor.check: modules.check

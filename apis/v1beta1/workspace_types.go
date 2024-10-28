@@ -39,14 +39,14 @@ const (
 	VarFileSourceSecretKey    VarFileSource = "SecretKey"
 )
 
-// A VarFileFormat specifies the format of a Terraform vars file.
+// A FileFormat specifies the format of a Terraform file.
 // +kubebuilder:validation:Enum=HCL;JSON
-type VarFileFormat string
+type FileFormat string
 
 // Vars file formats.
 var (
-	VarFileFormatHCL  VarFileFormat = "HCL"
-	VarFileFormatJSON VarFileFormat = "JSON"
+	FileFormatHCL  FileFormat = "HCL"
+	FileFormatJSON FileFormat = "JSON"
 )
 
 // A VarFile is a file containing many Terraform variables.
@@ -57,7 +57,7 @@ type VarFile struct {
 	// Format of this vars file.
 	// +kubebuilder:default=HCL
 	// +optional
-	Format *VarFileFormat `json:"format,omitempty"`
+	Format *FileFormat `json:"format,omitempty"`
 
 	// A ConfigMap key containing the vars file.
 	// +optional
@@ -108,8 +108,12 @@ type WorkspaceParameters struct {
 	// file. When the workspace's source is 'Remote' (the default) this can be
 	// any address supported by terraform init -from-module, for example a git
 	// repository or an S3 bucket. When the workspace's source is 'Inline' the
-	// content of a simple main.tf file may be written inline.
+	// content of a simple main.tf or main.tf.json file may be written inline.
 	Module string `json:"module"`
+
+	// Specifies the format of the inline Terraform content
+	// if Source is 'Inline'
+	InlineFormat FileFormat `json:"inlineFormat,omitempty"`
 
 	// Source of the root module of this workspace.
 	Source ModuleSource `json:"source"`
@@ -153,6 +157,10 @@ type WorkspaceParameters struct {
 
 	// Arguments to be included in the terraform destroy CLI command
 	DestroyArgs []string `json:"destroyArgs,omitempty"`
+
+	// Boolean value to indicate  CLI logging of terraform execution is enabled or not
+	// +optional
+	EnableTerraformCLILogging bool `json:"enableTerraformCLILogging,omitempty"`
 }
 
 // WorkspaceObservation are the observable fields of a Workspace.
@@ -181,6 +189,7 @@ type WorkspaceStatus struct {
 // A Workspace of Terraform Configuration.
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="SYNCED",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
+// +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories={crossplane,managed,terraform}

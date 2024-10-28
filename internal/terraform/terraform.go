@@ -32,10 +32,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 
-	"sync"
-
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/pkg/errors"
 )
 
@@ -47,6 +47,7 @@ const (
 	errRunCommand       = "shutdown while running terraform command"
 	errSigTerm          = "error sending SIGTERM to child process"
 	errWaitTerm         = "error waiting for child process to terminate"
+	errWriteLogs        = "error writing terraform logs to stdout"
 
 	tfDefault = "default"
 )
@@ -152,6 +153,12 @@ type Harness struct {
 
 	// Whether to use the terraform plugin cache
 	UsePluginCache bool
+
+	// Whether to enable writing Terraform CLI logs to container stdout
+	EnableTerraformCLILogging bool
+
+	// Logger
+	Logger logging.Logger
 
 	// Environment Variables
 	Envs []string
@@ -587,15 +594,22 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, string, error) {
 	// 0 - Succeeded, diff is empty (no changes)
 	// 1 - Errored
 	// 2 - Succeeded, there is a diff
-
-	planVal, err := runCommand(ctx, cmd)
-	if cmd.ProcessState.ExitCode() == 2 {
-
-		base64FullPlan, err := formatTerraformPlanOutput(string(planVal))
+	log, err := runCommand(ctx, cmd)
+	switch cmd.ProcessState.ExitCode() {
+	case 1:
+		ee := &exec.ExitError{}
+		errors.As(err, &ee)
+		if h.EnableTerraformCLILogging {
+			h.Logger.Info(string(ee.Stderr), "operation", "plan")
+		}
+	case 2:
+		if h.EnableTerraformCLILogging {
+			h.Logger.Info(string(log), "operation", "plan")
+		}
+		base64FullPlan, err := formatTerraformPlanOutput(string(log))
 		if err != nil {
 			return false, "", err
 		}
-
 		return true, base64FullPlan, nil
 	}
 
@@ -621,13 +635,32 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 	if len(h.Envs) > 0 {
 		cmd.Env = append(os.Environ(), h.Envs...)
 	}
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	if h.UsePluginCache {
 		rwmutex.RLock()
 		defer rwmutex.RUnlock()
 	}
 
-	_, err := runCommand(ctx, cmd)
+	// In case of terraform apply
+	// 0 - Succeeded
+	// Non Zero output - Errored
+
+	log, err := runCommand(ctx, cmd)
+	switch cmd.ProcessState.ExitCode() {
+	case 0:
+		if h.EnableTerraformCLILogging {
+			h.Logger.Info(string(log), "operation", "apply")
+		}
+	default:
+		ee := &exec.ExitError{}
+		errors.As(err, &ee)
+		if h.EnableTerraformCLILogging {
+			h.Logger.Info(string(ee.Stderr), "operation", "apply")
+		}
+	}
 	return Classify(err)
 }
 
@@ -650,13 +683,32 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	if len(h.Envs) > 0 {
 		cmd.Env = append(os.Environ(), h.Envs...)
 	}
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	if h.UsePluginCache {
 		rwmutex.RLock()
 		defer rwmutex.RUnlock()
 	}
 
-	_, err := runCommand(ctx, cmd)
+	log, err := runCommand(ctx, cmd)
+
+	// In case of terraform destroy
+	// 0 - Succeeded
+	// Non Zero output - Errored
+	switch cmd.ProcessState.ExitCode() {
+	case 0:
+		if h.EnableTerraformCLILogging {
+			h.Logger.Info(string(log), "operation", "destroy")
+		}
+	default:
+		ee := &exec.ExitError{}
+		errors.As(err, &ee)
+		if h.EnableTerraformCLILogging {
+			h.Logger.Info(string(ee.Stderr), "operation", "destroy")
+		}
+	}
 	return Classify(err)
 }
 
