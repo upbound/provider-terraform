@@ -1,7 +1,0 @@
-name: Comment Commands
-
-on: issue_comment
-
-jobs:
-  comment-commands:
-    uses: upbound/official-providers-ci/.github/workflows/provider-commands.yml@main
