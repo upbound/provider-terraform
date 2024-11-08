@@ -29,7 +29,7 @@ Verify the version of `up` with `up --version`
 
 ```shell
 $ up version
-v0.13.0
+v0.35.0
 ```
 
 ## Install Universal Crossplane
@@ -37,18 +37,16 @@ Install Upbound Universal Crossplane with the Up command-line.
 
 ```shell
 $ up uxp install
-UXP 1.10.1-up.1 installed
+UXP 1.18.0-up.1 installed
 ```
 
 Verify the UXP pods are running with `kubectl get pods -n upbound-system`
 
 ```shell
-$ kubectl get pods -n upbound-system
-NAME                                       READY   STATUS    RESTARTS      AGE
-crossplane-ddc974f67-kp6t2                 1/1     Running   0             93s
-crossplane-rbac-manager-7978c5f8df-8w8sg   1/1     Running   0             93s
-upbound-bootstrapper-754f65bd-h92tm        1/1     Running   0             93s
-xgql-8fb949dcf-pxn4z                       1/1     Running   3 (52s ago)   93s
+> kubectl get pods -n upbound-system
+NAME                                       READY   STATUS    RESTARTS   AGE
+crossplane-649f76c8db-rt9sv                1/1     Running   0          38s
+crossplane-rbac-manager-645fdf89d6-fgspv   1/1     Running   0          38s
 ```
 
 ## Install the official Terraform provider
@@ -71,8 +69,8 @@ After installing the provider, verify the install with `kubectl get providers`.
 
 ```shell
 $ kubectl get providers
-NAME                 INSTALLED   HEALTHY   PACKAGE                                             AGE
-provider-terraform   True        True      xpkg.upbound.io/upbound/provider-terraform:v0.1.0   15s
+NAME                 INSTALLED   HEALTHY   PACKAGE                                              AGE
+provider-terraform   True        True      xpkg.upbound.io/upbound/provider-terraform:v0.19.0   24s
 ```
 
 It may take up to 5 minutes to report `HEALTHY`.
