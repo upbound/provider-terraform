@@ -27,5 +27,5 @@ spec:
       }
       provider "aws" {
         shared_credentials_files = ["${path.module}/aws-creds.ini"]
-        region = "eu-west-1"
+        region = "us-east-2"
       }
