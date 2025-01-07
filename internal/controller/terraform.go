@@ -24,16 +24,27 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 
 	"github.com/upbound/provider-terraform/internal/controller/config"
+	"github.com/upbound/provider-terraform/internal/controller/features"
+	"github.com/upbound/provider-terraform/internal/controller/identity"
 	"github.com/upbound/provider-terraform/internal/controller/workspace"
 )
 
 // Setup creates all terraform controllers with the supplied options and adds
 // them to the supplied manager.
 func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Duration) error {
-	if err := config.Setup(mgr, o, timeout); err != nil {
+	var id identity.Identity
+	if o.Features.Enabled(features.EnableAlphaWorkspaceSharding) {
+		if i, err := identity.Setup(mgr, o); err != nil {
+			return err
+		} else {
+			id = i
+		}
+	}
+
+	if err := config.Setup(mgr, id, o, timeout); err != nil {
 		return err
 	}
-	if err := workspace.Setup(mgr, o, timeout, pollJitter); err != nil {
+	if err := workspace.Setup(mgr, id, o, timeout, pollJitter); err != nil {
 		return err
 	}
 	return nil
