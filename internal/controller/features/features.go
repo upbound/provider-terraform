@@ -25,6 +25,9 @@ const (
 	// https://github.com/crossplane/crossplane/blob/390ddd/design/design-doc-external-secret-stores.md
 	EnableAlphaExternalSecretStores feature.Flag = "EnableAlphaExternalSecretStores"
 
+	// EnableAlphaWorkspaceSharding enables alpha support for workspace sharding.
+	EnableAlphaWorkspaceSharding feature.Flag = "EnableAlphaWorkspaceSharding"
+
 	// EnableBetaManagementPolicies enables beta support for
 	// Management Policies. See the below design for more details.
 	// https://github.com/crossplane/crossplane/pull/3531

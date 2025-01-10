@@ -64,6 +64,7 @@ func main() {
 		namespace                  = app.Flag("namespace", "Namespace used to set as default scope in default secret store config.").Default("crossplane-system").Envar("POD_NAMESPACE").String()
 		enableExternalSecretStores = app.Flag("enable-external-secret-stores", "Enable support for ExternalSecretStores.").Default("false").Envar("ENABLE_EXTERNAL_SECRET_STORES").Bool()
 		enableManagementPolicies   = app.Flag("enable-management-policies", "Enable support for Management Policies.").Default("true").Envar("ENABLE_MANAGEMENT_POLICIES").Bool()
+		enableWorkspaceSharding    = app.Flag("enable-workspace-sharding", "Enable support for Workspace Sharding.").Default("false").Envar("ENABLE_WORKSPACE_SHARDING").Bool()
 		essTLSCertsPath            = app.Flag("ess-tls-cert-dir", "Path of ESS TLS certificates.").Envar("ESS_TLS_CERTS_DIR").String()
 	)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
@@ -127,6 +128,11 @@ func main() {
 	if *enableManagementPolicies {
 		o.Features.Enable(features.EnableBetaManagementPolicies)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaManagementPolicies)
+	}
+
+	if *enableWorkspaceSharding {
+		o.Features.Enable(features.EnableAlphaWorkspaceSharding)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaWorkspaceSharding)
 	}
 
 	if *enableExternalSecretStores {
