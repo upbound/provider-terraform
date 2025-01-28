@@ -93,13 +93,14 @@ type KeyReference struct {
 }
 
 // A ModuleSource represents the source of a Terraform module.
-// +kubebuilder:validation:Enum=Remote;Inline
+// +kubebuilder:validation:Enum=Remote;Inline;Flux
 type ModuleSource string
 
 // Module sources.
 const (
 	ModuleSourceRemote ModuleSource = "Remote"
 	ModuleSourceInline ModuleSource = "Inline"
+	ModuleSourceFlux   ModuleSource = "Flux"
 )
 
 // WorkspaceParameters are the configurable fields of a Workspace.
@@ -109,6 +110,9 @@ type WorkspaceParameters struct {
 	// any address supported by terraform init -from-module, for example a git
 	// repository or an S3 bucket. When the workspace's source is 'Inline' the
 	// content of a simple main.tf or main.tf.json file may be written inline.
+	// When the workspace's source is 'Flux', use the FluxSourceKind::namespace/name format.
+	// Example:
+	// Module: "GitRepository::my-namespace/my-repo"
 	Module string `json:"module"`
 
 	// Specifies the format of the inline Terraform content
