@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -50,6 +51,9 @@ import (
 	"github.com/upbound/provider-terraform/internal/controller/features"
 	"github.com/upbound/provider-terraform/internal/terraform"
 	"github.com/upbound/provider-terraform/internal/workdir"
+
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 )
 
 const (
@@ -58,27 +62,28 @@ const (
 	errGetPC        = "cannot get ProviderConfig"
 	errGetCreds     = "cannot get credentials"
 
-	errMkdir           = "cannot make Terraform configuration directory"
-	errRemoteModule    = "cannot get remote Terraform module"
-	errSetGitCredDir   = "cannot set GIT_CRED_DIR environment variable"
-	errWriteCreds      = "cannot write Terraform credentials"
-	errWriteGitCreds   = "cannot write .git-credentials to /tmp dir"
-	errWriteConfig     = "cannot write Terraform configuration " + tfConfig
-	errWriteMain       = "cannot write Terraform configuration "
-	errWriteBackend    = "cannot write Terraform configuration " + tfBackendFile
-	errInit            = "cannot initialize Terraform configuration"
-	errWorkspace       = "cannot select Terraform workspace"
-	errResources       = "cannot list Terraform resources"
-	errDiff            = "cannot diff (i.e. plan) Terraform configuration"
-	errOutputs         = "cannot list Terraform outputs"
-	errOptions         = "cannot determine Terraform options"
-	errApply           = "cannot apply Terraform configuration"
-	errDestroy         = "cannot destroy Terraform configuration"
-	errVarFile         = "cannot get tfvars"
-	errVarMap          = "cannot get tfvars from var map"
-	errVarResolution   = "cannot resolve variables"
-	errDeleteWorkspace = "cannot delete Terraform workspace"
-	errChecksum        = "cannot calculate workspace checksum"
+	errMkdir              = "cannot make Terraform configuration directory"
+	errRemoteModule       = "cannot get remote Terraform module"
+	errFluxArtefactModule = "cannot get Flux Artefact Terraform module"
+	errSetGitCredDir      = "cannot set GIT_CRED_DIR environment variable"
+	errWriteCreds         = "cannot write Terraform credentials"
+	errWriteGitCreds      = "cannot write .git-credentials to /tmp dir"
+	errWriteConfig        = "cannot write Terraform configuration " + tfConfig
+	errWriteMain          = "cannot write Terraform configuration "
+	errWriteBackend       = "cannot write Terraform configuration " + tfBackendFile
+	errInit               = "cannot initialize Terraform configuration"
+	errWorkspace          = "cannot select Terraform workspace"
+	errResources          = "cannot list Terraform resources"
+	errDiff               = "cannot diff (i.e. plan) Terraform configuration"
+	errOutputs            = "cannot list Terraform outputs"
+	errOptions            = "cannot determine Terraform options"
+	errApply              = "cannot apply Terraform configuration"
+	errDestroy            = "cannot destroy Terraform configuration"
+	errVarFile            = "cannot get tfvars"
+	errVarMap             = "cannot get tfvars from var map"
+	errVarResolution      = "cannot resolve variables"
+	errDeleteWorkspace    = "cannot delete Terraform workspace"
+	errChecksum           = "cannot calculate workspace checksum"
 
 	gitCredentialsFilename = ".git-credentials"
 )
@@ -257,6 +262,23 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		if err := c.fs.WriteFile(filepath.Join(dir, fn), []byte(cr.Spec.ForProvider.Module), 0600); err != nil {
 			return nil, errors.Wrap(err, errWriteMain+fn)
 		}
+
+	case v1beta1.ModuleSourceFlux:
+		url, err := c.getFluxArtefactUrl(ctx, cr.Spec.ForProvider.Module)
+		if err != nil {
+			return nil, errors.Wrap(err, errFluxArtefactModule)
+		}
+		gc := getter.Client{
+			Src: url,
+			Dst: dir,
+			Pwd: dir,
+
+			Mode: getter.ClientModeDir,
+		}
+		err = gc.Get()
+		if err != nil {
+			return nil, errors.Wrap(err, errFluxArtefactModule)
+		}
 	}
 
 	if len(cr.Spec.ForProvider.Entrypoint) > 0 {
@@ -349,6 +371,46 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errInit)
 	}
 	return &external{tf: tf, kube: c.kube}, errors.Wrap(tf.Workspace(ctx, meta.GetExternalName(cr)), errWorkspace)
+}
+
+func (c *connector) getFluxArtefactUrl(ctx context.Context, fluxSourceName string) (string, error) {
+	regexResult := regexp.MustCompile(fmt.Sprintf(`(?i)^(%s|%s)::([^/]+)/(.+)$`, sourcev1.GitRepositoryKind, sourcev1beta2.OCIRepositoryKind))
+	matches := regexResult.FindStringSubmatch(fluxSourceName)
+	if len(matches) != 4 {
+		return "", fmt.Errorf("invalid module format for flux source. Expected 'FluxSourceKind::namespace/name', got '%s'", fluxSourceName)
+	}
+	sourceKind := matches[1]
+	sourceNamespace := matches[2]
+	sourceName := matches[3]
+
+	objectKey := client.ObjectKey{
+		Namespace: sourceNamespace,
+		Name:      sourceName,
+	}
+
+	var artefact *sourcev1.Artifact
+	switch strings.ToLower(sourceKind) {
+	case strings.ToLower(sourcev1.GitRepositoryKind):
+		var gitRepo sourcev1.GitRepository
+		err := c.kube.Get(ctx, objectKey, &gitRepo)
+		if err != nil {
+			return "", err
+		}
+		artefact = gitRepo.GetArtifact()
+	case strings.ToLower(sourcev1beta2.OCIRepositoryKind):
+		var ociRepo sourcev1beta2.OCIRepository
+		err := c.kube.Get(ctx, objectKey, &ociRepo)
+		if err != nil {
+			return "", err
+		}
+		artefact = ociRepo.GetArtifact()
+	}
+
+	if artefact == nil {
+		return "", fmt.Errorf("artefact for '%s/%s' %s is not ready", sourceNamespace, sourceName, sourceKind)
+	}
+
+	return artefact.URL, nil
 }
 
 type external struct {
