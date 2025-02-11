@@ -27,6 +27,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/statemetrics"
+	zapuber "go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
@@ -65,10 +66,20 @@ func main() {
 		enableExternalSecretStores = app.Flag("enable-external-secret-stores", "Enable support for ExternalSecretStores.").Default("false").Envar("ENABLE_EXTERNAL_SECRET_STORES").Bool()
 		enableManagementPolicies   = app.Flag("enable-management-policies", "Enable support for Management Policies.").Default("true").Envar("ENABLE_MANAGEMENT_POLICIES").Bool()
 		essTLSCertsPath            = app.Flag("ess-tls-cert-dir", "Path of ESS TLS certificates.").Envar("ESS_TLS_CERTS_DIR").String()
+		logEncoding                = app.Flag("log-encoding", "Container logging output ending. Possible values: console, json").Default("console").Enum("console", "json")
 	)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
-	zl := zap.New(zap.UseDevMode(*debug), UseISO8601())
+	var logEncoder zap.Opts
+	switch *logEncoding {
+	case "json":
+		logEncoder = UseJSON()
+	case "console":
+		logEncoder = UseISO8601()
+	default:
+		kingpin.Fatalf("Unknown --log-encoding value: %s. Supported values are 'console' and 'json'", *logEncoding)
+	}
+	zl := zap.New(zap.UseDevMode(*debug), logEncoder)
 	log := logging.NewLogrLogger(zl.WithName("provider-terraform"))
 	// SetLogger is required starting in controller-runtime 0.15.0.
 	// https://github.com/kubernetes-sigs/controller-runtime/pull/2317
@@ -164,5 +175,14 @@ func main() {
 func UseISO8601() zap.Opts {
 	return func(o *zap.Options) {
 		o.TimeEncoder = zapcore.ISO8601TimeEncoder
+	}
+}
+
+// UseJSON sets the logger to use JSON encoding
+func UseJSON() zap.Opts {
+	return func(o *zap.Options) {
+		encoderConfig := zapuber.NewProductionEncoderConfig()
+		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		o.Encoder = zapcore.NewJSONEncoder(encoderConfig)
 	}
 }
