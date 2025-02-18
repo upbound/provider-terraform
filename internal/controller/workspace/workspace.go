@@ -188,7 +188,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	if !ok {
 		return nil, errors.New(errNotWorkspace)
 	}
-	l := c.logger.WithValues("request", cr.Name)
+	l := c.logger.WithValues("request", map[string]string{"name": cr.Name})
 	// NOTE(negz): This directory will be garbage collected by the workdir
 	// garbage collector that is started in Setup.
 	dir := filepath.Join(tfDir, string(cr.GetUID()))
