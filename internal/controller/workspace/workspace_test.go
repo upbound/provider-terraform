@@ -486,6 +486,36 @@ func TestConnect(t *testing.T) {
 			},
 			want: errors.Wrap(errBoom, errWriteConfig),
 		},
+		"WriteFluxSourceError": {
+			reason: "We should return any error encountered if module for flux source is malformed",
+			fields: fields{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil),
+				},
+				usage: resource.TrackerFn(func(_ context.Context, _ resource.Managed) error { return nil }),
+				fs:    afero.Afero{Fs: afero.NewMemMapFs()},
+				terraform: func(_ string, _ bool, _ bool, _ logging.Logger, _ ...string) tfclient {
+					return &MockTf{
+						MockInit: func(ctx context.Context, o ...terraform.InitOption) error { return nil },
+					}
+				},
+			},
+			args: args{
+				mg: &v1beta1.Workspace{
+					ObjectMeta: metav1.ObjectMeta{UID: uid},
+					Spec: v1beta1.WorkspaceSpec{
+						ResourceSpec: xpv1.ResourceSpec{
+							ProviderConfigReference: &xpv1.Reference{},
+						},
+						ForProvider: v1beta1.WorkspaceParameters{
+							Module: "I'm HCL!",
+							Source: v1beta1.ModuleSourceFlux,
+						},
+					},
+				},
+			},
+			want: errors.Wrap(errors.New("invalid module format for flux source. Expected 'FluxSourceKind::namespace/name', got 'I'm HCL!'"), errFluxArtefactModule),
+		},
 		"WriteMainError": {
 			reason: "We should return any error encountered while writing our main.tf file",
 			fields: fields{
