@@ -162,6 +162,9 @@ spec:
                       any address supported by terraform init -from-module, for example a git
                       repository or an S3 bucket. When the workspace's source is 'Inline' the
                       content of a simple main.tf or main.tf.json file may be written inline.
+                      When the workspace's source is 'Flux', use the FluxSourceKind::namespace/name format.
+                      Example:
+                      Module: "GitRepository::my-namespace/my-repo"
                     type: string
                   planArgs:
                     description: Arguments to be included in the terraform plan CLI
@@ -174,6 +177,7 @@ spec:
                     enum:
                     - Remote
                     - Inline
+                    - Flux
                     type: string
                   varFiles:
                     description: |-

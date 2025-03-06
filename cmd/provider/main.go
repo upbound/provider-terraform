@@ -45,6 +45,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/upbound/provider-terraform/apis"
 	"github.com/upbound/provider-terraform/apis/v1beta1"
 	workspace "github.com/upbound/provider-terraform/internal/controller"
@@ -115,6 +117,8 @@ func main() {
 	kingpin.FatalIfError(err, "Cannot create controller manager")
 
 	kingpin.FatalIfError(apis.AddToScheme(mgr.GetScheme()), "Cannot add terraform APIs to scheme")
+	kingpin.FatalIfError(sourcev1.AddToScheme(mgr.GetScheme()), "Cannot add flux gitrepository APIs to scheme")
+	kingpin.FatalIfError(sourcev1beta2.AddToScheme(mgr.GetScheme()), "Cannot add flux ocirepository APIs to scheme")
 
 	metricRecorder := managed.NewMRMetricRecorder()
 	stateMetrics := statemetrics.NewMRStateMetrics()
