@@ -264,6 +264,9 @@ func (h Harness) Workspace(ctx context.Context, name string) error {
 	// is somewhat optimistic, but it shouldn't hurt to try.
 	cmd = exec.Command(h.Path, "workspace", "new", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	if h.UsePluginCache {
 		rwmutex.RLock()
