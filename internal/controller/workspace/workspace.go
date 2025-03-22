@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection"
@@ -48,7 +49,9 @@ import (
 
 	"github.com/upbound/provider-terraform/apis/v1beta1"
 	"github.com/upbound/provider-terraform/internal/controller/features"
+	"github.com/upbound/provider-terraform/internal/controller/identity"
 	"github.com/upbound/provider-terraform/internal/terraform"
+	"github.com/upbound/provider-terraform/internal/utils"
 	"github.com/upbound/provider-terraform/internal/workdir"
 )
 
@@ -56,6 +59,7 @@ const (
 	errNotWorkspace = "managed resource is not a Workspace custom resource"
 	errTrackPCUsage = "cannot track ProviderConfig usage"
 	errGetPC        = "cannot get ProviderConfig"
+	errGetWs        = "cannot get Workspace"
 	errGetCreds     = "cannot get credentials"
 
 	errMkdir           = "cannot make Terraform configuration directory"
@@ -101,6 +105,13 @@ func envVarFallback(envvar string, fallback string) string {
 
 var tfDir = envVarFallback("XP_TF_DIR", "/tf")
 
+type shardingReconciler struct {
+	client     client.Client
+	reconciler *managed.Reconciler
+	identity   identity.Identity
+	logger     logging.Logger
+}
+
 type tfclient interface {
 	Init(ctx context.Context, o ...terraform.InitOption) error
 	Workspace(ctx context.Context, name string) error
@@ -114,7 +125,7 @@ type tfclient interface {
 }
 
 // Setup adds a controller that reconciles Workspace managed resources.
-func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Duration) error {
+func Setup(mgr ctrl.Manager, id identity.Identity, o controller.Options, timeout, pollJitter time.Duration) error {
 	name := managed.ControllerName(v1beta1.WorkspaceGroupKind)
 
 	fs := afero.Afero{Fs: afero.NewOsFs()}
@@ -163,12 +174,44 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Dura
 		resource.ManagedKind(v1beta1.WorkspaceGroupVersionKind),
 		opts...)
 
+	sr := &shardingReconciler{
+		client:     mgr.GetClient(),
+		reconciler: r,
+		identity:   id,
+		logger:     o.Logger,
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
 		WithEventFilter(resource.DesiredStateChanged()).
 		For(&v1beta1.Workspace{}).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, sr, o.GlobalRateLimiter))
+}
+
+func (r *shardingReconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl.Result, error) {
+	if r.identity != nil {
+		r.logger.Debug("Workspace sharding enabled")
+
+		ws := &v1beta1.Workspace{}
+		if err := r.client.Get(ctx, req.NamespacedName, ws); err != nil {
+			return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetWs)
+		}
+
+		if r.identity.GetIndex() < 0 || r.identity.GetReplicas() < 1 {
+			r.logger.Debug("Skipping workspace reconciliation", "reason", "invalid index or replicas", "index", r.identity.GetIndex(), "replicas", r.identity.GetReplicas())
+			return reconcile.Result{RequeueAfter: 30 * time.Second}, nil
+		}
+
+		if utils.HashAndModulo(string(ws.GetUID()), r.identity.GetReplicas()) != r.identity.GetIndex() {
+			r.logger.Debug("Skipping workspace reconciliation", "reason", "not managed by this reconciler", "index", r.identity.GetIndex(), "replicas", r.identity.GetReplicas())
+			return reconcile.Result{}, nil
+		}
+
+		r.logger.Debug("Processing workspace reconciliation", "reason", "managed by this reconciler", "index", r.identity.GetIndex(), "replicas", r.identity.GetReplicas())
+	}
+
+	return r.reconciler.Reconcile(ctx, req)
 }
 
 type connector struct {
