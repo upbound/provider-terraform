@@ -6,7 +6,6 @@ which are licensed under the Mozilla Public License 2.0 (see
 <https://www.mozilla.org/en-US/MPL/2.0/> or the individual projects listed
 below).
 <https://github.com/hashicorp/go-getter>
-<https://github.com/hashicorp/vault>
 <https://github.com/hashicorp/errwrap>
 <https://github.com/hashicorp/go-cleanhttp>
 <https://github.com/hashicorp/go-cty>

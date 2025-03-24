@@ -19,12 +19,14 @@ package workspace
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/statemetrics"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
@@ -62,7 +64,7 @@ const (
 	errWriteCreds      = "cannot write Terraform credentials"
 	errWriteGitCreds   = "cannot write .git-credentials to /tmp dir"
 	errWriteConfig     = "cannot write Terraform configuration " + tfConfig
-	errWriteMain       = "cannot write Terraform configuration " + tfMain
+	errWriteMain       = "cannot write Terraform configuration "
 	errWriteBackend    = "cannot write Terraform configuration " + tfBackendFile
 	errInit            = "cannot initialize Terraform configuration"
 	errWorkspace       = "cannot select Terraform workspace"
@@ -74,6 +76,7 @@ const (
 	errDestroy         = "cannot destroy Terraform configuration"
 	errVarFile         = "cannot get tfvars"
 	errVarMap          = "cannot get tfvars from var map"
+	errVarResolution   = "cannot resolve variables"
 	errDeleteWorkspace = "cannot delete Terraform workspace"
 	errChecksum        = "cannot calculate workspace checksum"
 
@@ -84,6 +87,7 @@ const (
 	// TODO(negz): Make the Terraform binary path and work dir configurable.
 	tfPath        = "terraform"
 	tfMain        = "main.tf"
+	tfMainJSON    = "main.tf.json"
 	tfConfig      = "crossplane-provider-config.tf"
 	tfBackendFile = "crossplane.remote.tfbackend"
 )
@@ -98,7 +102,7 @@ func envVarFallback(envvar string, fallback string) string {
 var tfDir = envVarFallback("XP_TF_DIR", "/tf")
 
 type tfclient interface {
-	Init(ctx context.Context, cache bool, o ...terraform.InitOption) error
+	Init(ctx context.Context, o ...terraform.InitOption) error
 	Workspace(ctx context.Context, name string) error
 	Outputs(ctx context.Context) ([]terraform.Output, error)
 	Resources(ctx context.Context) ([]string, error)
@@ -122,15 +126,17 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Dura
 
 	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
 	if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
-		cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), v1beta1.StoreConfigGroupVersionKind))
+		cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), v1beta1.StoreConfigGroupVersionKind, connection.WithTLSConfig(o.ESSOptions.TLSConfig)))
 	}
 
 	c := &connector{
-		kube:      mgr.GetClient(),
-		usage:     resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1beta1.ProviderConfigUsage{}),
-		logger:    o.Logger,
-		fs:        fs,
-		terraform: func(dir string) tfclient { return terraform.Harness{Path: tfPath, Dir: dir} },
+		kube:   mgr.GetClient(),
+		usage:  resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1beta1.ProviderConfigUsage{}),
+		logger: o.Logger,
+		fs:     fs,
+		terraform: func(dir string, usePluginCache bool, enableTerraformCLILogging bool, logger logging.Logger, envs ...string) tfclient {
+			return terraform.Harness{Path: tfPath, Dir: dir, UsePluginCache: usePluginCache, EnableTerraformCLILogging: enableTerraformCLILogging, Logger: logger, Envs: envs}
+		},
 	}
 
 	opts := []managed.ReconcilerOption{
@@ -141,10 +147,16 @@ func Setup(mgr ctrl.Manager, o controller.Options, timeout, pollJitter time.Dura
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		managed.WithTimeout(timeout),
 		managed.WithConnectionPublishers(cps...),
+		managed.WithMetricRecorder(o.MetricOptions.MRMetrics),
 	}
 
 	if o.Features.Enabled(features.EnableBetaManagementPolicies) {
 		opts = append(opts, managed.WithManagementPolicies())
+	}
+
+	if err := mgr.Add(statemetrics.NewMRStateRecorder(
+		mgr.GetClient(), o.Logger, o.MetricOptions.MRStateMetrics, &v1beta1.WorkspaceList{}, o.MetricOptions.PollStateMetricInterval)); err != nil {
+		return err
 	}
 
 	r := managed.NewReconciler(mgr,
@@ -164,7 +176,7 @@ type connector struct {
 	usage     resource.Tracker
 	logger    logging.Logger
 	fs        afero.Afero
-	terraform func(dir string) tfclient
+	terraform func(dir string, usePluginCache bool, enableTerraformCLILogging bool, logger logging.Logger, envs ...string) tfclient
 }
 
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) { //nolint:gocyclo
@@ -176,7 +188,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	if !ok {
 		return nil, errors.New(errNotWorkspace)
 	}
-	l := c.logger.WithValues("request", cr.Name)
+	l := c.logger.WithValues("request", map[string]string{"name": cr.Name})
 	// NOTE(negz): This directory will be garbage collected by the workdir
 	// garbage collector that is started in Setup.
 	dir := filepath.Join(tfDir, string(cr.GetUID()))
@@ -225,11 +237,6 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 
 	switch cr.Spec.ForProvider.Source {
 	case v1beta1.ModuleSourceRemote:
-		// Workaround of https://github.com/hashicorp/go-getter/issues/114
-		if err := c.fs.RemoveAll(dir); err != nil {
-			return nil, errors.Wrap(err, errRemoteModule)
-		}
-
 		gc := getter.Client{
 			Src: cr.Spec.ForProvider.Module,
 			Dst: dir,
@@ -243,8 +250,12 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		}
 
 	case v1beta1.ModuleSourceInline:
-		if err := c.fs.WriteFile(filepath.Join(dir, tfMain), []byte(cr.Spec.ForProvider.Module), 0600); err != nil {
-			return nil, errors.Wrap(err, errWriteMain)
+		fn := tfMain
+		if cr.Spec.ForProvider.InlineFormat == v1beta1.FileFormatJSON {
+			fn = tfMainJSON
+		}
+		if err := c.fs.WriteFile(filepath.Join(dir, fn), []byte(cr.Spec.ForProvider.Module), 0600); err != nil {
+			return nil, errors.Wrap(err, errWriteMain+fn)
 		}
 	}
 
@@ -282,7 +293,41 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		pc.Spec.PluginCache = new(bool)
 		*pc.Spec.PluginCache = true
 	}
-	tf := c.terraform(dir)
+
+	envs := make([]string, len(cr.Spec.ForProvider.Env))
+	for idx, env := range cr.Spec.ForProvider.Env {
+		runtimeVal := env.Value
+		if runtimeVal == "" {
+			switch {
+			case env.ConfigMapKeyReference != nil:
+				cm := &corev1.ConfigMap{}
+				r := env.ConfigMapKeyReference
+				nn := types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
+				if err := c.kube.Get(ctx, nn, cm); err != nil {
+					return nil, errors.Wrap(err, errVarResolution)
+				}
+				runtimeVal, ok = cm.Data[r.Key]
+				if !ok {
+					return nil, errors.Wrap(fmt.Errorf("couldn't find key %v in ConfigMap %v/%v", r.Key, r.Namespace, r.Name), errVarResolution)
+				}
+			case env.SecretKeyReference != nil:
+				s := &corev1.Secret{}
+				r := env.SecretKeyReference
+				nn := types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
+				if err := c.kube.Get(ctx, nn, s); err != nil {
+					return nil, errors.Wrap(err, errVarResolution)
+				}
+				secretBytes, ok := s.Data[r.Key]
+				if !ok {
+					return nil, errors.Wrap(fmt.Errorf("couldn't find key %v in Secret %v/%v", r.Key, r.Namespace, r.Name), errVarResolution)
+				}
+				runtimeVal = string(secretBytes)
+			}
+		}
+		envs[idx] = strings.Join([]string{env.Name, runtimeVal}, "=")
+	}
+
+	tf := c.terraform(dir, *pc.Spec.PluginCache, cr.Spec.ForProvider.EnableTerraformCLILogging, l, envs...)
 	if cr.Status.AtProvider.Checksum != "" {
 		checksum, err := tf.GenerateChecksum(ctx)
 		if err != nil {
@@ -300,7 +345,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		o = append(o, terraform.WithInitArgs([]string{"-backend-config=" + filepath.Join(dir, tfBackendFile)}))
 	}
 	o = append(o, terraform.WithInitArgs(cr.Spec.ForProvider.InitArgs))
-	if err := tf.Init(ctx, *pc.Spec.PluginCache, o...); err != nil {
+	if err := tf.Init(ctx, o...); err != nil {
 		return nil, errors.Wrap(err, errInit)
 	}
 	return &external{tf: tf, kube: c.kube}, errors.Wrap(tf.Workspace(ctx, meta.GetExternalName(cr)), errWorkspace)
@@ -353,7 +398,6 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 	// Include any non-sensitive outputs in our status
 	op, err := c.tf.Outputs(ctx)
-
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, errOutputs)
 	}
@@ -442,7 +486,7 @@ func (c *external) options(ctx context.Context, p v1beta1.WorkspaceParameters) (
 
 	for _, vf := range p.VarFiles {
 		fmt := terraform.HCL
-		if vf.Format != nil && *vf.Format == v1beta1.VarFileFormatJSON {
+		if vf.Format != nil && *vf.Format == v1beta1.FileFormatJSON {
 			fmt = terraform.JSON
 		}
 

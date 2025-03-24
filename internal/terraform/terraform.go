@@ -32,10 +32,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 
-	"sync"
-
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/pkg/errors"
 )
 
@@ -47,6 +47,7 @@ const (
 	errRunCommand       = "shutdown while running terraform command"
 	errSigTerm          = "error sending SIGTERM to child process"
 	errWaitTerm         = "error waiting for child process to terminate"
+	errWriteLogs        = "error writing terraform logs to stdout"
 
 	tfDefault = "default"
 )
@@ -122,6 +123,18 @@ type Harness struct {
 	// Dir in which to execute the terraform binary.
 	Dir string
 
+	// Whether to use the terraform plugin cache
+	UsePluginCache bool
+
+	// Whether to enable writing Terraform CLI logs to container stdout
+	EnableTerraformCLILogging bool
+
+	// Logger
+	Logger logging.Logger
+
+	// Environment Variables
+	Envs []string
+
 	// TODO(negz): Harness is a subset of exec.Cmd. If callers need more insight
 	// into what the underlying Terraform binary is doing (e.g. for debugging)
 	// we could consider allowing them to attach io.Writers to Stdout and Stdin
@@ -169,21 +182,28 @@ func InitArgsToString(o []InitOption) []string {
 var rwmutex = &sync.RWMutex{}
 
 // Init initializes a Terraform configuration.
-func (h Harness) Init(ctx context.Context, cache bool, o ...InitOption) error {
+func (h Harness) Init(ctx context.Context, o ...InitOption) error {
 	args := append([]string{"init", "-input=false", "-no-color"}, InitArgsToString(o)...)
 	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
 	for _, e := range os.Environ() {
 		if strings.Contains(e, "TF_PLUGIN_CACHE_DIR") {
-			if !cache {
+			if !h.UsePluginCache {
 				continue
 			}
 		}
 		cmd.Env = append(cmd.Env, e)
 	}
 	cmd.Env = append(cmd.Env, "TF_CLI_CONFIG_FILE=./.terraformrc")
-	rwmutex.Lock()
-	defer rwmutex.Unlock()
+	if len(h.Envs) > 0 {
+		cmd.Env = append(cmd.Env, h.Envs...)
+	}
+
+	if h.UsePluginCache {
+		rwmutex.Lock()
+		defer rwmutex.Unlock()
+	}
+
 	_, err := runCommand(ctx, cmd)
 	return Classify(err)
 }
@@ -195,6 +215,9 @@ func (h Harness) Init(ctx context.Context, cache bool, o ...InitOption) error {
 func (h Harness) Validate(ctx context.Context) error {
 	cmd := exec.Command(h.Path, "validate", "-json") //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	type result struct {
 		Valid      bool `json:"valid"`
@@ -227,6 +250,9 @@ func (h Harness) Validate(ctx context.Context) error {
 func (h Harness) Workspace(ctx context.Context, name string) error {
 	cmd := exec.Command(h.Path, "workspace", "select", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	if _, err := runCommand(ctx, cmd); err == nil {
 		// We successfully selected the workspace; we're done.
@@ -238,8 +264,15 @@ func (h Harness) Workspace(ctx context.Context, name string) error {
 	// is somewhat optimistic, but it shouldn't hurt to try.
 	cmd = exec.Command(h.Path, "workspace", "new", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
-	rwmutex.RLock()
-	defer rwmutex.RUnlock()
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
+
+	if h.UsePluginCache {
+		rwmutex.RLock()
+		defer rwmutex.RUnlock()
+	}
+
 	_, err := runCommand(ctx, cmd)
 	return Classify(err)
 }
@@ -248,6 +281,9 @@ func (h Harness) Workspace(ctx context.Context, name string) error {
 func (h Harness) DeleteCurrentWorkspace(ctx context.Context) error {
 	cmd := exec.Command(h.Path, "workspace", "show", "-no-color") //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	n, err := runCommand(ctx, cmd)
 	if err != nil {
@@ -265,9 +301,15 @@ func (h Harness) DeleteCurrentWorkspace(ctx context.Context) error {
 	}
 	cmd = exec.Command(h.Path, "workspace", "delete", "-no-color", name) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
-	rwmutex.RLock()
-	defer rwmutex.RUnlock()
+	if h.UsePluginCache {
+		rwmutex.RLock()
+		defer rwmutex.RUnlock()
+	}
+
 	_, err = runCommand(ctx, cmd)
 	if err == nil {
 		// We successfully deleted the workspace; we're done.
@@ -369,6 +411,9 @@ func (o Output) JSONValue() ([]byte, error) {
 func (h Harness) Outputs(ctx context.Context) ([]Output, error) {
 	cmd := exec.Command(h.Path, "output", "-json") //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
 	type output struct {
 		Sensitive bool `json:"sensitive"`
@@ -378,8 +423,11 @@ func (h Harness) Outputs(ctx context.Context) ([]Output, error) {
 
 	outputs := map[string]output{}
 
-	rwmutex.RLock()
-	defer rwmutex.RUnlock()
+	if h.UsePluginCache {
+		rwmutex.RLock()
+		defer rwmutex.RUnlock()
+	}
+
 	out, err := runCommand(ctx, cmd)
 	if jerr := json.Unmarshal(out, &outputs); jerr != nil {
 		// If stdout doesn't appear to be the JSON we expected we try to extract
@@ -423,9 +471,15 @@ func (h Harness) Outputs(ctx context.Context) ([]Output, error) {
 func (h Harness) Resources(ctx context.Context) ([]string, error) {
 	cmd := exec.Command(h.Path, "state", "list") //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
-	rwmutex.RLock()
-	defer rwmutex.RUnlock()
+	if h.UsePluginCache {
+		rwmutex.RLock()
+		defer rwmutex.RUnlock()
+	}
+
 	out, err := runCommand(ctx, cmd)
 	if err != nil {
 		return nil, Classify(err)
@@ -503,16 +557,30 @@ func (h Harness) Diff(ctx context.Context, o ...Option) (bool, error) {
 	args := append([]string{"plan", "-no-color", "-input=false", "-detailed-exitcode", "-lock=false"}, ao.args...)
 	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
-	rwmutex.RLock()
-	defer rwmutex.RUnlock()
+	// Note: the terraform lock is not used (see the -lock=false flag above) and the rwmutex is
+	// intentionally not locked here to avoid excessive blocking. See
+	// https://github.com/upbound/provider-terraform/issues/239#issuecomment-1921732682
 
 	// The -detailed-exitcode flag will make terraform plan return:
 	// 0 - Succeeded, diff is empty (no changes)
 	// 1 - Errored
 	// 2 - Succeeded, there is a diff
-	_, err := runCommand(ctx, cmd)
-	if cmd.ProcessState.ExitCode() == 2 {
+	log, err := runCommand(ctx, cmd)
+	switch cmd.ProcessState.ExitCode() {
+	case 1:
+		ee := &exec.ExitError{}
+		errors.As(err, &ee)
+		if h.EnableTerraformCLILogging {
+			h.Logger.Info(string(ee.Stderr), "operation", "plan")
+		}
+	case 2:
+		if h.EnableTerraformCLILogging {
+			h.Logger.Info(string(log), "operation", "plan")
+		}
 		return true, nil
 	}
 	return false, Classify(err)
@@ -534,10 +602,32 @@ func (h Harness) Apply(ctx context.Context, o ...Option) error {
 	args := append([]string{"apply", "-no-color", "-auto-approve", "-input=false"}, ao.args...)
 	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
-	rwmutex.RLock()
-	defer rwmutex.RUnlock()
-	_, err := runCommand(ctx, cmd)
+	if h.UsePluginCache {
+		rwmutex.RLock()
+		defer rwmutex.RUnlock()
+	}
+
+	// In case of terraform apply
+	// 0 - Succeeded
+	// Non Zero output - Errored
+
+	log, err := runCommand(ctx, cmd)
+	switch cmd.ProcessState.ExitCode() {
+	case 0:
+		if h.EnableTerraformCLILogging {
+			h.Logger.Info(string(log), "operation", "apply")
+		}
+	default:
+		ee := &exec.ExitError{}
+		errors.As(err, &ee)
+		if h.EnableTerraformCLILogging {
+			h.Logger.Info(string(ee.Stderr), "operation", "apply")
+		}
+	}
 	return Classify(err)
 }
 
@@ -557,10 +647,32 @@ func (h Harness) Destroy(ctx context.Context, o ...Option) error {
 	args := append([]string{"destroy", "-no-color", "-auto-approve", "-input=false"}, do.args...)
 	cmd := exec.Command(h.Path, args...) //nolint:gosec
 	cmd.Dir = h.Dir
+	if len(h.Envs) > 0 {
+		cmd.Env = append(os.Environ(), h.Envs...)
+	}
 
-	rwmutex.RLock()
-	defer rwmutex.RUnlock()
-	_, err := runCommand(ctx, cmd)
+	if h.UsePluginCache {
+		rwmutex.RLock()
+		defer rwmutex.RUnlock()
+	}
+
+	log, err := runCommand(ctx, cmd)
+
+	// In case of terraform destroy
+	// 0 - Succeeded
+	// Non Zero output - Errored
+	switch cmd.ProcessState.ExitCode() {
+	case 0:
+		if h.EnableTerraformCLILogging {
+			h.Logger.Info(string(log), "operation", "destroy")
+		}
+	default:
+		ee := &exec.ExitError{}
+		errors.As(err, &ee)
+		if h.EnableTerraformCLILogging {
+			h.Logger.Info(string(ee.Stderr), "operation", "destroy")
+		}
+	}
 	return Classify(err)
 }
 

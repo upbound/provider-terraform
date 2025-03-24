@@ -26,9 +26,10 @@ GO111MODULE = on
 
 # Uncomment below to override the versions from the build module
 # KIND_VERSION = v0.15.0
-# UP_VERSION = v0.14.0
+UP_VERSION = v0.28.0
 # UP_CHANNEL = stable
 UPTEST_VERSION = v0.5.0
+CROSSPLANE_VERSION = 1.16.0
 -include build/makelib/k8s_tools.mk
 
 # Setup Images
@@ -147,6 +148,13 @@ crddiff: $(UPTEST)
 	done
 	@$(OK) Checking breaking CRD schema changes
 
+go.lint.analysiskey-interval:
+	@# cache is invalidated at least every 7 days
+	@echo -n golangci-lint.cache-$$(( $$(date +%s) / (7 * 86400) ))-
+
+go.lint.analysiskey:
+	@echo $$(make go.lint.analysiskey-interval)$$(sha1sum go.sum | cut -d' ' -f1)
+
 .PHONY: uptest e2e
 # ====================================================================================
 # Special Targets
@@ -177,3 +185,6 @@ go.mod.cachedir:
 	@go env GOMODCACHE
 
 .PHONY: go.mod.cachedir
+
+vendor: modules.download
+vendor.check: modules.check
