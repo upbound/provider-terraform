@@ -1,4 +1,4 @@
-# Official Terraform Provider
+# Terraform Provider
 
 <div align="center">
 

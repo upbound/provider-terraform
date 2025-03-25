@@ -4,7 +4,7 @@ weight: 2
 ---
 # Configuration Options
 
-There are several ways to provide configurations to the official Terraform
+There are several ways to provide configurations to the Terraform
 provider that will propagate to the underlying Terraform workspace. In the
 following sections, we will cover the most common ones.
 

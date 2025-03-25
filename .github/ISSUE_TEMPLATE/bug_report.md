@@ -1,18 +1,18 @@
 ---
 name: Bug Report
-about: Help us diagnose and fix bugs in Official Terraform Provider
+about: Help us diagnose and fix bugs in this provider
 labels: bug,needs:triage
 title: 
 ---
 <!--
-Thank you for helping to improve Official Terraform Provider!
+Thank you for helping to improve this provider!
 Please be sure to search for open issues before raising a new one. We use issues
 for bug reports and feature requests.
 -->
 
 ### What happened?
 <!--
-Please let us know what behaviour you expected and how Official Terraform Provider diverged from
+Please let us know what behaviour you expected and how the provider diverged from
 that behaviour.
 -->
 

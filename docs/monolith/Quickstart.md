@@ -4,16 +4,16 @@ weight: 1
 ---
 # Quickstart
 
-The official Terraform Provider allows you to write Terraform HCL configuration
+The Terraform Provider allows you to write Terraform HCL configuration
 as the desired configuration for your infrastructure. It allows you to use your
 existing Terraform modules from different sources and still get the experience
 of using Crossplane with all the features like automatic drift correction,
 composition and others.
 
 This guide walks through the process to install Upbound Universal Crossplane and
-install the Terraform official provider.
+install the Terraform provider.
 
-To use this official provider, install Upbound Universal Crossplane into your
+To use this provider, install Upbound Universal Crossplane into your
 Kubernetes cluster, install the `Provider`, apply a `ProviderConfig`, and create
 a *managed resource* of type `Workspace` via Kubernetes.
 
@@ -49,9 +49,9 @@ crossplane-649f76c8db-rt9sv                1/1     Running   0          38s
 crossplane-rbac-manager-645fdf89d6-fgspv   1/1     Running   0          38s
 ```
 
-## Install the official Terraform provider
+## Install the Terraform provider
 
-Install the official provider into the Kubernetes cluster with a Kubernetes
+Install the provider into the Kubernetes cluster with a Kubernetes
 configuration file. 
 
 ```yaml
@@ -131,7 +131,7 @@ credentials:  2380 bytes
 ## Create a ProviderConfig
 
 Create a `ProviderConfig` Kubernetes configuration file to attach the GCP
-credentials to the installed official provider.
+credentials to the installed provider.
 
 **Note:** the `ProviderConfig` must contain the correct GCP project ID. The
 project ID must match the `project_id` from the JSON key file.
@@ -190,7 +190,7 @@ Kind:         ProviderConfig
 Spec:
   Configuration:  provider "google" {
   credentials = "gcp-credentials.json"
-  project     = "official-provider-testing"
+  project     = "provider-testing"
   }
 
   // Modules _must_ use remote state. The provider does not persist state.
