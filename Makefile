@@ -30,12 +30,12 @@ GO111MODULE = on
 #KIND_VERSION = v0.27.0
 UP_VERSION = v0.34.2
 UP_CHANNEL = stable
-UPTEST_VERSION = v0.11.1
+UPTEST_VERSION = v1.1.2
 UPTEST_LOCAL_VERSION = v0.13.0
 UPTEST_LOCAL_CHANNEL = stable
 KUSTOMIZE_VERSION = v5.3.0
 YQ_VERSION = v4.40.5
-CROSSPLANE_VERSION = 1.14.6
+CROSSPLANE_VERSION = 1.17.6
 CRDDIFF_VERSION = v0.12.1
 
 export UP_VERSION := $(UP_VERSION)
@@ -134,19 +134,11 @@ CROSSPLANE_NAMESPACE = upbound-system
 
 # This target requires the following environment variables to be set:
 # - UPTEST_EXAMPLE_LIST, a comma-separated list of examples to test
-# - UPTEST_CLOUD_CREDENTIALS (optional), multiple sets of AWS IAM User credentials specified as key=value pairs.
-#   The support keys are currently `DEFAULT` and `PEER`. So, an example for the value of this env. variable is:
-#   DEFAULT='[default]
-#   aws_access_key_id = REDACTED
-#   aws_secret_access_key = REDACTED'
-#   PEER='[default]
-#   aws_access_key_id = REDACTED
-#   aws_secret_access_key = REDACTED'
-#   The associated `ProviderConfig`s will be named as `default` and `peer`.
+# - UPTEST_CLOUD_CREDENTIALS (optional), cloud credentials for the provider being tested, e.g. export UPTEST_CLOUD_CREDENTIALS=$(cat ~/.aws/credentials)
 # - UPTEST_DATASOURCE_PATH (optional), see https://github.com/upbound/uptest#injecting-dynamic-values-and-datasource
-uptest: $(UPTEST_LOCAL) $(KUBECTL) $(KUTTL)
+uptest: $(UPTEST) $(KUBECTL) $(CHAINSAW) $(CROSSPLANE_CLI)
 	@$(INFO) running automated tests
-	@KUBECTL=$(KUBECTL) KUTTL=$(KUTTL) CROSSPLANE_NAMESPACE=$(CROSSPLANE_NAMESPACE) $(UPTEST_LOCAL) e2e "${UPTEST_EXAMPLE_LIST}" --data-source="${UPTEST_DATASOURCE_PATH}" --setup-script=cluster/test/setup.sh --default-conditions="Test" || $(FAIL)
+	@KUBECTL=$(KUBECTL) CHAINSAW=$(CHAINSAW) CROSSPLANE_CLI=$(CROSSPLANE_CLI) CROSSPLANE_NAMESPACE=$(CROSSPLANE_NAMESPACE) $(UPTEST) e2e "${UPTEST_EXAMPLE_LIST}" --data-source="${UPTEST_DATASOURCE_PATH}" --setup-script=cluster/test/setup.sh --skip-import || $(FAIL)
 	@$(OK) running automated tests
 
 local-deploy: build controlplane.up local.xpkg.deploy.provider.$(PROJECT_NAME)
