@@ -29,10 +29,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/statemetrics"
 	zapuber "go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 
-	"gopkg.in/alecthomas/kingpin.v2"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"

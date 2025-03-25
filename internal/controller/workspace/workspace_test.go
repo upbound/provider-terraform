@@ -1107,7 +1107,7 @@ func TestObserve(t *testing.T) {
 					ResourceExists:   true,
 					ResourceUpToDate: true,
 					ConnectionDetails: managed.ConnectionDetails{
-						"string": {},
+						"string": []byte{},
 						"object": []byte("null"), // Because we JSON decode the the value, which is any{}
 					},
 				},
@@ -1150,7 +1150,7 @@ func TestObserve(t *testing.T) {
 					ResourceExists:   true,
 					ResourceUpToDate: true,
 					ConnectionDetails: managed.ConnectionDetails{
-						"string": {},
+						"string": []byte{},
 						"object": []byte("null"), // Because we JSON decode the the value, which is any{}
 					},
 				},
@@ -1374,7 +1374,7 @@ func TestCreate(t *testing.T) {
 			want: want{
 				c: managed.ExternalCreation{
 					ConnectionDetails: managed.ConnectionDetails{
-						"string": {},
+						"string": []byte{},
 						"object": []byte("null"), // Because we JSON decode the value, which is any{}
 					},
 				},

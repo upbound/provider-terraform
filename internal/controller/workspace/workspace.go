@@ -28,6 +28,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/statemetrics"
+	getter "github.com/hashicorp/go-getter"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
@@ -44,8 +45,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-
-	"github.com/hashicorp/go-getter"
 
 	"github.com/upbound/provider-terraform/apis/v1beta1"
 	"github.com/upbound/provider-terraform/internal/controller/features"

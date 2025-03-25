@@ -10,6 +10,7 @@ PLATFORMS ?= linux_amd64 linux_arm64
 -include build/makelib/output.mk
 
 # Setup Go
+GO_REQUIRED_VERSION ?= 1.23
 NPROCS ?= 1
 # GOLANGCILINT_VERSION is inherited from build submodule by default.
 # Uncomment below if you need to override the version.
@@ -19,22 +20,45 @@ GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/provider
 GO_LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
 GO_SUBDIRS += cmd internal apis
 GO111MODULE = on
+
 -include build/makelib/golang.mk
 
 # ====================================================================================
 # Setup Kubernetes tools
 
 # Uncomment below to override the versions from the build module
-# KIND_VERSION = v0.15.0
-UP_VERSION = v0.28.0
-# UP_CHANNEL = stable
-UPTEST_VERSION = v0.5.0
-CROSSPLANE_VERSION = 1.16.0
+#KIND_VERSION = v0.27.0
+UP_VERSION = v0.34.2
+#UP_CHANNEL = stable
+UPTEST_VERSION = v0.11.1
+UPTEST_LOCAL_VERSION = v0.13.0
+UPTEST_LOCAL_CHANNEL = stable
+KUSTOMIZE_VERSION = v5.3.0
+YQ_VERSION = v4.40.5
+CROSSPLANE_VERSION = 1.14.6
+CRDDIFF_VERSION = v0.12.1
+
+export UP_VERSION := $(UP_VERSION)
+export UP_CHANNEL := $(UP_CHANNEL)
+
 -include build/makelib/k8s_tools.mk
+
+# uptest download and install
+UPTEST_LOCAL := $(TOOLS_HOST_DIR)/uptest-$(UPTEST_LOCAL_VERSION)
+
+$(UPTEST_LOCAL):
+	@$(INFO) installing uptest $(UPTEST_LOCAL)
+	@mkdir -p $(TOOLS_HOST_DIR)
+	@curl -fsSLo $(UPTEST_LOCAL) https://s3.us-west-2.amazonaws.com/crossplane.uptest.releases/$(UPTEST_LOCAL_CHANNEL)/$(UPTEST_LOCAL_VERSION)/bin/$(SAFEHOST_PLATFORM)/uptest || $(FAIL)
+	@chmod +x $(UPTEST_LOCAL)
+	@$(OK) installing uptest $(UPTEST_LOCAL)
 
 # Setup Images
 REGISTRY_ORGS ?= xpkg.upbound.io/upbound
 IMAGES = provider-terraform
+BATCH_PLATFORMS ?= linux_amd64,linux_arm64
+export BATCH_PLATFORMS := $(BATCH_PLATFORMS)
+
 -include build/makelib/imagelight.mk
 
 # ====================================================================================
@@ -110,11 +134,19 @@ CROSSPLANE_NAMESPACE = upbound-system
 
 # This target requires the following environment variables to be set:
 # - UPTEST_EXAMPLE_LIST, a comma-separated list of examples to test
-# - UPTEST_CLOUD_CREDENTIALS (optional), cloud credentials for the provider being tested, e.g. export UPTEST_CLOUD_CREDENTIALS=$(cat ~/.aws/credentials)
+# - UPTEST_CLOUD_CREDENTIALS (optional), multiple sets of AWS IAM User credentials specified as key=value pairs.
+#   The support keys are currently `DEFAULT` and `PEER`. So, an example for the value of this env. variable is:
+#   DEFAULT='[default]
+#   aws_access_key_id = REDACTED
+#   aws_secret_access_key = REDACTED'
+#   PEER='[default]
+#   aws_access_key_id = REDACTED
+#   aws_secret_access_key = REDACTED'
+#   The associated `ProviderConfig`s will be named as `default` and `peer`.
 # - UPTEST_DATASOURCE_PATH (optional), see https://github.com/upbound/uptest#injecting-dynamic-values-and-datasource
-uptest: $(UPTEST) $(KUBECTL) $(KUTTL)
+uptest: $(UPTEST_LOCAL) $(KUBECTL) $(KUTTL)
 	@$(INFO) running automated tests
-	@KUBECTL=$(KUBECTL) KUTTL=$(KUTTL) $(UPTEST) e2e "${UPTEST_EXAMPLE_LIST}" --data-source="${UPTEST_DATASOURCE_PATH}" --setup-script=cluster/test/setup.sh || $(FAIL)
+	@KUBECTL=$(KUBECTL) KUTTL=$(KUTTL) CROSSPLANE_NAMESPACE=$(CROSSPLANE_NAMESPACE) $(UPTEST_LOCAL) e2e "${UPTEST_EXAMPLE_LIST}" --data-source="${UPTEST_DATASOURCE_PATH}" --setup-script=cluster/test/setup.sh --default-conditions="Test" || $(FAIL)
 	@$(OK) running automated tests
 
 local-deploy: build controlplane.up local.xpkg.deploy.provider.$(PROJECT_NAME)

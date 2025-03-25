@@ -35,6 +35,16 @@ type StoreConfigStatus struct {
 	xpv1.ConditionedStatus `json:",inline"`
 }
 
+// GetCondition of this StoreConfigStatus.
+func (s *StoreConfigStatus) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	return s.ConditionedStatus.GetCondition(ct)
+}
+
+// SetConditions of this StoreConfigStatus.
+func (s *StoreConfigStatus) SetConditions(c ...xpv1.Condition) {
+	s.ConditionedStatus.SetConditions(c...)
+}
+
 // +kubebuilder:object:root=true
 
 // A StoreConfig configures how GCP controller should store connection details.
