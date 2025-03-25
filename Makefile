@@ -35,7 +35,7 @@ UPTEST_LOCAL_VERSION = v0.13.0
 UPTEST_LOCAL_CHANNEL = stable
 KUSTOMIZE_VERSION = v5.3.0
 YQ_VERSION = v4.40.5
-CROSSPLANE_VERSION = 1.17.6
+CROSSPLANE_VERSION = 1.17.1
 CRDDIFF_VERSION = v0.12.1
 
 export UP_VERSION := $(UP_VERSION)
@@ -114,7 +114,7 @@ dev: $(KIND) $(KUBECTL)
 	@$(KIND) create cluster --name=$(PROJECT_NAME)-dev
 	@$(KUBECTL) cluster-info --context kind-$(PROJECT_NAME)-dev
 	@$(INFO) Installing Crossplane CRDs
-	@$(KUBECTL) apply -k https://github.com/crossplane/crossplane//cluster?ref=master
+	@$(KUBECTL) apply -k https://github.com/crossplane/crossplane/cluster?ref=master
 	@$(INFO) Installing Provider CRDs
 	@$(KUBECTL) apply -R -f package/crds
 	@$(INFO) Starting Provider controllers
