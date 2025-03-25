@@ -264,7 +264,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		}
 
 	case v1beta1.ModuleSourceFlux:
-		url, err := c.getFluxArtefactUrl(ctx, cr.Spec.ForProvider.Module)
+		url, err := c.getFluxArtefactURL(ctx, cr.Spec.ForProvider.Module)
 		if err != nil {
 			return nil, errors.Wrap(err, errFluxArtefactModule)
 		}
@@ -373,7 +373,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	return &external{tf: tf, kube: c.kube}, errors.Wrap(tf.Workspace(ctx, meta.GetExternalName(cr)), errWorkspace)
 }
 
-func (c *connector) getFluxArtefactUrl(ctx context.Context, fluxSourceName string) (string, error) {
+func (c *connector) getFluxArtefactURL(ctx context.Context, fluxSourceName string) (string, error) {
 	regexResult := regexp.MustCompile(fmt.Sprintf(`(?i)^(%s|%s)::([^/]+)/(.+)$`, sourcev1.GitRepositoryKind, sourcev1beta2.OCIRepositoryKind))
 	matches := regexResult.FindStringSubmatch(fluxSourceName)
 	if len(matches) != 4 {
