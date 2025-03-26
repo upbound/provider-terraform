@@ -1,5 +1,8 @@
 # Terraform Provider
 
+> [!IMPORTANT]  
+> This provider is frozen at Terraform 1.5.7 and will not adopt any Terraform versions released under the BSL license. For newer capabilities, consider [provider-opentofu](https://github.com/upbound/provider-opentofu) instead.
+
 <div align="center">
 
 ![CI](https://github.com/upbound/provider-terraform/workflows/CI/badge.svg) [![GitHub release](https://img.shields.io/github/release/upbound/provider-terraform/all.svg?style=flat-square)](https://github.com/upbound/provider-terraform/releases) [![Go Report Card](https://goreportcard.com/badge/github.com/upbound/provider-terraform)](https://goreportcard.com/report/github.com/upbound/provider-terraform) [![Slack](https://slack.crossplane.io/badge.svg)](https://crossplane.slack.com/archives/C01TRKD4623) [![Twitter Follow](https://img.shields.io/twitter/follow/upbound_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=upbound_io&user_id=788180534543339520)
