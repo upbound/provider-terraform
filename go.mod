@@ -12,7 +12,7 @@ require (
 	github.com/hashicorp/go-getter v1.7.8
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/afero v1.14.0
-	go.uber.org/zap v1.26.0
+	go.uber.org/zap v1.27.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	k8s.io/api v0.29.4
 	k8s.io/apiextensions-apiserver v0.29.4
