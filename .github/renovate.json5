@@ -1,113 +1,137 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended",
-    "helpers:pinGitHubActionDigests",
-    ":semanticCommits"
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:recommended',
+    'helpers:pinGitHubActionDigests',
+    ':semanticCommits',
   ],
-  // We only want renovate to rebase PRs when they have conflicts,
-  // default "auto" mode is not required.
-  "rebaseWhen": "conflicted",
-  // The maximum number of PRs to be created in parallel
-  "prConcurrentLimit": 5,
-  // The branches renovate should target
-  "baseBranches": ["main"],
-  "ignorePaths": ["design/**"],
-  "postUpdateOptions": ["gomodTidy"],
-  // All PRs should have a label
-  "labels": ["automated"],
-  "customManagers": [
+  rebaseWhen: 'conflicted',
+  prConcurrentLimit: 5,
+  baseBranches: [
+    'main',
+  ],
+  ignorePaths: [
+    'design/**',
+  ],
+  postUpdateOptions: [
+    'gomodTidy',
+  ],
+  labels: [
+    'automated',
+  ],
+  customManagers: [
     {
-      "customType": "regex",
-      "description": "Bump Go version used in workflows",
-      "fileMatch": ["^\\.github\\/workflows\\/[^/]+\\.ya?ml$"],
-      "matchStrings": [
-        "GO_VERSION: '(?<currentValue>.*?)'\\n"
+      customType: 'regex',
+      description: 'Bump Go version used in workflows',
+      fileMatch: [
+        '^\\.github\\/workflows\\/[^/]+\\.ya?ml$',
       ],
-      "datasourceTemplate": "golang-version",
-      "depNameTemplate": "golang"
-    }, {
-      "customType": "regex",
-      "description": "Bump golangci-lint version in workflows and the Makefile",
-      "fileMatch": ["^\\.github\\/workflows\\/[^/]+\\.ya?ml$","^Makefile$"],
-      "matchStrings": [
+      matchStrings: [
+        "GO_VERSION: '(?<currentValue>.*?)'\\n",
+      ],
+      datasourceTemplate: 'golang-version',
+      depNameTemplate: 'golang',
+    },
+    {
+      customType: 'regex',
+      description: 'Bump golangci-lint version in workflows and the Makefile',
+      fileMatch: [
+        '^\\.github\\/workflows\\/[^/]+\\.ya?ml$',
+        '^Makefile$',
+      ],
+      matchStrings: [
         "GOLANGCI_VERSION: 'v(?<currentValue>.*?)'\\n",
-        "GOLANGCILINT_VERSION = (?<currentValue>.*?)\\n"
+        'GOLANGCILINT_VERSION = (?<currentValue>.*?)\\n',
       ],
-      "datasourceTemplate": "github-tags",
-      "depNameTemplate": "golangci/golangci-lint",
-      "extractVersionTemplate": "^v(?<version>.*)$"
-    }, {
-      "customType": "regex",
-      "description": "Bump helm version in the Makefile",
-      "fileMatch": ["^Makefile$"],
-      "matchStrings": [
-        "HELM3_VERSION = (?<currentValue>.*?)\\n"
-      ],
-      "datasourceTemplate": "github-tags",
-      "depNameTemplate": "helm/helm",
-    }, {
-      "customType": "regex",
-      "description": "Bump kind version in the Makefile",
-      "fileMatch": ["^Makefile$"],
-      "matchStrings": [
-        "KIND_VERSION = (?<currentValue>.*?)\\n"
-      ],
-      "datasourceTemplate": "github-tags",
-      "depNameTemplate": "kubernetes-sigs/kind",
-    }
-  ],
-  // PackageRules disabled below should be enabled in case of vulnerabilities
-  "vulnerabilityAlerts": {
-    "enabled": true
-  },
-  "osvVulnerabilityAlerts": true,
-  // Renovate evaluates all packageRules in order, so low priority rules should
-  // be at the beginning, high priority at the end
-  "packageRules": [
+      datasourceTemplate: 'github-tags',
+      depNameTemplate: 'golangci/golangci-lint',
+      extractVersionTemplate: '^v(?<version>.*)$',
+    },
     {
-      "description": "Only get Docker image updates every 2 weeks to reduce noise",
-      "matchDatasources": ["docker"],
-      "schedule": ["every 2 week on monday"],
+      customType: 'regex',
+      description: 'Bump helm version in the Makefile',
+      fileMatch: [
+        '^Makefile$',
+      ],
+      matchStrings: [
+        'HELM3_VERSION = (?<currentValue>.*?)\\n',
+      ],
+      datasourceTemplate: 'github-tags',
+      depNameTemplate: 'helm/helm',
+    },
+    {
+      customType: 'regex',
+      description: 'Bump kind version in the Makefile',
+      fileMatch: [
+        '^Makefile$',
+      ],
+      matchStrings: [
+        'KIND_VERSION = (?<currentValue>.*?)\\n',
+      ],
+      datasourceTemplate: 'github-tags',
+      depNameTemplate: 'kubernetes-sigs/kind',
+    },
+  ],
+  vulnerabilityAlerts: {
+    enabled: true,
+  },
+  osvVulnerabilityAlerts: true,
+  packageRules: [
+    {
+      description: 'Only get Docker image updates every 2 weeks to reduce noise',
+      matchDatasources: [
+        'docker',
+      ],
+      schedule: [
+        'every 2 week on monday',
+      ],
       enabled: true,
-    }, {
-      "description": "Ignore k8s.io/client-go older versions, they switched to semantic version and old tags are still available in the repo",
-      "matchDatasources": [
-        "go"
+    },
+    {
+      description: 'Ignore k8s.io/client-go older versions, they switched to semantic version and old tags are still available in the repo',
+      matchDatasources: [
+        'go',
       ],
-      "matchDepNames": [
-        "k8s.io/client-go"
+      matchDepNames: [
+        'k8s.io/client-go',
       ],
-      "allowedVersions": "<1.0",
-    }, {
-      "description": "Ignore k8s dependencies, should be updated on crossplane-runtime",
-      "matchDatasources": [
-        "go"
+      allowedVersions: '<1.0',
+    },
+    {
+      description: 'Ignore k8s dependencies, should be updated on crossplane-runtime',
+      matchDatasources: [
+        'go',
       ],
-      "matchPackagePrefixes": [
-        "k8s.io",
-        "sigs.k8s.io"
+      enabled: false,
+      matchPackageNames: [
+        'k8s.io{/,}**',
+        'sigs.k8s.io{/,}**',
       ],
-      "enabled": false,
-    },{
-      "description": "Only get dependency digest updates every month to reduce noise, except crossplane-runtime",
-      "excludePackageNames": ["github.com/crossplane/crossplane-runtime"],
-      "matchDatasources": [
-        "go"
+    },
+    {
+      description: 'Only get dependency digest updates every month to reduce noise, except crossplane-runtime',
+      matchDatasources: [
+        'go',
       ],
-      "matchUpdateTypes": [
-        "digest",
+      matchUpdateTypes: [
+        'digest',
       ],
-      "extends": ["schedule:monthly"],
-    }, {
-      "description": "Ignore oss-fuzz, it's not using tags, we'll stick to master",
-      "matchDepTypes": [
-        "action"
+      extends: [
+        'schedule:monthly',
       ],
-      "matchDepNames": [
-        "google/oss-fuzz"
+      matchPackageNames: [
+        '!github.com/crossplane/crossplane-runtime',
       ],
-      "enabled": false
-    }
-  ]
+    },
+    {
+      description: "Ignore oss-fuzz, it's not using tags, we'll stick to master",
+      matchDepTypes: [
+        'action',
+      ],
+      matchDepNames: [
+        'google/oss-fuzz',
+      ],
+      enabled: false,
+    },
+  ],
 }
