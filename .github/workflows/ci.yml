@@ -13,7 +13,7 @@ on:
   workflow_dispatch: {}
 
 env:
-  GO_VERSION: "1.22.12"
+  GO_VERSION: "1.23"
 
 jobs:
   detect-noop:
@@ -40,7 +40,7 @@ jobs:
 
       - name: Get modified CRDs
         id: modified-crds
-        uses: tj-actions/changed-files@039afcd1024c210363c9d3fc8fd07e1f3fcf2867 # v35.9.3 (breaks the 'Report native schema version changes' step on newer versions)
+        uses: tj-actions/changed-files@823fcebdb31bb35fdf2229d9f769b400309430d0 # v46.0.3 (breaks the 'Report native schema version changes' step on newer versions)
         with:
           files: |
             package/crds/**
@@ -69,7 +69,7 @@ jobs:
           submodules: true
 
       - name: Setup Go
-        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+        uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -81,7 +81,7 @@ jobs:
           echo "analysis_cache_key_int=$(make go.lint.analysiskey-interval)" >> $GITHUB_OUTPUT
 
       - name: Cache Linter Analysis
-        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
         id: cache-analysis
         with:
           path: ${{ steps.analysis_cache.outputs.analysis_cache }}
@@ -94,7 +94,7 @@ jobs:
 
       - name: Lint
         env:
-          GOLANGCI_LINT_CACHE: ${{ steps.go_cache.outputs.analysis_cache }}
+          GOLANGCI_LINT_CACHE: ${{ steps.analysis_cache.outputs.analysis_cache }}
           SKIP_LINTER_ANALYSIS: false
           RUN_BUILDTAGGER: true
           GOGC: "50"
@@ -117,7 +117,7 @@ jobs:
           submodules: true
 
       - name: Setup Go
-        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+        uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -142,7 +142,7 @@ jobs:
         run: git diff
 
       - name: Publish skipped resources CSV to Github
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: skipped_resources
           path: _output/skipped_resources.csv
@@ -167,7 +167,7 @@ jobs:
         run: git fetch --prune --unshallow
 
       - name: Setup Go
-        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+        uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -197,7 +197,7 @@ jobs:
         run: git fetch --prune --unshallow
 
       - name: Setup Go
-        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+        uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
         with:
           go-version: ${{ env.GO_VERSION }}
 
