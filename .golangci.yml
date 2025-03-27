@@ -1,12 +1,12 @@
 run:
-  deadline: 2m
-
-  skip-files:
-  - "zz_generated\\..+\\.go$"
+  timeout: 30m
 
 output:
   # colored-line-number|line-number|json|tab|checkstyle|code-climate, default is "colored-line-number"
-  format: colored-line-number
+  formats:
+    - format: colored-line-number
+  print-linter-name: true
+  show-stats: true
 
 linters-settings:
   errcheck:
@@ -18,18 +18,16 @@ linters-settings:
     # default is false: such cases aren't reported by default.
     check-blank: true
 
-    # [deprecated] comma-separated list of pairs of the form pkg:regex
-    # the regex is used to ignore names within pkg. (default "fmt:.*").
-    # see https://github.com/kisielk/errcheck#the-deprecated-method for details
-    ignore: fmt:.*,io/ioutil:^Read.*
+    # Updated to use exclude-functions instead of ignore
+    exclude-functions: fmt:.*,io/ioutil:^Read.*
 
   govet:
     # report about shadowed variables
     check-shadowing: false
 
-  golint:
-    # minimal confidence for issues, default is 0.8
-    min-confidence: 0.8
+  revive:
+    # confidence for issues, default is 0.8
+    confidence: 0.8
 
   gofmt:
     # simplify code: gofmt with `-s` option, true by default
@@ -38,15 +36,11 @@ linters-settings:
   goimports:
     # put imports beginning with prefix after 3rd-party packages;
     # it's a comma-separated list of prefixes
-    local-prefixes: github.com/upbound/provider-gcp
+    local-prefixes: github.com/upbound/provider-aws
 
   gocyclo:
     # minimal code complexity to report, 30 by default (but we recommend 10-20)
     min-complexity: 10
-
-  maligned:
-    # print struct with more effective memory layout or not, false by default
-    suggest-new: true
 
   dupl:
     # tokens count to trigger issue, 150 by default
@@ -61,13 +55,6 @@ linters-settings:
   lll:
     # tab width in spaces. Default to 1.
     tab-width: 1
-
-  unused:
-    # treat code as a program (not a library) and report unused exported identifiers; default is false.
-    # XXX: if you enable this setting, unused will report a lot of false-positives in text editors:
-    # if it's called for subdir of a project it can't find funcs usages. All text editor integrations
-    # with golangci-lint call it on a directory with the changed file.
-    check-exported: false
 
   unparam:
     # Inspect exported functions, default is false. Set to true if no external program/library imports your code.
@@ -104,17 +91,18 @@ linters-settings:
 
 linters:
   enable:
-    - megacheck
     - govet
     - gocyclo
     - gocritic
-    - interfacer
     - goconst
     - goimports
     - gofmt  # We enable this as well as goimports for its simplify mode.
+    - gosimple
     - prealloc
-    - golint
+    - revive
+    - staticcheck
     - unconvert
+    - unused
     - misspell
     - nakedret
 
@@ -125,6 +113,10 @@ linters:
 
 
 issues:
+  # Added the exclude-files configuration here to replace run.skip-files
+  exclude-files:
+   - "zz_generated\\..+\\.go$"
+  
   # Excluding configuration per-path and per-linter
   exclude-rules:
     # Exclude some linters from running on tests files.
