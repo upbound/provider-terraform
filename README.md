@@ -1,5 +1,7 @@
 # Terraform Provider
 
+⚠️ **DEPRECATION NOTICE:** **This repository is archived.** All active development and future updates have moved to the new repo [crossplane-contrib/provider-terraform](https://github.com/crossplane-contrib/provider-terraform). Please use that repo for any new contributions, bug reports, or feature requests.
+
 > [!IMPORTANT]  
 > This provider is frozen at Terraform 1.5.7 and will not adopt any Terraform versions released under the BSL license. For newer capabilities, consider [provider-opentofu](https://github.com/upbound/provider-opentofu) instead.
 
