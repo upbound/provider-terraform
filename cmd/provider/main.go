@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -49,9 +50,17 @@ import (
 	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/upbound/provider-terraform/apis"
 	"github.com/upbound/provider-terraform/apis/v1beta1"
+	"github.com/upbound/provider-terraform/internal/bootcheck"
 	workspace "github.com/upbound/provider-terraform/internal/controller"
 	"github.com/upbound/provider-terraform/internal/controller/features"
 )
+
+func init() {
+	err := bootcheck.CheckEnv()
+	if err != nil {
+		log.Fatalf("bootcheck failed. provider will not be started: %v", err)
+	}
+}
 
 func main() {
 	var (
