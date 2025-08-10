@@ -10,6 +10,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-getter v1.7.8
+	github.com/hashicorp/go-getter/v2 v2.2.3
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/afero v1.14.0
 	go.uber.org/zap v1.27.0
