@@ -75,4 +75,5 @@ func init() {
 	SchemeBuilder.Register(&ProviderConfig{}, &ProviderConfigList{})
 	SchemeBuilder.Register(&ProviderConfigUsage{}, &ProviderConfigUsageList{})
 	SchemeBuilder.Register(&Workspace{}, &WorkspaceList{})
+	SchemeBuilder.Register(&ClusterProviderConfig{}, &ClusterProviderConfigList{})
 }
