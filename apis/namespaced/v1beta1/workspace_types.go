@@ -18,6 +18,7 @@ package v1beta1
 
 import (
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
 	extensionsV1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -166,8 +167,8 @@ type WorkspaceObservation struct {
 
 // A WorkspaceSpec defines the desired state of a Workspace.
 type WorkspaceSpec struct {
-	xpv1.ResourceSpec `json:",inline"`
-	ForProvider       WorkspaceParameters `json:"forProvider"`
+	xpv2.ManagedResourceSpec `json:",inline"`
+	ForProvider              WorkspaceParameters `json:"forProvider"`
 }
 
 // A WorkspaceStatus represents the observed state of a Workspace.

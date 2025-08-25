@@ -34,7 +34,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/customresourcesgate"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/statemetrics"
-	"github.com/upbound/provider-terraform/internal/features"
 	zapuber "go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
@@ -59,6 +58,7 @@ import (
 	"github.com/upbound/provider-terraform/internal/bootcheck"
 	clusterworkspace "github.com/upbound/provider-terraform/internal/controller/cluster"
 	namespacedworkspace "github.com/upbound/provider-terraform/internal/controller/namespaced"
+	"github.com/upbound/provider-terraform/internal/features"
 )
 
 func init() {

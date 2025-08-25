@@ -126,7 +126,7 @@ func TestCollect(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			gc := NewGarbageCollector(tc.fields.kube, tc.fields.parentdDir, WithFs(tc.fields.fs))
-			err := gc.collect(tc.args.ctx)
+			err := gc.collect(tc.args.ctx, false)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("gc.collect(...): -want error, +got error:\n%s", diff)
 			}
