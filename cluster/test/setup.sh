@@ -29,12 +29,14 @@ if [[ -n "${UPTEST_CLOUD_CREDENTIALS:-}" ]]; then
   if [[ -n "${AWS:-}" ]]; then
       echo "Creating cloud credentials secret for AWS..."
       ${KUBECTL} -n upbound-system create secret generic aws-creds --from-literal=credentials="${AWS}" --dry-run=client -o yaml | ${KUBECTL} apply -f -
-      ${KUBECTL} apply -f "${scriptdir}/../../examples/providerconfig-aws.yaml"
+      ${KUBECTL} apply -f "${scriptdir}/../../examples/cluster/providerconfig-aws.yaml"
+      ${KUBECTL} apply -f "${scriptdir}/../../examples/namespaced/clusterproviderconfig-aws.yaml"
   fi
 
   if [[ -n "${GCP:-}" ]]; then
       echo "Creating cloud credentials secret for GCP..."
       ${KUBECTL} -n upbound-system create secret generic gcp-creds --from-literal=credentials="${GCP}" --dry-run=client -o yaml | ${KUBECTL} apply -f -
-      ${KUBECTL} apply -f "${scriptdir}/../../examples/providerconfig.yaml"
+      ${KUBECTL} apply -f "${scriptdir}/../../examples/cluster/providerconfig.yaml"
+      ${KUBECTL} apply -f "${scriptdir}/../../examples/namespaced/clusterproviderconfig.yaml"
   fi
 fi

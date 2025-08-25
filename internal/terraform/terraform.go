@@ -35,7 +35,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/pkg/errors"
 )
 

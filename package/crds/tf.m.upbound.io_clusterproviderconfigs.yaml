@@ -4,18 +4,18 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: providerconfigs.tf.upbound.io
+  name: clusterproviderconfigs.tf.m.upbound.io
 spec:
-  group: tf.upbound.io
+  group: tf.m.upbound.io
   names:
     categories:
     - crossplane
     - provider
     - terraform
-    kind: ProviderConfig
-    listKind: ProviderConfigList
-    plural: providerconfigs
-    singular: providerconfig
+    kind: ClusterProviderConfig
+    listKind: ClusterProviderConfigList
+    plural: clusterproviderconfigs
+    singular: clusterproviderconfig
   scope: Cluster
   versions:
   - additionalPrinterColumns:
@@ -29,7 +29,7 @@ spec:
     name: v1beta1
     schema:
       openAPIV3Schema:
-        description: A ProviderConfig configures a Terraform provider.
+        description: A ClusterProviderConfig configures a Terraform provider.
         properties:
           apiVersion:
             description: |-

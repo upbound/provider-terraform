@@ -1,0 +1,32 @@
+---
+apiVersion: tf.m.upbound.io/v1beta1
+kind: ClusterProviderConfig
+metadata:
+  name: aws-eu-west-1-cluster
+  namespace: upbound-system
+spec:
+  credentials:
+  - filename: aws-creds.ini
+    source: Secret
+    secretRef:
+      namespace: upbound-system
+      name: aws-creds
+      key: credentials
+  configuration: |
+      terraform {
+        required_providers {
+          aws = {
+            source = "hashicorp/aws"
+            version = "5.6.1"
+          }
+        }
+        backend "kubernetes" {
+          secret_suffix     = "providerconfig-aws-eu-west-1-cluster"
+          namespace         = "upbound-system"
+          in_cluster_config = true
+        }
+      }
+      provider "aws" {
+        shared_credentials_files = ["${path.module}/aws-creds.ini"]
+        region = "us-east-2"
+      }

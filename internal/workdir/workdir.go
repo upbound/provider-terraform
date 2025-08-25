@@ -22,13 +22,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/upbound/provider-terraform/apis/v1beta1"
+	clusterv1beta1 "github.com/upbound/provider-terraform/apis/cluster/v1beta1"
+	namespacedv1beta1 "github.com/upbound/provider-terraform/apis/namespaced/v1beta1"
 )
 
 // Error strings.
@@ -87,14 +88,14 @@ func NewGarbageCollector(c client.Client, parentDir string, o ...GarbageCollecto
 }
 
 // Run the garbage collector. Blocks until the supplied context is done.
-func (gc *GarbageCollector) Run(ctx context.Context) {
+func (gc *GarbageCollector) Run(ctx context.Context, namespaced bool) {
 	t := time.NewTicker(gc.interval)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			if err := gc.collect(ctx); err != nil {
+			if err := gc.collect(ctx, namespaced); err != nil {
 				gc.log.Info("Garbage collection failed", "error", err)
 			}
 		}
@@ -106,15 +107,25 @@ func isUUID(u string) bool {
 	return err == nil
 }
 
-func (gc *GarbageCollector) collect(ctx context.Context) error {
-	l := &v1beta1.WorkspaceList{}
-	if err := gc.kube.List(ctx, l); err != nil {
-		return errors.Wrap(err, errListWorkspaces)
-	}
-
+func (gc *GarbageCollector) collect(ctx context.Context, namespaced bool) error {
 	exists := map[string]bool{}
-	for _, ws := range l.Items {
-		exists[string(ws.GetUID())] = true
+
+	if namespaced {
+		l := &namespacedv1beta1.WorkspaceList{}
+		if err := gc.kube.List(ctx, l); err != nil {
+			return errors.Wrap(err, errListWorkspaces)
+		}
+		for _, ws := range l.Items {
+			exists[string(ws.GetUID())] = true
+		}
+	} else {
+		l := &clusterv1beta1.WorkspaceList{}
+		if err := gc.kube.List(ctx, l); err != nil {
+			return errors.Wrap(err, errListWorkspaces)
+		}
+		for _, ws := range l.Items {
+			exists[string(ws.GetUID())] = true
+		}
 	}
 	fis, err := gc.fs.ReadDir(gc.parentDir)
 	if err != nil {
