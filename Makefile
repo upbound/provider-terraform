@@ -24,13 +24,10 @@ GO111MODULE = on
 # ====================================================================================
 # Setup Kubernetes tools
 
-# Uncomment below to override the versions from the build module
-#KIND_VERSION = v0.27.0
+KIND_VERSION = v0.29.0
 UP_VERSION = v0.34.2
 UP_CHANNEL = stable
 UPTEST_VERSION = v1.1.2
-UPTEST_LOCAL_VERSION = v0.13.0
-UPTEST_LOCAL_CHANNEL = stable
 KUSTOMIZE_VERSION = v5.3.0
 YQ_VERSION = v4.40.5
 CROSSPLANE_VERSION = 1.17.1
@@ -40,16 +37,6 @@ export UP_VERSION := $(UP_VERSION)
 export UP_CHANNEL := $(UP_CHANNEL)
 
 -include build/makelib/k8s_tools.mk
-
-# uptest download and install
-UPTEST_LOCAL := $(TOOLS_HOST_DIR)/uptest-$(UPTEST_LOCAL_VERSION)
-
-$(UPTEST_LOCAL):
-	@$(INFO) installing uptest $(UPTEST_LOCAL)
-	@mkdir -p $(TOOLS_HOST_DIR)
-	@curl -fsSLo $(UPTEST_LOCAL) https://s3.us-west-2.amazonaws.com/crossplane.uptest.releases/$(UPTEST_LOCAL_CHANNEL)/$(UPTEST_LOCAL_VERSION)/bin/$(SAFEHOST_PLATFORM)/uptest || $(FAIL)
-	@chmod +x $(UPTEST_LOCAL)
-	@$(OK) installing uptest $(UPTEST_LOCAL)
 
 # Setup Images
 REGISTRY_ORGS ?= xpkg.upbound.io/upbound
