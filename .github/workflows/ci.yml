@@ -40,7 +40,7 @@ jobs:
 
       - name: Get modified CRDs
         id: modified-crds
-        uses: tj-actions/changed-files@823fcebdb31bb35fdf2229d9f769b400309430d0 # v46.0.3 (breaks the 'Report native schema version changes' step on newer versions)
+        uses: tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c # v46.0.5 (breaks the 'Report native schema version changes' step on newer versions)
         with:
           files: |
             package/crds/**
