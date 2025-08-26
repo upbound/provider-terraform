@@ -13,3 +13,6 @@ metadata:
       Upbound. Available resources and their fields can be found in the [Upbound
       Marketplace](https://marketplace.upbound.io/providers/upbound/provider-terraform).
     friendly-name.meta.crossplane.io: Provider Terraform
+spec:
+  capabilities:
+    - SafeStart
