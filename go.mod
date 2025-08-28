@@ -4,6 +4,7 @@ go 1.24.6
 
 require (
 	github.com/MakeNowJust/heredoc v1.0.0
+	github.com/MakeNowJust/heredoc/v2 v2.0.1
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/crossplane/crossplane-runtime/v2 v2.0.0
 	github.com/crossplane/crossplane-tools v0.0.0-20250731192036-00d407d8b7ec
